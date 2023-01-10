@@ -89,7 +89,12 @@ Once you are satisfied with your settings press the `Add Shade` button.  This wi
 
 * **Save Shade** - Saves the current settings for the shade
 * **Pair Shade** - Allows you to pair the shade with the somfy motor
-* **Link Remote** - Links the channel on your Somfy remote to the shade.  This ensures the position of the shade can be known at all times.  You can link up to 5 channels to each shade.  Beyond that you probable need to simplify your life because you have remotes strewn everywhere.
+* **Link Remote** - Links the channel on your Somfy remote to the shade.  This ensures the position of the shade can be known at all times.  You can link up to 5 channels to each shade.  Beyond that you probably need to simplify your life because you have remotes strewn everywhere.  Honestly you should get checked.
+
+### Pairing Your Shade
+In order to control your shade motor you will first need to pair it with the motor.  To do this navigate to the shade editor under the config menus by clicking on the Somfy tab.  A listing of all the shades you have defined will be listed on this tab.  On left side of the shade in the list there will be an edit pencil.  You guessed it you should click on it to bring up the shade editor window.  If you just added the shade and pressed the `Add Shade` button you should already be here.
+
+Click the `Pair Shade` button to bring up the pairing screen.  This will contain instructions on how to put the motor into pairing mode so you can proceed.  After the motor jogs press the `Prog` button and the motor should once again jog to tell you it was successful.  There is no communication from the motor to the remotes so I am relying on you to verify that the motor jogged after pressing the `Prog` button.  If it didn't then don't say it did.  You will have to go through the unpairing process if you aren't honest about it.
 
 
 
