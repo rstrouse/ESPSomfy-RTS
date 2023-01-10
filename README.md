@@ -87,9 +87,9 @@ The `Up Time` and `Down Time` fields are the number of milliseconds it takes for
 
 Once you are satisfied with your settings press the `Add Shade` button.  This will change the screen to include more button functions.
 
-* ** Save Shade ** - Saves the current settings for the shade
-* ** Pair Shade ** - Allows you to pair the shade with the somfy motor
-* ** Link Remote ** - Links the channel on your Somfy remote to the shade.  This ensures the position of the shade can be known at all times.  You can link up to 5 channels to each shade.  Beyond that you probable need to simplify your life because you have remotes strewn everywhere.
+* **Save Shade** - Saves the current settings for the shade
+* **Pair Shade** - Allows you to pair the shade with the somfy motor
+* **Link Remote** - Links the channel on your Somfy remote to the shade.  This ensures the position of the shade can be known at all times.  You can link up to 5 channels to each shade.  Beyond that you probable need to simplify your life because you have remotes strewn everywhere.
 
 
 
