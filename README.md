@@ -1,5 +1,5 @@
 # SomfyController
-A controller for Somfy RTS blinds
+A controller for Somfy RTS blinds and shades
 
 Most of my home is automated and one of the more annoying aspects are three very expensive roller shades that still don't have any type of automation attached to them.  So I went searching for libraries that could automate my shades.  Not only automate them but interact with them but manage their position while still allowing me to use the Telis remotes.
 
@@ -53,7 +53,49 @@ Select your WiFi network from the list and enter the passphrase and hit save.  T
 ![image](https://user-images.githubusercontent.com/47839015/211456420-04218ff9-2800-4545-a5a8-389e0910b78f.png)
 
 ### General Settings
-Once you have connected to your local network you can now configure the rest of the software.  
+Once you have connected to your local network you can now configure the rest of the software.  The first thing you should do is set up the general tab for your controller.  There are a few options here for the server.  This includes the host name of your Somfy server as well as the time zone and whether the server should announce iself over Universal Plug & Play.  If you have isolated the device on your network you can choos a timeserver that is local to your network.  This will ensure time logs are in sync.
+
+![image](https://user-images.githubusercontent.com/47839015/211621368-6f405935-7b5a-4065-80df-40b4e1113174.png)
+
+### Somfy Transceiver Settings
+There are two parts of your shade setup that need to be configured.  The first is to set up the transceiver so that it can speak with your somfy remotes and shades.  You will find the transceiver settings under the configuration (gears menu) on the Somfy Tab.  You should only need to configure the transceiver once but it is important that the settings are correct.
+
+First select the radio type.  This software supports either the 56-BIT Somfy remotes or the 80-BIT Somfy remotes.  It will not support both at the same time.  Maybe at some point I will figure out a way to support both protocols at the same time but for now spen another 10 bucks and build another device if you need both.  If you do not know which radio type you have select 56-BIT for now.  If we cannot hear your existing remotes in a later step you can come back and change it.
+
+While you were hooking up your hardware above you selected the ESP32 gpio pins that are to be used for the transceiver.  You simply need to match these with the pins you selected.  It will default to the configuration outlined above.
+
+There are some radio configuration options supplied as well.  These determine how well the software can hear your remotes and how loud it will speak when talking to your motors.  The `RX Bandwidth` and `Frequency Deviation` focus on the receiving side of the transceiver.  `RX Bandwidth` refers to how big the transceiver's ear is and the `Frequency Deviation` refers to how much noise it can filter out.  Unless you are having issues with competing signals or you want to reduce the range then leave these at 812.5kHz and 47.6kHz respectively.  If you are a radio head and not just somebody who has listened to the band on occasion then these settings sould be familiar.  The base frequency for the radio is already tuned to 433.42mHz carrier frequency.
+
+The `TX Power` determines how loud the transceiver shouts at the motors.  You can leave this at 12dBm unless your transceiver is one of the ones that only support 10dBm.  Either way this range is much further than the typical somfy remote.
+
+Once you are satisfied with your settings press the Save Radio button then press done.  We can now set up our shades.
+
+### Somfy Shades
+To add a shade click the Add Shade button on the Somfy Tab under the configuration menu.  This will bring up a screen that allows you to set the configuration for the shade.  The software supports up to 32 shades each with up to 5 linked remotes.  If you need more than that you can modify the SOMFY_MAX_SHADES and/or the SOMFY_MAX_LINKED_REMOTES defines in the Somfy.h file or stop being so cheap and spend another 10 bucks for a second server.
+
+At this point it is probably beneficial to provide a little bit of a glossary.
+* **Shade** - The physical Somfy motor that drives the covering.
+* **Remote** - A physical device such as a Telis channel that is used to control the said motor.
+* **Linked Remote** - A remote that is used to control a particular shade and the Somfy Server knows about.  The server needs to know about these so that if a button is pressed on an external remote it knows what the current position is of the shade.
+* **Pairing** - The process of linking the defined shade in this software so it can control the shade.
+
+You must provide up to 20 characters for the name of the shade.  The Remote Address is expected to be unique for all known addresses and is generated from the MAC address of your ESP32.  This can be any value so long as it is unique.  Change it at will but did I mention that it must be unique and the algortithm to calculate a new address only makes sure the address is unique among all the addresses that the Somfy Server already knows about.
+
+The `Up Time` and `Down Time` fields are the number of milliseconds it takes for the shade to travel from the down position to the up position and vice versa.  This value is provided in milliseconds so if you are counting the number of seconds it takes 10 seconds = 10000 milliseconds.  So if it takes 9.5 seconds to go from full down to full up then that would be 9500 milliseconds.  Keep in mind the up time and the down time can be different depending on the weight of the fabric.  Bear in mind you can change these values at any time in the future.
+
+![image](https://user-images.githubusercontent.com/47839015/211648678-1e148fb9-2deb-4511-a05b-73c2938b70d5.png)
+
+Once you are satisfied with your settings press the `Add Shade` button.  This will change the screen to include more button functions.
+
+* ** Save Shade ** - Saves the current settings for the shade
+* ** Pair Shade ** - Allows you to pair the shade with the somfy motor
+* ** Link Remote ** - Links the channel on your Somfy remote to the shade.  This ensures the position of the shade can be known at all times.  You can link up to 5 channels to each shade.  Beyond that you probable need to simplify your life because you have remotes strewn everywhere.
+
+
+
+
+
+
 
 
 
