@@ -81,7 +81,7 @@ At this point it is probably beneficial to provide a little bit of a glossary.
 
 You must provide up to 20 characters for the name of the shade.  The Remote Address is expected to be unique for all known addresses and is generated from the MAC address of your ESP32.  This can be any value so long as it is unique.  Change it at will but did I mention that it must be unique and the algortithm to calculate a new address only makes sure the address is unique among all the addresses that the Somfy Server already knows about.
 
-The `Up Time` and `Down Time` fields are the number of milliseconds it takes for the shade to travel from the down position to the up position and vice versa.  This value is provided in milliseconds so if you are counting the number of seconds it takes 10 seconds = 10000 milliseconds.  So if it takes 9.5 seconds to go from full down to full up then that would be 9500 milliseconds.  Keep in mind the up time and the down time can be different depending on the weight of the fabric.  Bear in mind you can change these values at any time in the future.
+The `Up Time` and `Down Time` fields are the number of milliseconds it takes for the shade to travel from the down position to the up position and vice versa.  This value is provided in milliseconds so if you are counting the number of seconds it takes 10 seconds = 10000 milliseconds.  So if it takes 9.5 seconds to go from full down to full up then that would be 9500 milliseconds.  Keep in mind the up time and the down time can be different depending on the weight of the fabric and you can make adjustments these values at any time in the future.
 
 ![image](https://user-images.githubusercontent.com/47839015/211648678-1e148fb9-2deb-4511-a05b-73c2938b70d5.png)
 
