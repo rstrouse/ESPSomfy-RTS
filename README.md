@@ -13,9 +13,9 @@ Originally I bought a spring type transceiver module and could not figure out wh
 Your first step is to connect your transceiver to your ESP32.  I did this with the use of some dupont connections for now but will be coming up with a cleaner setup and project enclosure.  Next you will want to install the firmware on your ESP32 and configure the radio to match your hardware connections.
 
 ### Required Hardware
-1 - ESP32 Module
-1 - CC1101 Transceiver Module
-8 - Dupont female/female connectors
+* 1 - ESP32 Module
+* 1 - CC1101 Transceiver Module
+* 8 - Dupont female/female connectors
 
 ### Assembling the Hardware
 You will need an ESP32 module.  I used an ESP32S-WROOM-32 deevelopment board for my project.  The included binary is compiled using this board.  You will also need a CC1101 transceiver module.  Like I explained earlier I bought several of these and they all work great.  I have the blue ones with 10 pins, green ones with 8 pins, and even blue ones with 8 pins.  The 10 pin versions simply have the VCC and ground pins duplicated.
