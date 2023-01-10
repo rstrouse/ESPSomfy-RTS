@@ -1,0 +1,1361 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="main.css" type="text/css" />
+    <link rel="stylesheet" href="icons.css" type="text/css" />
+    <script>
+        //00010000000001010010
+        //
+        //010010101001000001000011
+        function setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.00.1'; }
+        // 1 Black: GND
+        // 2 Red: VCC           3v3
+        // 3 Purple: GDO0 - TX  GPIO22
+        // 4 Blue: CSN          GPIO5
+        // 5 Brown: SCK         GPIO18
+        // 6 Green: MOSI        GPIO23
+        // 7 Orange: MISO       GPIO19
+        // 8 Yellow: GD02 - RX  GPIO21
+        // GDO differences
+        // 3 Purple GDO0 - TX   GPIO27
+        // 8 Yellow GDO2 - RX   GPIO13
+        Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
+        Number.prototype.fmt = function (format, empty) {
+            if (isNaN(this)) return empty || '';
+            if (typeof format === 'undefined') return this.toString();
+            let isNegative = this < 0;
+            let tok = ['#', '0'];
+            let pfx = '', sfx = '', fmt = format.replace(/[^#\.0\,]/g, '');
+            let dec = fmt.lastIndexOf('.') > 0 ? fmt.length - (fmt.lastIndexOf('.') + 1) : 0,
+                fw = '', fd = '', vw = '', vd = '', rw = '', rd = '';
+            let val = String(Math.abs(this).round(dec));
+            let ret = '', commaChar = ',', decChar = '.';
+            for (var i = 0; i < format.length; i++) {
+                let c = format.charAt(i);
+                if (c === '#' || c === '0' || c === '.' || c === ',')
+                    break;
+                pfx += c;
+            }
+            for (let i = format.length - 1; i >= 0; i--) {
+                let c = format.charAt(i);
+                if (c === '#' || c === '0' || c === '.' || c === ',')
+                    break;
+                sfx = c + sfx;
+            }
+            if (dec > 0) {
+                let dp = val.lastIndexOf('.');
+                if (dp === -1) {
+                    val += '.'; dp = 0;
+                }
+                else
+                    dp = val.length - (dp + 1);
+                while (dp < dec) {
+                    val += '0';
+                    dp++;
+                }
+                fw = fmt.substring(0, fmt.lastIndexOf('.'));
+                fd = fmt.substring(fmt.lastIndexOf('.') + 1);
+                vw = val.substring(0, val.lastIndexOf('.'));
+                vd = val.substring(val.lastIndexOf('.') + 1);
+                let ds = val.substring(val.lastIndexOf('.'), val.length);
+                for (let i = 0; i < fd.length; i++) {
+                    if (fd.charAt(i) === '#' && vd.charAt(i) !== '0') {
+                        rd += vd.charAt(i);
+                        continue;
+                    } else if (fd.charAt(i) === '#' && vd.charAt(i) === '0') {
+                        var np = vd.substring(i);
+                        if (np.match('[1-9]')) {
+                            rd += vd.charAt(i);
+                            continue;
+                        }
+                        else
+                            break;
+                    }
+                    else if (fd.charAt(i) === '0' || fd.charAt(i) === '#')
+                        rd += vd.charAt(i);
+                }
+                if (rd.length > 0) rd = decChar + rd;
+            }
+            else {
+                fw = fmt;
+                vw = val;
+            }
+            var cg = fw.lastIndexOf(',') >= 0 ? fw.length - fw.lastIndexOf(',') - 1 : 0;
+            var nw = Math.abs(Math.floor(this.round(dec)));
+            if (!(nw === 0 && fw.substr(fw.length - 1) === '#') || fw.substr(fw.length - 1) === '0') {
+                var gc = 0;
+                for (let i = vw.length - 1; i >= 0; i--) {
+                    rw = vw.charAt(i) + rw;
+                    gc++;
+                    if (gc === cg && i !== 0) {
+                        rw = commaChar + rw;
+                        gc = 0;
+                    }
+                }
+                if (fw.length > rw.length) {
+                    var pstart = fw.indexOf('0');
+                    if (pstart > 0) {
+                        var plen = fw.length - pstart;
+                        var pos = fw.length - rw.length - 1;
+                        while (rw.length < plen) {
+                            let pc = fw.charAt(pos);
+                            if (pc === ',') pc = commaChar;
+                            rw = pc + rw;
+                            pos--;
+                        }
+                    }
+                }
+            }
+            if (isNegative) rw = '-' + rw;
+            if (rd.length === 0 && rw.length === 0) return '';
+            return pfx + rw + rd + sfx;
+        };
+        var timeZones = [
+            { city: "Africa/Abidjan", code: "GMT0" },
+            { city: "Africa/Addis_Ababa", code: "EAT-3" },
+            { city: "Africa/Algiers", code: "CET-1" },
+            { city: "Africa/Bangui", code: "WAT-1" },
+            { city: "Africa/Blantyre", code: "CAT-2" },
+            { city: "Africa/Cairo", code: "EET-2" },
+            { city: "Africa/Casablanca", code: "<+01>-1" },
+            { city: "Africa/Ceuta", code: "CET-1CEST,M3.5.0,M10.5.0/3" },
+            { city: "Africa/Johannesburg", code: "SAST-2" },
+            { city: "America/Adak", code: "HST10HDT,M3.2.0,M11.1.0" },
+            { city: "America/Anchorage", code: "AKST9AKDT,M3.2.0,M11.1.0" },
+            { city: "America/Antigua", code: "AST4" },
+            { city: "America/Araguaina", code: "<-03>3" },
+            { city: "America/Asuncion", code: "<-04>4<-03>,M10.1.0/0,M3.4.0/0" },
+            { city: "America/Bahia_Banderas", code: "CST6CDT,M4.1.0,M10.5.0" },
+            { city: "America/Belize", code: "CST6" },
+            { city: "America/Boa_Vista", code: "<-04>4" },
+            { city: "America/Bogota", code: "<-05>5" },
+            { city: "America/Boise", code: "MST7MDT,M3.2.0,M11.1.0" },
+            { city: "America/Cancun", code: "EST5" },
+            { city: "America/Chicago", code: "CST6CDT,M3.2.0,M11.1.0" },
+            { city: "America/Chihuahua", code: "MST7MDT,M4.1.0,M10.5.0" },
+            { city: "America/Creston", code: "MST7" },
+            { city: "America/Detroit", code: "EST5EDT,M3.2.0,M11.1.0" },
+            { city: "America/Glace_Bay", code: "AST4ADT,M3.2.0,M11.1.0" },
+            { city: "America/Godthab", code: "<-03>3<-02>,M3.5.0/-2,M10.5.0/-1" },
+            { city: "America/Havana", code: "CST5CDT,M3.2.0/0,M11.1.0/1" },
+            { city: "America/Los_Angeles", code: "PST8PDT,M3.2.0,M11.1.0" },
+            { city: "America/Miquelon", code: "<-03>3<-02>,M3.2.0,M11.1.0" },
+            { city: "America/Noronha", code: "<-02>2" },
+            { city: "America/Santiago", code: "<-04>4<-03>,M9.1.6/24,M4.1.6/24" },
+            { city: "America/Scoresbysund", code: "<-01>1<+00>,M3.5.0/0,M10.5.0/1" },
+            { city: "America/St_Johns", code: "NST3:30NDT,M3.2.0,M11.1.0" },
+            { city: "Antarctica/Casey", code: "<+11>-11" },
+            { city: "Antarctica/Davis", code: "<+07>-7" },
+            { city: "Antarctica/DumontDUrville", code: "<+10>-10" },
+            { city: "Antarctica/Macquarie", code: "AEST-10AEDT,M10.1.0,M4.1.0/3" },
+            { city: "Antarctica/Mawson", code: "<+05>-5" },
+            { city: "Antarctica/McMurdo", code: "NZST-12NZDT,M9.5.0,M4.1.0/3" },
+            { city: "Antarctica/Syowa", code: "<+03>-3" },
+            { city: "Antarctica/Troll", code: "<+00>0<+02>-2,M3.5.0/1,M10.5.0/3" },
+            { city: "Antarctica/Vostok", code: "<+06>-6" },
+            { city: "Asia/Amman", code: "EET-2EEST,M2.5.4/24,M10.5.5/1" },
+            { city: "Asia/Anadyr", code: "<+12>-12" },
+            { city: "Asia/Baku", code: "<+04>-4" },
+            { city: "Asia/Beirut", code: "EET-2EEST,M3.5.0/0,M10.5.0/0" },
+            { city: "Asia/Brunei", code: "<+08>-8" },
+            { city: "Asia/Chita", code: "<+09>-9" },
+            { city: "Asia/Colombo", code: "<+0530>-5:30" },
+            { city: "Asia/Damascus", code: "EET-2EEST,M3.5.5/0,M10.5.5/0" },
+            { city: "Asia/Famagusta", code: "EET-2EEST,M3.5.0/3,M10.5.0/4" },
+            { city: "Asia/Gaza", code: "EET-2EEST,M3.4.4/48,M10.5.5/1" },
+            { city: "Asia/Hong_Kong", code: "HKT-8" },
+            { city: "Asia/Jakarta", code: "WIB-7" },
+            { city: "Asia/Jayapura", code: "WIT-9" },
+            { city: "Asia/Jerusalem", code: "IST-2IDT,M3.4.4/26,M10.5.0" },
+            { city: "Asia/Kabul", code: "<+0430>-4:30" },
+            { city: "Asia/Karachi", code: "PKT-5" },
+            { city: "Asia/Kathmandu", code: "<+0545>-5:45" },
+            { city: "Asia/Kolkata", code: "IST-5:30" },
+            { city: "Asia/Macau", code: "CST-8" },
+            { city: "Asia/Makassar", code: "WITA-8" },
+            { city: "Asia/Manila", code: "PST-8" },
+            { city: "Asia/Pyongyang", code: "KST-9" },
+            { city: "Asia/Tehran", code: "<+0330>-3:30<+0430>,J79/24,J263/24" },
+            { city: "Asia/Tokyo", code: "JST-9" },
+            { city: "Asia/Yangon", code: "<+0630>-6:30" },
+            { city: "Atlantic/Canary", code: "WET0WEST,M3.5.0/1,M10.5.0" },
+            { city: "Atlantic/Cape_Verde", code: "<-01>1" },
+            { city: "Australia/Adelaide", code: "ACST-9:30ACDT,M10.1.0,M4.1.0/3" },
+            { city: "Australia/Brisbane", code: "AEST-10" },
+            { city: "Australia/Darwin", code: "ACST-9:30" },
+            { city: "Australia/Eucla", code: "<+0845>-8:45" },
+            { city: "Australia/Lord_Howe", code: "<+1030>-10:30<+11>-11,M10.1.0,M4.1.0" },
+            { city: "Australia/Perth", code: "AWST-8" },
+            { city: "Etc/GMT+10", code: "<-10>10" },
+            { city: "Etc/GMT+11", code: "<-11>11" },
+            { city: "Etc/GMT+12", code: "<-12>12" },
+            { city: "Etc/GMT+6", code: "<-06>6" },
+            { city: "Etc/GMT+7", code: "<-07>7" },
+            { city: "Etc/GMT+8", code: "<-08>8" },
+            { city: "Etc/GMT+9", code: "<-09>9" },
+            { city: "Etc/GMT-13", code: "<+13>-13" },
+            { city: "Etc/GMT-14", code: "<+14>-14" },
+            { city: "Etc/GMT-2", code: "<+02>-2" },
+            { city: "Etc/Universal Coorinated Time", code: "UTC0" },
+            { city: "Europe/Chisinau", code: "EET-2EEST,M3.5.0,M10.5.0/3" },
+            { city: "Europe/Dublin", code: "IST-1GMT0,M10.5.0,M3.5.0/1" },
+            { city: "Europe/Guernsey", code: "GMT0BST,M3.5.0/1,M10.5.0" },
+            { city: "Europe/Moscow", code: "MSK-3" },
+            { city: "Pacific/Chatham", code: "<+1245>-12:45<+1345>,M9.5.0/2:45,M4.1.0/3:45" },
+            { city: "Pacific/Easter", code: "<-06>6<-05>,M9.1.6/22,M4.1.6/22" },
+            { city: "Pacific/Fiji", code: "<+12>-12<+13>,M11.2.0,M1.2.3/99" },
+            { city: "Pacific/Guam", code: "ChST-10" },
+            { city: "Pacific/Honolulu", code: "HST10" },
+            { city: "Pacific/Marquesas", code: "<-0930>9:30" },
+            { city: "Pacific/Midway", code: "SST11" },
+            { city: "Pacific/Norfolk", code: "<+11>-11<+12>,M10.1.0,M4.1.0/3" }];
+        function setTimeZones() {
+            let dd = document.getElementById('selTimeZone');
+            dd.length = 0;
+            let maxLength = 0;
+            for (let i = 0; i < timeZones.length; i++) {
+                let opt = document.createElement('option');
+                opt.text = timeZones[i].city;
+                opt.value = timeZones[i].code;
+                maxLength = Math.max(maxLength, timeZones[i].code.length);
+                dd.add(opt);
+            }
+            dd.value = 'UTC0';
+            console.log(`Max TZ:${maxLength}`);
+        }
+        function waitMessage(el) {
+            let div = document.createElement('div');
+            div.innerHTML = '<div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
+            div.classList.add('waitoverlay');
+            el.appendChild(div);
+            return div;
+        }
+        function clearErrors() {
+            let errors = document.querySelectorAll('div.errorMessage');
+            if (errors && errors.length > 0) errors.forEach((el) => { el.remove(); });
+        }
+        function serviceError(el, err) {
+            let msg = '';
+            if (typeof err === 'string' && err.startsWith('{')) {
+                let e = JSON.parse(err);
+                if (typeof e !== 'undefined' && typeof e.desc === 'string') msg = e.desc;
+                else msg = err;
+            }
+            else if (typeof err === 'string') {
+                msg = err;
+            }
+            else if (typeof err === 'number') {
+                switch (err) {
+                    case 404:
+                        msg = `404: Service not found`;
+                        break;
+                    default:
+                        msg = `${err}: Network HTTP Error`;
+                        break;
+                }
+            }
+            else if (typeof err !== 'undefined') {
+                console.log(err);
+                if (typeof err.desc === 'string') msg = typeof err.desc !== 'undefined' ? err.desc : err.message;
+            }
+            return errorMessage(el, msg);
+        }
+        function errorMessage(el, msg) {
+            let div = document.createElement('div');
+            div.innerHTML = '<div class="innerError">' + msg + '</div><button type="button" onclick="clearErrors();">Close</button></div>';
+            div.classList.add('errorMessage');
+            el.appendChild(div);
+            return div;
+        }
+        function promptMessage(el, msg, onYes) {
+            let div = document.createElement('div');
+            div.innerHTML = '<div class="innerError">' + msg + '</div><button id="btnYes" type="button">Yes</button><button type="button" onclick="clearErrors();">No</button></div>';
+            div.classList.add('errorMessage');
+            el.appendChild(div);
+            div.querySelector('#btnYes').addEventListener('click', onYes);
+            return div;
+        }
+        function getJSON(url, cb) {
+            let xhr = new XMLHttpRequest();
+            console.log({ get: url });
+            xhr.open('GET', url, true);
+            xhr.responseType = 'json';
+            xhr.onload = () => {
+                let status = xhr.status;
+                cb(status === 200 ? null : status, xhr.response);
+            }
+            xhr.onerror = (evt) => {
+                cb(xhr.status || 500, xhr.statusText);
+            }
+            xhr.send();
+        }
+        function putJSON(url, data, cb) {
+            let xhr = new XMLHttpRequest();
+            console.log({ put: url, data: data });
+            xhr.open('PUT', url, true);
+            xhr.responseType = 'json';
+            xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.onload = () => {
+                let status = xhr.status;
+                cb(status === 200 ? null : status, xhr.response);
+            }
+            xhr.onerror = (evt) => {
+                cb(xhr.status || 500, xhr.statusText);
+            }
+            xhr.send(JSON.stringify(data));
+        }
+        async function loadAPs() {
+            if (document.getElementById('btnScanAPs').classList.contains('disabled')) return;
+            document.getElementById('divAps').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;"><div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
+            document.getElementById('btnScanAPs').classList.add('disabled');
+            getJSON('/scanaps', (err, aps) => {
+                document.getElementById('btnScanAPs').classList.remove('disabled');
+                console.log(aps);
+                if (err) {
+                    displayAPs({ connected: { name: '', passphrase: '' }, accessPoints: [] });
+                }
+                else {
+                    displayAPs(aps);
+                }
+            });
+        }
+        async function loadSomfy() {
+            let overlay = waitMessage(document.getElementById('fsSomfySettings'));
+            getJSON('/somfyController', (err, somfy) => {
+                overlay.remove();
+                if (err) {
+                    console.log(err);
+                    serviceError(document.getElementById('fsSomfySettings'), err);
+                }
+                else {
+                    console.log(somfy);
+                    document.getElementById('selTransSCKPin').value = somfy.transceiver.config.SCKPin.toString();
+                    document.getElementById('selTransCSNPin').value = somfy.transceiver.config.CSNPin.toString();
+                    document.getElementById('selTransMOSIPin').value = somfy.transceiver.config.MOSIPin.toString();
+                    document.getElementById('selTransMISOPin').value = somfy.transceiver.config.MISOPin.toString();
+                    document.getElementById('selTransTXPin').value = somfy.transceiver.config.TXPin.toString();
+                    document.getElementById('selTransRXPin').value = somfy.transceiver.config.RXPin.toString();
+                    document.getElementById('selRadioType').value = somfy.transceiver.config.type;
+                    document.getElementById('spanMaxShades').innerText = somfy.maxShades;
+                    document.getElementById('spanRxBandwidth').innerText = Math.round(somfy.transceiver.config.rxBandwidth * 100) / 100;
+                    document.getElementById('slidRxBandwidth').value = Math.round(somfy.transceiver.config.rxBandwidth * 100);
+                    document.getElementById('spanTxPower').innerText = somfy.transceiver.config.txPower;
+                    document.getElementById('spanDeviation').innerText = Math.round(somfy.transceiver.config.deviation * 100) / 100;
+                    document.getElementById('slidDeviation').value = Math.round(somfy.transceiver.config.deviation * 100);
+
+                    let tx = document.getElementById('slidTxPower');
+                    let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];
+                    for (let i = lvls.length - 1; i >= 0; i--) {
+                        if (lvls[i] === somfy.transceiver.config.txPower) {
+                            tx.value = i;
+                        }
+                        else if (lvls[i < somfy.transceiver.config.txPower] < somfy.transceiver.txPower) {
+                            tx.value = i + 1;
+                        }
+                    }
+
+                    // Create the shades list.
+                    setShadesList(somfy.shades);
+                }
+            });
+        }
+        function saveRadio() {
+            let valid = true;
+            let getIntValue = (fld) => { return parseInt(document.getElementById(fld).value, 10); }
+            let obj = {
+                type: parseInt(document.getElementById('selRadioType').value, 10),
+                SCKPin: getIntValue('selTransSCKPin'),
+                CSNPin: getIntValue('selTransCSNPin'),
+                MOSIPin: getIntValue('selTransMOSIPin'),
+                MISOPin: getIntValue('selTransMISOPin'),
+                TXPin: getIntValue('selTransTXPin'),
+                RXPin: getIntValue('selTransRXPin'),
+                rxBandwidth: (Math.round(parseFloat(document.getElementById('spanRxBandwidth').innerText) * 100)) / 100,
+                txPower: parseInt(document.getElementById('spanTxPower').innerText, 10),
+                deviation: (Math.round(parseFloat(document.getElementById('spanDeviation').innerText) * 100)) / 100
+            };
+            console.log(obj);
+            // Check to make sure we have a trans type.
+            if (typeof obj.type === 'undefined' || obj.type === '' || obj.type === 'none') {
+                errorMessage(document.getElementById('fsSomfySettings'), 'You must select a radio type.');
+                valid = false;
+            }
+            // Check to make sure no pins were duplicated and defined
+            if (valid) {
+                let fnValDup = (o, name) => {
+                    let val = o[name];
+                    if (typeof val === 'undefined' || isNaN(val)) {
+                        errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
+                        return false;
+                    }
+                    for (let s in o) {
+                        if (s.endsWith('Pin') && s !== name) {
+                            let sval = o[s];
+                            if (typeof sval === 'undefined' || isNaN(sval)) {
+                                errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
+                                return false;
+                            }
+                            if (sval === val) {
+                                errorMessage(document.getElementById('fsSomfySettings'), `The ${name.replace('Pin', '')} pin is duplicated by the ${s.replace('Pin', '')}.  All pin definitions must be unique`);
+                                valid = false;
+                                return false;
+                            }
+                        }
+                    }
+                    return true;
+                };
+                if (valid) valid = fnValDup(obj, 'SCKPin');
+                if (valid) valid = fnValDup(obj, 'CSNPin');
+                if (valid) valid = fnValDup(obj, 'MOSIPin');
+                if (valid) valid = fnValDup(obj, 'MISOPin');
+                if (valid) valid = fnValDup(obj, 'TXPin');
+                if (valid) valid = fnValDup(obj, 'RXPin');
+                if (valid) {
+                    let overlay = waitMessage(document.getElementById('fsSomfySettings'));
+                    putJSON('/saveRadio', { config: obj }, (err, response) => {
+                        overlay.remove();
+                        document.getElementById('btnSaveRadio').classList.remove('disabled');
+                        console.log(response);
+                    });
+                }
+            }
+        }
+        async function loadMQTT() {
+            let overlay = waitMessage(document.getElementById('fsMQTTSettings'));
+            getJSON('/mqttsettings', (err, settings) => {
+                overlay.remove();
+                if (err) {
+                    console.log(err);
+                }
+                else {
+                    console.log(settings);
+                    let dd = document.getElementsByName('mqtt-protocol')[0];
+                    for (let i = 0; i < dd.options.length; i++) {
+                        if (dd.options[i].text === settings.proto) {
+                            dd.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    if (dd.selectedIndex < 0) dd.selectedIndex = 0;
+                    document.getElementsByName('mqtt-host')[0].value = settings.hostname;
+                    document.getElementsByName('mqtt-port')[0].value = settings.port;
+                    document.getElementsByName('mqtt-username')[0].value = settings.username;
+                    document.getElementsByName('mqtt-password')[0].value = settings.password;
+                    document.getElementsByName('mqtt-topic')[0].value = settings.rootTopic;
+                    document.getElementsByName('mqtt-enabled')[0].checked = settings.enabled;
+                }
+            });
+        }
+        async function loadGeneral() {
+            let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
+            getJSON('/modulesettings', (err, settings) => {
+                overlay.remove();
+                if (err) {
+                    console.log(err);
+                }
+                else {
+                    console.log(settings);
+                    let dd = document.getElementById('selTimeZone');
+                    for (let i = 0; i < dd.options.length; i++) {
+                        if (dd.options[i].value === settings.posixZone) {
+                            dd.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    //if (dd.selectedIndex < 0) dd.selectedIndex = 0;
+                    document.getElementById('spanFwVersion').innerText = settings.fwVersion;
+                    document.getElementsByName('hostname')[0].value = settings.hostname;
+                    document.getElementsByName('ntptimeserver')[0].value = settings.ntpServer;
+                    document.getElementsByName('ssdpBroadcast')[0].checked = settings.ssdpBroadcast;
+                }
+            });
+        }
+        function setShadesList(shades) {
+            let divCfg = '';
+            let divCtl = '';
+            for (let i = 0; i < shades.length; i++) {
+                let shade = shades[i];
+                divCfg += `<div class="somfyShade" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}">`;
+                divCfg += `<div class="button-outline" onclick="openEditShade(${shade.shadeId});"><i class="icss-edit"></i></div>`;
+                divCfg += `<i class="shade-icon" data-position="${shade.position || 0}%"></i>`;
+                divCfg += `<span class="shade-name">${shade.name}</span>`;
+                divCfg += `<span class="shade-address">${shade.remoteAddress}</span>`;
+                divCfg += `<div class="button-outline" onclick="deleteShade(${shade.shadeId});"><i class="icss-trash"></i></div>`;
+                divCfg += '</div>';
+
+                divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" style="height:60px;border-bottom:dotted 2px gainsboro;">`;
+                divCtl += `<div style="display:inline-block;padding:7px;font-size:48px;vertical-align:middle;margin-top:-5px;" data-shadeid="${shade.shadeId}" data-position="${shade.position}">`;
+                divCtl += `<i class="somfy-shade-icon icss-window-shade" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.position}%;vertical-align:top;"></i></div >`;
+                divCtl += `<span class="shadectl-name" style="font-size:1.5em;color:silver;display:inline-block;vertical-align:middle;white-space:nowrap;width:50px;">${shade.name}</span>`;
+                divCtl += `<div class="shadectl-buttons" style="float:right;">`;
+                divCtl += `<div class="button-outline" onclick="sendSomfyCommand(${shade.shadeId}, 'up');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-up"></i></div>`;
+                divCtl += `<div class="button-outline" onclick="sendSomfyCommand(${shade.shadeId}, 'my');" style="display:inline-block;font-size:2em;padding:10px;cursor:pointer;"><span>My</span></div>`;
+                divCtl += `<div class="button-outline" onclick="sendSomfyCommand(${shade.shadeId}, 'down');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
+                divCtl += '</div></div>';
+            }
+            document.getElementById('divShadeList').innerHTML = divCfg;
+            document.getElementById('divShadeControls').innerHTML = divCtl;
+        }
+        function setLinkedRemotesList(shade) {
+            let divCfg = '';
+            for (let i = 0; i < shade.linkedRemotes.length; i++) {
+                let remote = shade.linkedRemotes[i];
+                divCfg += `<div class="somfyLinkedRemote" data-shadeid="${shade.shadeId}" data-remoteaddress="${remote.remoteAddress}" style="text-align:center;">`;
+                divCfg += `<span class="linkedremote-address" style="display:inline-block;width:127px;text-align:left;">${remote.remoteAddress}</span>`;
+                divCfg += `<span class="linkedremote-code" style="display:inline-block;width:77px;text-align:left;">${remote.lastRollingCode}</span>`;
+                divCfg += `<div class="button-outline" onclick="unlinkRemote(${shade.shadeId}, ${remote.remoteAddress});"><i class="icss-trash"></i></div>`;
+                divCfg += '</div>';
+            }
+            document.getElementById('divLinkedRemoteList').innerHTML = divCfg;
+        }
+        function displayAPs(aps) {
+            let div = '';
+            let nets = [];
+            for (let i = 0; i < aps.accessPoints.length; i++) {
+                let ap = aps.accessPoints[i];
+                let p = nets.find(elem => elem.name === ap.name);
+                if (typeof p !== 'undefined' && p) {
+                    p.channel = p.strength > ap.strength ? p.channel : ap.channel;
+                    p.macAddress = p.strength > ap.strength ? p.macAddress : ap.macAddress;
+                    p.strength = Math.max(p.strength, ap.strength);
+                }
+                else
+                    nets.push(ap);
+            }
+            // Sort by the best signal strength.
+            nets.sort((a, b) => b.strength - a.strength);
+            for (let i = 0; i < nets.length; i++) {
+                let ap = nets[i];
+                div += `<div class="wifiSignal" onclick="selectSSID(this);" data-channel="${ap.channel}" data-encryption="${ap.encryption}" data-strength="${ap.strength}" data-mac="${ap.macAddress}"><span class="ssid">${ap.name}</span><span class="strength">${displaySignal(ap.strength)}</span></div>`;
+            }
+            document.getElementById('divAps').innerHTML = div;
+            document.getElementsByName('ssid')[0].value = aps.connected.name;
+            document.getElementsByName('passphrase')[0].value = aps.connected.passphrase;
+        }
+        function selectSSID(el) {
+            let obj = {
+                name: el.querySelector('span.ssid').innerHTML,
+                encryption: el.getAttribute('data-encryption'),
+                strength: parseInt(el.getAttribute('data-strength'), 10),
+                channel: parseInt(el.getAttribute('data-channel'), 10)
+            }
+            console.log(obj);
+            document.getElementsByName('ssid')[0].value = obj.name;
+        }
+        function calcWaveStrength(sig) {
+            let wave = 0;
+            if (sig > -90) wave++;
+            if (sig > -80) wave++;
+            if (sig > -70) wave++;
+            if (sig > -67) wave++;
+            if (sig > -30) wave++;
+            return wave;
+        }
+        function displaySignal(sig) {
+            return `<div class="signal waveStrength-${calcWaveStrength(sig)}"><div class="wv4 wave"><div class="wv3 wave"><div class="wv2 wave"><div class="wv1 wave"><div class="wv0 wave"></div></div></div></div></div></div>`;
+        }
+        function connectWiFi() {
+            if (document.getElementById('btnConnectWiFi').classList.contains('disabled')) return;
+            document.getElementById('btnConnectWiFi').classList.add('disabled');
+            let obj = {
+                ssid: document.getElementsByName('ssid')[0].value,
+                passphrase: document.getElementsByName('passphrase')[0].value
+            }
+            let overlay = waitMessage(document.getElementById('fsWiFiSettings'));
+            putJSON('/connectwifi', obj, (err, response) => {
+                overlay.remove();
+                document.getElementById('btnConnectWiFi').classList.remove('disabled');
+                console.log(response);
+
+            });
+        }
+        function connectMQTT() {
+            if (document.getElementById('btnConnectMQTT').classList.contains('disabled')) return;
+            document.getElementById('btnConnectMQTT').classList.add('disabled');
+            let obj = {
+                enabled: document.getElementsByName('mqtt-enabled')[0].checked,
+                protocol: document.getElementsByName('mqtt-protocol')[0].value,
+                hostname: document.getElementsByName('mqtt-host')[0].value,
+                port: parseInt(document.getElementsByName('mqtt-port')[0].value, 10),
+                username: document.getElementsByName('mqtt-username')[0].value,
+                password: document.getElementsByName('mqtt-password')[0].value,
+                rootTopic: document.getElementsByName('mqtt-topic')[0].value
+
+            }
+            console.log(obj);
+            if (isNaN(obj.port) || obj.port < 0) {
+                errorMessage(document.getElementById('fsMQTTSettings'), 'Invalid port number.  Likely ports are 1183, 8883 for MQTT/S or 80,443 for HTTP/S');
+                return;
+            }
+            let overlay = waitMessage(document.getElementById('fsMQTTSettings'));
+            putJSON('/connectmqtt', obj, (err, response) => {
+                overlay.remove();
+                document.getElementById('btnConnectMQTT').classList.remove('disabled');
+                console.log(response);
+            });
+        }
+        function loadPins(type, sel, opt) {
+            while (sel.firstChild) sel.removeChild(sel.firstChild);
+            for (let i = 0; i < 40; i++) {
+                switch (i) {
+                    case 6: // SPI Flash Pins
+                    case 7:
+                    case 8:
+                    case 9:
+                    case 10:
+                    case 11:
+                        continue;
+                        break;
+                    case 34: // Input only
+                    case 35:
+                    case 36:
+                    case 39:
+                        if (type !== 'input') continue;
+                        break;
+                }
+                sel.options[sel.options.length] = new Option(`GPIO-${i > 9 ? i.toString() : '0' + i.toString()}`, i, typeof opt !== 'undefined' && opt === i);
+            }
+        }
+        function setGeneral() {
+            let valid = true;
+            let obj = {
+                hostname: document.getElementsByName('hostname')[0].value,
+                posixZone: document.getElementById('selTimeZone').value,
+                ntpServer: document.getElementsByName('ntptimeserver')[0].value,
+                ssdpBroadcast: document.getElementsByName('ssdpBroadcast')[0].checked
+            }
+            console.log(obj);
+            if (typeof obj.hostname === 'undefined' || !obj.hostname || obj.hostname === '') {
+                errorMessage(document.getElementById('fsGeneralSettings'), 'You must supply a valid host name.');
+                valid = false;
+            }
+            if (valid && !/^[a-zA-Z0-9-]+$/.test(obj.hostname)) {
+                errorMessage(document.getElementById('fsGeneralSettings'), 'The host name must only include numbers, letters, or dash.');
+                valid = false;
+            }
+            if (valid && obj.hostname.length > 32) {
+                errorMessage(document.getElementById('fsGeneralSettings'), 'The host name can only be up to 32 characters long.');
+                valid = false;
+            }
+            if (valid) {
+                if (document.getElementById('btnSaveGeneral').classList.contains('disabled')) return;
+                document.getElementById('btnSaveGeneral').classList.add('disabled');
+                let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
+                putJSON('/setgeneral', obj, (err, response) => {
+                    overlay.remove();
+                    document.getElementById('btnSaveGeneral').classList.remove('disabled');
+                    console.log(response);
+                });
+            }
+        }
+        function rebootDevice() {
+            promptMessage(document.getElementById('fsGeneralSettings'), 'Are you sure you want to reboot the device?', () => {
+                let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
+                putJSON('/reboot', {}, (err, response) => {
+                    overlay.remove();
+                    document.getElementById('btnSaveGeneral').classList.remove('disabled');
+                    console.log(response);
+                });
+                clearErrors();
+            });
+        }
+        function initSocket() {
+            let socket = new WebSocket(`ws://${location.host}:8080`);
+            //let socket = new WebSocket(`ws://192.168.1.244:8080`);
+            socket.onmessage = (evt) => {
+                if (evt.data.startsWith('42')) {
+                    let ndx = evt.data.indexOf(',');
+                    let eventName = evt.data.substring(3, ndx);
+                    let data = evt.data.substring(ndx + 1, evt.data.length - 1);
+                    try {
+                        var reISO = /^(\d{4}|\+010000)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*))(?:Z|(\+|-)([\d|:]*))?$/;
+                        var reMsAjax = /^\/Date\((d|-|.*)\)[\/|\\]$/;
+                        var msg = JSON.parse(data, (key, value) => {
+                            if (typeof value === 'string') {
+                                var a = reISO.exec(value);
+                                if (a) return new Date(value);
+                                a = reMsAjax.exec(value);
+                                if (a) {
+                                    var b = a[1].split(/[-+,.]/);
+                                    return new Date(b[0] ? +b[0] : 0 - +b[1]);
+                                }
+                            }
+                            return value;
+                        });
+                        switch (eventName) {
+                            case 'analogRead':
+                                procAnalogRead(msg);
+                                break;
+                            case 'wifiStrength':
+                                procWifiStrength(msg);
+                                break;
+                            case 'remoteFrame':
+                                procRemoteFrame(msg);
+                                break;
+                            case 'somfyShadeState':
+                                procShadeState(msg);
+                                break;
+                        }
+
+                    } catch (err) {
+                        console.log({ eventName: eventName, data: data, err: err });
+                    }
+                }
+            };
+            let tConnect = null;
+            socket.onopen = (evt) => {
+                if (tConnect) clearTimeout(tConnect);
+                console.log({ msg: 'open', evt: evt });
+            };
+            socket.onclose = (evt) => {
+                if (evt.wasClean) console.log({ msg: 'close-clean', evt: evt });
+                else console.log({ msg: 'close-died', evt: evt });
+                setTimeout(reopenSocket, 5000);
+            };
+            socket.onerror = (evt) => {
+                console.log({ msg: 'socket error', evt: evt });
+            }
+            let reopenSocket = () => {
+                if (tConnect) clearTimeout(tConnect);
+                initSocket();
+            }
+        }
+        function procShadeState(state) {
+            console.log(state);
+            let icons = document.querySelectorAll(`.somfy-shade-icon[data-shadeid="${state.shadeId}"]`);
+            for (let i = 0; i < icons.length; i++) {
+                icons[i].style.setProperty('--shade-position', `${state.position}%`);
+            }
+        }
+        function procRemoteFrame(frame) {
+            console.log(frame);
+            let lnk = document.getElementById('divLinking');
+            if (lnk) {
+                let obj = {
+                    shadeId: parseInt(lnk.dataset.shadeid, 10),
+                    remoteAddress: frame.address,
+                    rollingCode: frame.rcode
+                };
+                let overlay = waitMessage(document.getElementById('divLinking'));
+                putJSON('/linkRemote', obj, (err, shade) => {
+                    console.log(shade);
+                    overlay.remove();
+                    lnk.remove();
+                    setLinkedRemotesList(shade);
+                });
+            }
+        }
+        function procAnalogRead(read) {
+            document.getElementById(`avalue${read.id}`).innerHTML = read.reading.fmt('#,##0.####');
+        }
+        function procWifiStrength(strength) {
+            document.getElementById('spanNetworkSSID').innerHTML = !strength.ssid || strength.ssid === '' ? '-------------' : strength.ssid;
+            document.getElementById('spanNetworkChannel').innerHTML = isNaN(strength.channel) || strength.channel < 0 ? '--' : strength.channel;
+            let cssClass = 'waveStrength-' + ((isNaN(strength.strength) || strength > 0) ? -100 : calcWaveStrength(strength.strength));
+            let elWave = document.getElementById('divNetworkStrength').children[0];
+            if (!elWave.classList.contains(cssClass)) {
+                elWave.classList.remove('waveStrength-0', 'waveStrength-1', 'waveStrength-2', 'waveStrength-3', 'waveStrength-4');
+                elWave.classList.add(cssClass);
+            }
+            document.getElementById('spanNetworkStrength').innerHTML = (isNaN(strength.strength) || strength < -100) ? '---' : strength.strength;
+        }
+        function openConfigTransceiver() {
+            document.getElementById('somfyMain').style.display = 'none';
+            document.getElementById('somfyTransceiver').style.display = '';
+        }
+        function closeConfigTransceiver() {
+            document.getElementById('somfyTransceiver').style.display = 'none';
+            document.getElementById('somfyMain').style.display = '';
+        }
+        function openEditShade(shadeId) {
+            if (typeof shadeId === 'undefined') {
+                document.getElementById('btnPairShade').style.display = 'none';
+                document.getElementById('btnUnpairShade').style.display = 'none';
+                document.getElementById('btnLinkRemote').style.display = 'none';
+                document.getElementsByName('shadeUpTime')[0].value = 10000;
+                document.getElementsByName('shadeDownTime')[0].value = 10000;
+                document.getElementById('somfyMain').style.display = 'none';
+                document.getElementById('somfyShade').style.display = '';
+                document.getElementById('btnSaveShade').innerText = 'Add Shade';
+                document.getElementById('spanShadeId').innerText = '*';
+                document.getElementsByName('shadeName')[0].value = '';
+                document.getElementsByName('shadeAddress')[0].value = 0;
+            }
+            else {
+                // Load up an exist shade.
+                document.getElementById('btnSaveShade').style.display = 'none';
+                document.getElementById('btnPairShade').style.display = 'none';
+                document.getElementById('btnUnpairShade').style.display = 'none';
+                document.getElementById('btnLinkRemote').style.display = 'none';
+
+                document.getElementById('btnSaveShade').innerText = 'Save Shade';
+                document.getElementById('spanShadeId').innerText = shadeId;
+                let overlay = waitMessage(document.getElementById('fsSomfySettings'));
+                getJSON(`/shade?shadeId=${shadeId}`, (err, shade) => {
+                    if (err) {
+                        serviceError(document.getElementById('fsSomfySettings'), err);
+                    }
+                    else {
+                        document.getElementById('somfyMain').style.display = 'none';
+                        document.getElementById('somfyShade').style.display = '';
+                        document.getElementById('btnSaveShade').style.display = 'inline-block';
+                        document.getElementById('btnLinkRemote').style.display = '';
+                        document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
+                        document.getElementsByName('shadeName')[0].value = shade.name;
+                        document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
+                        document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
+                        let ico = document.getElementById('icoShade');
+                        ico.style.setProperty('--shade-position', `${shade.position}%`);
+                        ico.setAttribute('data-shadeid', shade.shadeId);
+                        if (shade.paired) {
+                            document.getElementById('btnUnpairShade').style.display = 'inline-block';
+                        }
+                        else {
+                            document.getElementById('btnPairShade').style.display = 'inline-block';
+                        }
+                        setLinkedRemotesList(shade);
+                    }
+                    overlay.remove();
+                });
+            }
+        }
+        function closeEditShade() {
+            document.getElementById('somfyMain').style.display = '';
+            document.getElementById('somfyShade').style.display = 'none';
+        }
+        function saveShade() {
+            let shadeId = parseInt(document.getElementById('spanShadeId').innerText, 10);
+            let obj = {
+                remoteAddress: parseInt(document.getElementsByName('shadeAddress')[0].value, 10),
+                name: document.getElementsByName('shadeName')[0].value,
+                upTime: parseInt(document.getElementsByName('shadeUpTime')[0].value, 10),
+                downTime: parseInt(document.getElementsByName('shadeDownTime')[0].value, 10)
+            };
+            let valid = true;
+            if (valid && (isNaN(obj.remoteAddress) || obj.remoteAddress < 1 || obj.remoteAddress > 16777215)) {
+                errorMessage(document.getElementById('fsSomfySettings'), 'The remote address must be a number between 1 and 16777215.  This number must be unique for all shades.');
+                valid = false;
+            }
+            if (valid && (typeof obj.name !== 'string' || obj.name === '' || obj.name.length > 20)) {
+                errorMessage(document.getElementById('fsSomfySettings'), 'You must provide a name for the shade between 1 and 20 characters.');
+                valid = false;
+            }
+            if (valid && (isNaN(obj.upTime) || obj.upTime < 1 || obj.upTime > 65355)) {
+                errorMessage(document.getElementById('fsSomfySettings'), 'Up Time must be a value between 0 and 65,355 milliseconds.  This is the travel time to go from full closed to full open.');
+                valid = false;
+            }
+            if (valid && (isNaN(obj.downTime) || obj.downTime < 1 || obj.downTime > 65355)) {
+                errorMessage(document.getElementById('fsSomfySettings'), 'Down Time must be a value between 0 and 65,355 milliseconds.  This is the travel time to go from full open to full closed.');
+                valid = false;
+            }
+            console.log(obj);
+            if (valid) {
+                let overlay = waitMessage(document.getElementById('fsSomfySettings'));
+                if (isNaN(shadeId) || shadeId >= 255) {
+                    // We are adding.
+                    putJSON('/addShade', obj, (err, shade) => {
+                        console.log(shade);
+                        document.getElementById('spanShadeId').innerText = shade.shadeId;
+                        document.getElementById('btnSaveShade').innerText = 'Save Shade';
+
+                        overlay.remove();
+                        document.getElementById('btnSaveShade').style.display = 'inline-block';
+                        document.getElementById('btnLinkRemote').style.display = '';
+                        if (shade.paired) {
+                            document.getElementById('btnUnpairShade').style.display = 'inline-block';
+                        }
+                        else {
+                            document.getElementById('btnPairShade').style.display = 'inline-block';
+                        }
+
+                    });
+
+                }
+                else {
+                    obj.shadeId = shadeId;
+                    putJSON('/saveShade', obj, (err, shade) => {
+                        console.log(shade);
+                        // We are updating.
+                        overlay.remove();
+                    });
+                }
+                updateShadeList();
+            }
+        }
+        function updateShadeList() {
+            let overlayCfg = waitMessage(document.getElementById('divShadeSection'));
+            let overlayControl = waitMessage(document.getElementById('divShadeControls'));
+            getJSON('/somfyController', (err, somfy) => {
+                overlayCfg.remove();
+                overlayControl.remove();
+                if (err) {
+                    console.log(err);
+                    serviceError(document.getElementById('fsSomfySettings'), err);
+                }
+                else {
+                    console.log(somfy);
+                    // Create the shades list.
+                    setShadesList(somfy.shades);
+                }
+            });
+        }
+
+        function deleteShade(shadeId) {
+            let valid = true;
+            if (isNaN(shadeId) || shadeId >= 255 || shadeId <= 0) {
+                errorMessage(document.getElementById('fsSomfySettings'), 'A valid shade id was not supplied.');
+                valid = false;
+            }
+            if (valid) {
+                promptMessage(document.getElementById('fsSomfySettings'), 'Are you sure you want to delete this shade?', () => {
+                    clearErrors();
+                    let overlay = waitMessage(document.getElementById('fsSomfySettings'));
+                    putJSON('/deleteShade', { shadeId: shadeId }, (err, shade) => {
+                        overlay.remove();
+                        updateShadeList();
+                    });
+                });
+            }
+        }
+        function pairShade() {
+
+        }
+        function unpairShade() {
+
+        }
+        function sendSomfyCommand(shadeId, command) {
+            putJSON('/sendShadeCommand', { shadeId: shadeId, command: command }, (err, shade) => {
+            });
+        }
+        function toggleConfig() {
+            let divCfg = document.getElementById('divConfigPnl');
+            let divHome = document.getElementById('divHomePnl');
+            if (window.getComputedStyle(divCfg).display === 'none') {
+                divHome.style.display = 'none';
+                divCfg.style.display = '';
+                document.getElementById('icoConfig').className = 'icss-home';
+            }
+            else {
+                divHome.style.display = '';
+                divCfg.style.display = 'none';
+                document.getElementById('icoConfig').className = 'icss-gear';
+            }
+        }
+        function linkRemote(shadeId) {
+            let div = document.createElement('div');
+            let html = `<div id="divLinking" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
+            html += '<div>Press any button on the remote to link it to this shade.  This will not change the pairing for the remote and this screen will close when the remote is detected.</div>';
+            html += '<hr></hr>';
+            html += `<div><div class="button-container"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;" onclick="document.getElementById('divLinking').remove();">Cancel</button></div>`;
+            html += '</div>';
+            div.innerHTML = html;
+            document.getElementById('somfyShade').appendChild(div);
+            return div;
+        }
+        function unlinkRemote(shadeId, remoteAddress) {
+            let prompt = promptMessage(document.getElementById('fsSomfySettings'), 'Are you sure you want to unlink this remote from the shade?', () => {
+                let obj = {
+                    shadeId: shadeId,
+                    remoteAddress: remoteAddress
+                };
+                let overlay = waitMessage(prompt);
+                putJSON('/unlinkRemote', obj, (err, shade) => {
+                    console.log(shade);
+                    overlay.remove();
+                    prompt.remove();
+                    setLinkedRemotesList(shade);
+                });
+
+            });
+        }
+        function deviationChanged(el) {
+            document.getElementById('spanDeviation').innerText = el.value / 100;
+        }
+        function rxBandwidthChanged(el) {
+            console.log(el.value);
+            document.getElementById('spanRxBandwidth').innerText = el.value / 100;
+        }
+        function txPowerChanged(el) {
+            console.log(el.value);
+            let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];
+            document.getElementById('spanTxPower').innerText = lvls[el.value];
+        }
+        function createFileUploader(service) {
+            let div = document.createElement('div');
+            div.setAttribute('id', 'divUploadFile');
+            div.setAttribute('class', 'instructions');
+            div.style.width = '100%';
+            let html = `<div style="width:100%;text-align:center;"><form method="POST" action="#" enctype="multipart/form-data" id="frmUploadApp" style="">`;
+            html += `<div id="divInstText"></div>`;
+            html += `<input id="fileName" type="file" name="updateFS" style="display:none;" onchange="document.getElementById('span-selected-file').innerText = this.files[0].name;"/>`;
+            html += `<label for="fileName">`;
+            html += `<span id="span-selected-file" style="display:inline-block;min-width:257px;border-bottom:solid 2px white;font-size:17px"></span>`;
+            html += `<div id="btn-select-file" class="button-outline" style="font-size:.8em;padding:10px;"><i class="icss-upload" style="margin:0px;"></i></div>`;
+            html += `</label>`;
+            html += `<div class="progress-bar" id="progFileUpload" style="--progress:0%;margin-top:10px;display:none;"></div>`
+            html += `<div class="button-container">`
+            html += `<button id="btnUploadFile" type="button" style="width:auto;padding-left:20px;padding-right:20px;margin-right:4px;display:inline-block;" onclick="uploadFile('${service}', document.getElementById('divUploadFile'));">Upload File</button>`
+            html += `<button id="btnClose" type="button" style="width:auto;padding-left:20px;padding-right:20px;display:inline-block;" onclick="document.getElementById('divUploadFile').remove();">Cancel</button></div>`;
+            html += `</form><div>`;
+            div.innerHTML = html;
+            return div;
+        }
+        function updateFirmware() {
+            let div = createFileUploader('/updateFirmware');
+            let inst = div.querySelector('div[id=divInstText]');
+            inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file containing the device firmware then press the Upload File button.</div>';
+            document.getElementById('fsUpdates').appendChild(div);
+        }
+        function updateApplication() {
+            let div = createFileUploader('/updateApplication');
+            let inst = div.querySelector('div[id=divInstText]');
+            inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file containing the littlefs data for the application then press the Upload File button.</div>';
+            document.getElementById('fsUpdates').appendChild(div);
+        }
+        async function uploadFile(service, el) {
+            let formData = new FormData();
+            let field = el.querySelector('input[type="file"]');
+            let btnUpload = el.querySelector('button[id="btnUploadFile"]');
+            let btnCancel = el.querySelector('button[id="btnClose"]');
+            btnUpload.style.display = 'none';
+            field.disabled = true;
+            let btnSelectFile = el.querySelector('div[id="btn-select-file"]');
+            let prog = el.querySelector('div[id="progFileUpload"]');
+            prog.style.display = '';
+            btnSelectFile.style.visibility = 'hidden';
+
+            formData.append('file', field.files[0]);
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', service, true);
+            xhr.upload.onprogress = function (evt) {
+                let pct = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
+                prog.style.setProperty('--progress', `${pct}%`);
+                prog.setAttribute('data-progress', `${pct}%`);
+                console.log(evt);
+            };
+            xhr.onload = function () {
+                console.log('File upload load called');
+                btnCancel.innerText = 'Close';
+            };
+            xhr.send(formData);
+        }
+    </script>
+</head>
+<body>
+    <div class="container" style="user-select:none;">
+        <h1 style="text-align: center;"><span>Somfy Controller</span><span class="button-outline" onclick="toggleConfig();" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-gear" style=""></i></span></span></h1>
+        <div id="divConfigPnl" style="display:none;">
+            <div style="margin-top:-10px;text-align:center;font-size:12px;">
+                <div style="display:inline-block;vertical-align:middle;">
+                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Network:</span><span id="spanNetworkSSID" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">-------------</span></div>
+                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Channel:</span><span id="spanNetworkChannel" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">--</span></div>
+                </div>
+                <div id="divNetworkStrength" class="wifiSignal" style="display:inline-block;vertical-align:middle;">
+                </div>
+                <div style="position:absolute;display:inline-block;">
+                    <div style="position:relative;border:solid 1px silver;background-color:cornsilk;padding:2px;font-size:12px;box-shadow: 0 3px 5px rgba(0,0,0,0.19), 0 2px 2px rgba(0,0,0,0.23);float:right;border-radius:4px;margin-left:-4px;"><span id="spanNetworkStrength">---</span><span>dBm</span></div>
+                </div>
+            </div>
+            <div class="tab-container"><span class="selected" data-grpid="fsGeneralSettings">General</span><span data-grpid="fsWiFiSettings">WiFi</span><span data-grpid="fsMQTTSettings">MQTT</span><span data-grpid="fsSomfySettings">Somfy</span><span data-grpid="fsUpdates">Updates</span></div>
+            <fieldset id="fsGeneralSettings">
+                <legend>General Settings</legend>
+                <form method="post" action="/general" style="margin-top:8px;">
+                    <div class="field-group">
+                        <input name="hostname" type="text" length=32 placeholder="Host Name">
+                        <label for="hostname">Host Name</label>
+                    </div>
+                    <div class="field-group">
+                        <select id="selTimeZone" name="timeZone" type="password" length=32 placeholder="Time Zone" style="width:100%;"></select>
+                        <label for="timeZone">Time Zone</label>
+                    </div>
+                    <div class="field-group">
+                        <input name="ntptimeserver" type="text" length=32 placeholder="Time Server">
+                        <label for="ntptimeserver">NTP Time Server</label>
+                    </div>
+                    <div class="field-group" style="vertical-align:middle;">
+                        <input name="ssdpBroadcast" type="checkbox" style="display:inline-block;" />
+                        <label for="ssdpBroadcast" style="display:inline-block;cursor:pointer;">Broadcast uPnP over SSDP</label>
+                    </div>
+                    <div class="button-container">
+                        <button id="btnSaveGeneral" type="button" onclick="setGeneral();">
+                            Save
+                        </button>
+                    </div>
+                    <div class="button-container">
+                        <button id="btnReboot" type="button" onclick="rebootDevice();">
+                            Reboot
+                        </button>
+                    </div>
+                </form>
+            </fieldset>
+            <fieldset id="fsWiFiSettings" style="display:none;">
+                <legend>WiFi Settings</legend>
+                <form method="post" action="/scan">
+                    <div id="divAps"></div>
+                    <div class="button-container"><button id="btnScanAPs" type="button" onclick="loadAPs();">Scan</button></div>
+                </form>
+                <form method="post" action="/wifi" style="margin-top:8px;">
+                    <div class="field-group">
+                        <input name="ssid" type="text" length=32 placeholder="SSID">
+                        <label for="ssid">Network SSID</label>
+                    </div>
+                    <div class="field-group">
+                        <input name="passphrase" type="password" length=32 placeholder="Passphrase">
+                        <label for="passphrase">Passphrase</label>
+                    </div>
+                    <div class="button-container">
+                        <button id="btnConnectWiFi" type="button" onclick="connectWiFi();">
+                            Save
+                        </button>
+                    </div>
+                </form>
+            </fieldset>
+            <fieldset id="fsMQTTSettings" style="display:none;">
+                <legend>MQTT Settings</legend>
+                <form method="post" action="/mqtt">
+                    <div class="field-group" style="vertical-align:middle;">
+                        <input name="mqtt-enabled" type="checkbox" style="display:inline-block;" />
+                        <label for="mqtt-enabled" style="display:inline-block;cursor:pointer;">Enable MQTT client</label>
+                    </div>
+                    <div class="field-group1" style="white-space:nowrap;">
+                        <select name="mqtt-protocol" style="width:54px;">
+                            <option>MQTT</option>
+                            <option>MQTTS</option>
+                        </select>
+                        <span style="">://</span>
+                        <input name="mqtt-host" type="text" length=32 placeholder="Host" style="width:calc(100% - 137px);">
+                        <span>:</span>
+                        <input name="mqtt-port" type="text" length=5 placeholder="Port" style="width:50px;">
+                    </div>
+                    <div class="field-group">
+                        <input name="mqtt-username" type="text" length=32 placeholder="Username">
+                        <label for="mqtt-username">Username</label>
+                    </div>
+                    <div class="field-group">
+                        <input name="mqtt-password" type="text" length=64 placeholder="Password">
+                        <label for="mqtt-password">Password</label>
+                    </div>
+                    <div class="field-group">
+                        <input name="mqtt-topic" type="text" length=64 placeholder="Root Topic">
+                        <label for="mqtt-topic">Root Topic</label>
+                    </div>
+
+                    <div class="button-container">
+                        <button id="btnConnectMQTT" type="button" onclick="connectMQTT();">Save</button>
+                    </div>
+                </form>
+            </fieldset>
+            <fieldset id="fsSomfySettings" style="display:none;">
+                <legend>Somfy Settings</legend>
+                <div id="somfyMain">
+                    <form method="post" action="/radioSettings">
+                        <hr />
+                        <div id="divShadeSection">
+                            <div id="divShadeList" style="overflow-y:auto;max-height:400px;"></div>
+                            <div class="button-container">
+                                <button id="btnAddShade" type="button" onclick="openEditShade();">
+                                    Add Shade
+                                </button>
+                                <button id="btnConfigTransceiver" type="button" onclick="openConfigTransceiver();">
+                                    Configure Transceiver
+                                </button>
+
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div id="somfyShade" style="width:100%;display:none;">
+                    <form method="post" action="/shadesettings">
+                        <div style="display:inline-block;float:right;position:relative;margin-top:-14px;"><span id="spanShadeId">*</span>/<span id="spanMaxShades">5</span></div>
+                        <div>
+                            <div class="field-group" style="width:127px;display:inline-block;">
+                                <input name="shadeAddress" type="number" length=5 placeholder="Address" style="width:100%;">
+                                <label for="shadeAddress">Remote Address</label>
+                            </div>
+                            <div id="divSomfyButtons" style="float:right">
+                                <div style="display:inline-block;padding-right:7px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;font-size:32px;"></i></div>
+                                <div class="button-outline" onclick="sendSomfyCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-up"></i></div>
+                                <div class="button-outline" onclick="sendSomfyCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="display:inline-block;font-size:2em;padding:10px;cursor:pointer;"><span>My</span></div>
+                                <div class="button-outline" onclick="sendSomfyCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <input name="shadeName" type="text" length=20 placeholder="Name">
+                            <label for="shadeName">Name</label>
+                        </div>
+                        <div>
+                            <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;">
+                                <input name="shadeUpTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
+                                <label for="shadeId">Up Time (ms)</label>
+                            </div>
+                            <div class="field-group" style="display:inline-block;max-width:127px;">
+                                <input name="shadeDownTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
+                                <label for="shadeId">Down Time (ms)</label>
+                            </div>
+                        </div>
+                        <div class="button-container" style="text-align:center;">
+                            <button id="btnSaveShade" type="button" onclick="saveShade();" style="display:inline-block;width:47%;">
+                                Save Shade
+                            </button>
+                            <button id="btnPairShade" type="button" onclick="pairShade();" style="display:inline-block;width:47%;">
+                                Pair Shade
+                            </button>
+                            <button id="btnUnpairShade" type="button" onclick="unpairShade();" style="display:inline-block;width:47%;">
+                                Unpair Shade
+                            </button>
+
+                        </div>
+                        <hr />
+                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:50px;"></div>
+                        <div class="button-container">
+                            <button id="btnLinkRemote" type="button" onclick="linkRemote(parseInt(document.getElementById('spanShadeId').innerText, 10));">
+                                Link Remote
+                            </button>
+                            <button id="btnBtnShadeGoBack" type="button" onclick="closeEditShade();">
+                                Done
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div id="somfyTransceiver" style="display:none;">
+                    <form>
+                        <div id="divRadioSettings" name="divRadioSettings" class="field-group1" style="white-space:nowrap;display:block;position:relative">
+                            <div class="field-group" style="">
+                                <label for="selRadioType">Radio</label>
+                                <select id="selRadioType" name="radioType" style="">
+                                    <option value="none" selected>None</option>
+                                    <option value="56">56-BIT</option>
+                                    <option value="80">80-BIT</option>
+                                </select>
+                            </div>
+                            <div class="field-group1" style="margin-top:-20px;">
+                                <div class="field-group radioPins">
+                                    <select id="selTransSCKPin" name="transSCK"></select>
+                                    <label for="transSCK">SCLK</label>
+                                </div>
+                                <div class="field-group radioPins">
+                                    <select id="selTransCSNPin" name="transCSN"></select>
+                                    <label for="transCSN">CSN</label>
+                                </div>
+                                <div class="field-group radioPins">
+                                    <select id="selTransMOSIPin" name="transMOSI"></select>
+                                    <label for="transMOSI">MOSI</label>
+                                </div>
+                                <div class="field-group radioPins">
+                                    <select id="selTransMISOPin" name="transMISO"></select>
+                                    <label for="transMISO">MISO</label>
+                                </div>
+                            </div>
+                            <div class="field-group1" style="margin-top:-20px;">
+                                <div class="field-group radioPins">
+                                    <select id="selTransTXPin" name="transTX"></select>
+                                    <label for="transTX">TX</label>
+                                </div>
+                                <div class="field-group radioPins">
+                                    <select id="selTransRXPin" name="transRX"></select>
+                                    <label for="transRX">RX</label>
+                                </div>
+                            </div>
+                                <div class="field-group" style="display:inline-block;width:auto;min-width:247px;margin-top:-20px;">
+                                    <div class="field-group">
+                                        <input id="slidRxBandwidth" name="rxBandwidth" type="range" min="5803" max="81250" step="1" style="width:100%;" onchange="rxBandwidthChanged(this);" />
+                                        <label for="rxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
+                                            <span>RX Bandwidth </span>
+                                            <span style="float:right;display:inline-block;margin-right:7px;">
+                                                <span id="spanRxBandwidth" style="color:black;"></span><span>kHz</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div class="field-group" style="margin-top:-10px;">
+                                        <input id="slidDeviation" name="deviation" type="range" min="158" max="38085" step="1" style="width:100%;" onchange="deviationChanged(this);" />
+                                        <label for="deviation" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>Frequency Deviation </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanDeviation" style="color:black;"></span><span>kHz</span></span></label>
+                                    </div>
+                                    <div class="field-group" style="margin-top:-10px;">
+                                        <input id="slidTxPower" name="txPower" type="range" min="0" max="10" step="1" style="width:100%;" onchange="txPowerChanged(this);" />
+                                        <label for="txPower" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>TX Power </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanTxPower" style="color:black;"></span><span>dBm</span></span></label>
+                                    </div>
+                                </div>
+                        </div>
+                        <div class="button-container">
+                            <button id="btnSaveRadio" type="button" onclick="saveRadio();">
+                                Save Radio
+                            </button>
+                            <button id="btnTransceiverGoBack" type="button" onclick="closeConfigTransceiver();">
+                                Done
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </fieldset>
+            <fieldset id="fsUpdates" style="display:none">
+                <legend>Software/Firmware Updates</legend>
+                <form method="post" action="/general" style="margin-top:8px;">
+                    <div style="font-size:17px;">
+                        <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;margin-top:-27px;">Firmware:</span>
+                        <span id="spanFwVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
+                    </div>
+                    <div style="font-size:17px;">
+                        <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;">Application:</span>
+                        <span id="spanAppVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
+                    </div>
+
+                    <div class="button-container">
+                        <button id="btnUpdateFirmware" type="button" onclick="updateFirmware();">
+                            Update Firmware
+                        </button>
+                        <button id="btnUpdateApplication" type="button" onclick="updateApplication();">
+                            Update Application
+                        </button>
+                    </div>
+                </form>
+            </fieldset>
+
+        </div>
+        <div id="divHomePnl">
+            <hr />
+            <div id="divShadeControls" style="min-height:130px;">
+
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        setAppVersion();
+        waitMessage(document.getElementById('divShadeControls'));
+        document.getElementById("divNetworkStrength").innerHTML = displaySignal(-100);
+        loadSomfy(); setTimeZones(); loadGeneral(); loadAPs(); loadMQTT();
+        loadPins('inout', document.getElementById('selTransSCKPin'));
+        loadPins('inout', document.getElementById('selTransCSNPin'));
+        loadPins('inout', document.getElementById('selTransMOSIPin'));
+        loadPins('inout', document.getElementById('selTransMISOPin'));
+        loadPins('inout', document.getElementById('selTransTXPin'));
+        loadPins('inout', document.getElementById('selTransRXPin'));
+        let tabs = document.querySelectorAll('div.tab-container > span');
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', (evt) => {
+                console.log(evt);
+                if (evt.srcElement.classList.contains('selected'))
+                    return;
+                else {
+                    tabs.forEach((tsel) => {
+                        tsel.classList.remove('selected');
+                        if (tsel != tab) {
+                            let grpsel = document.getElementById(tsel.getAttribute('data-grpid'));
+                            if (typeof grpsel !== 'undefined' && grpsel) grpsel.style.display = 'none';
+                        }
+                    });
+                    tab.classList.add('selected');
+                    let grp = document.getElementById(tab.getAttribute('data-grpid'));
+                    if (typeof grp !== 'undefined' && grp) grp.style.display = '';
+                }
+
+            });
+        });
+
+
+        initSocket();
+    </script>
+</body>
+</html>
