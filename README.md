@@ -60,6 +60,8 @@ Once you have connected to your local network you can now configure the rest of 
 ### Somfy Transceiver Settings
 There are two parts of your shade setup that need to be configured.  The first is to set up the transceiver so that it can speak with your somfy remotes and shades.  You will find the transceiver settings under the configuration (gears menu) on the Somfy Tab.  You should only need to configure the transceiver once but it is important that the settings are correct.
 
+![image](https://user-images.githubusercontent.com/47839015/211654311-ec9e0fd0-8a03-4c10-a61b-4746bb93e597.png)
+
 First select the radio type.  This software supports either the 56-BIT Somfy remotes or the 80-BIT Somfy remotes.  It will not support both at the same time.  Maybe at some point I will figure out a way to support both protocols at the same time but for now spen another 10 bucks and build another device if you need both.  If you do not know which radio type you have select 56-BIT for now.  If we cannot hear your existing remotes in a later step you can come back and change it.
 
 While you were hooking up your hardware above you selected the ESP32 gpio pins that are to be used for the transceiver.  You simply need to match these with the pins you selected.  It will default to the configuration outlined above.
