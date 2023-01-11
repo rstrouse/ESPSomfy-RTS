@@ -110,6 +110,37 @@ When this screen is open the controller is listening for any remote out there th
 ![image](https://user-images.githubusercontent.com/47839015/211933716-02be7aa9-742c-4e80-bce9-aaa43cb08839.png)
 
 ## Next Steps
+While the interface that comes with the Somfy Controller is a huge improvement, the whole idea of this project is to make the shades controllable from everywhere that I want to control them.  So for that I created a couple of interfaces that you can use to bolt on your own automation.  
+
+My first order of business is to create a Home Assistant integration using the underlying socket layer.  Yep it has sockets too.  I will get around to documenting these as time permits.  There is also a Rest interface built into the software for controlling the shades.  This is also used by the UI to configure the shades but the most interesting command is the `sendShadeCommand` endpoint.
+
+This can be executed as a GET, POST, or PUT command.  The command can be any one of the following values.
+* U, UP, or up
+* D, DOWN, or down
+* P, Prog, or prog
+* M, My, or my
+* My+Up, or mu
+* My+Down or md
+* Up+Down or ud
+
+
+For any of the commands you can put the arguments on the command line as follows.
+
+To send the shade in any direction:
+`/sendShadeCommand?shadeId?command=up`
+
+To set the shade percentage to 35% closed:
+`/sendShadeCommand?shadeId?target=35`
+
+### MQTT
+There is also an MQTT command and reporting interface.  To enable your broker connect it in the configuration pages under MQTT.  This will begin reporting the shade status to your broker under the topic you assigned.
+
+![image](https://user-images.githubusercontent.com/47839015/211936733-99d9a6ff-f511-45b9-989e-de5eae416539.png)
+
+To move the shade up, down, or stop set the `/{shadeId}/directon/set` topic to -1 for up 0 for stop or 1 for down.  This will begin moving the shade in the specified direction or stop the shade if you set it to 0.  To move the shade to a position simply set the topic `/{shadeId}/target/set` to the percentage closed that you would like.
+
+
+
 Now that this part of the controller is complete, I will be creating an integration to Home Assistant.
 
 
