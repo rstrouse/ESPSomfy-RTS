@@ -98,7 +98,19 @@ In order to control your shade motor you will first need to pair it with the mot
 
 Click the `Pair Shade` button to bring up the pairing screen.  This will contain instructions on how to put the motor into pairing mode so you can proceed.  After the motor jogs press the `Prog` button and the motor should once again jog to tell you it was successful.  There is no communication from the motor to the remotes so I am relying on you to verify that the motor jogged after pressing the `Prog` button.  If it didn't then don't say it did.  You will have to go through the unpairing process if you aren't honest about it.
 
+The pairing and unpairing process is essentially the same but in either instance Somfy does not provide any digital reponse that the pairing was successful.  The only response is a visual one from the shade when it jogs.  So it the shade does not jog after sending the response simply perform the unpair process without putting the shade into paring mode and try again.  If you followed the procedure correctly this will just work.  The range for the Somfy Controller is reallly really far and over the hill and through the dell.
 
+![image](https://user-images.githubusercontent.com/47839015/211932465-ebc8877b-cfaa-4e59-a8cc-1a533a900ea3.png)
+
+### Linking Remotes
+Once you have paired the shades it is time to link the other remotes you use to open and close the shades.  This linking process makes sure we capture every movement of the shade so that its position is always accurately reported.  Now that you have been through the pairing process and saw how painless that was, click the `Link Remote` button to bring up the linking window.
+
+When this screen is open the controller is listening for any remote out there that is sending a command to the shade.  Simply press any button on the remote you want to link.  If you are having trouble deciding which button to press, press the up button.  Once the remote is detected it will automatically close the link remote window.
+
+![image](https://user-images.githubusercontent.com/47839015/211933716-02be7aa9-742c-4e80-bce9-aaa43cb08839.png)
+
+## Next Steps
+Now that this part of the controller is complete, I will be creating an integration to Home Assistant.
 
 
 
