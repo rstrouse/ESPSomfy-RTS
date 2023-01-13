@@ -159,7 +159,7 @@ There is also an MQTT command and reporting interface.  To enable your broker co
 
 ![image](https://user-images.githubusercontent.com/47839015/211936733-99d9a6ff-f511-45b9-989e-de5eae416539.png)
 
-To move the shade up, down, or stop set the `/{shadeId}/directon/set` topic to -1 for up 0 for stop or 1 for down.  This will begin moving the shade in the specified direction or stop the shade if you set it to 0.  To move the shade to a position simply set the topic `/{shadeId}/target/set` to the percentage closed that you would like.
+To move the shade up, down, or stop set the `/{shadeId}/directon/set` topic to -1 for up 0 for stop or 1 for down.  This will begin moving the shade in the specified direction or stop the shade if you set it to 0.  To move the shade to a position simply set the topic `/{shadeId}/target/set` to the percentage closed that you would like. Where 0 equals fully open and 100 equals fully closed.
 
 
 
