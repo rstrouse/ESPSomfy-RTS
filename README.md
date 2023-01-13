@@ -146,11 +146,11 @@ To send the shade in any direction:
 To set the shade percentage to 35% closed:
 `/sendShadeCommand?shadeId=1&target=35`
 
-If you use the put or post commands you can use a JSON object on the body.  For instance:
+If you use the PUT or POST http methods you can use a JSON object on the body.  For instance:
 ```
 {
-  shadeId:1,
-  command:"up"
+  "shadeId":1,
+  "command":"up"
 }
 ```
 
