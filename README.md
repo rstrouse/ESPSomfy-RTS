@@ -1,5 +1,5 @@
-# SomfyController
-A controller for Somfy RTS blinds and shades
+# ESPSomfy RTS
+A controller for Somfy RTS blinds and shades that supports up to 32 individual shades over 433.42mHz protocol.
 
 Most of my home is automated and one of the more annoying aspects are three very expensive roller shades that still don't have any type of automation attached to them.  So I went searching for libraries that could automate my shades.  Not only automate them but interact with them but manage their position while still allowing me to use the Telis remotes.
 
