@@ -29,6 +29,23 @@
         }
     </style>
     <script type="text/javascript">
+        let runRepair = false;
+        function runRemoteRepair() {
+            let obj = { address: parseInt(document.getElementById('fldRepairAddress').value, 10), command: 'Down', rcode: parseInt(document.getElementById('fldRepairRCode').value, 10), repeats: 1 };
+            if (runRepair) {
+                // Call the service.
+                console.log(obj);
+                putJSON('/sendRemoteCommand', obj, (err, ret) => {
+                    console.log(ret);
+                    document.getElementById('fldRepairRCode').value = obj.rcode + 1;
+                    setTimeout(() => { runRemoteRepair() }, 1000);
+                });
+            }
+        }
+        function stopRemoteRepair() {
+            runRepair = false;
+        }
+
         let baseUrl = ''; //'http://192.168.1.204';  This is the current server.
         
         Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
@@ -378,6 +395,16 @@
     </script>
 </head>
 <body>
+    <div syle="white-space:nowrap;">
+        <label for="repairAddress">Repair Address</label>
+        <input id="fldRepairAddress" name="repairAddress" type="number" style="margin-right: 10px; text-align: right; display: inline-block; width: 127px;" value="4624451" />
+        <label for="repairRCode">Rolling Code</label>
+        <input id="fldRepairRCode" name="repairRCode" type="number" style="margin-right:10px;text-align:right;display:inline-block;width:127px;" value="1641" />
+    </div>
+    <div class="button-container">
+        <button id="btnRepairRemote" style="width:127px" onclick="runRepair = true; runRemoteRepair();">Repair Remote</button>
+        <button id="btnStopRepairRemote" style="width:127px" onclick="stopRemoteRepair();">Stop Repair</button>
+    </div>
     <div id="divFields"></div>
     <div class="button-container">
         <button id="btnSaveSetting" type="button" style="display:inline-block;width:44%" onclick="resetDefaults();">

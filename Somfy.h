@@ -1,8 +1,8 @@
 #ifndef SOMFY_H
 #define SOMFY_H
 
-#define SOMFY_MAX_SHADES 5
-#define SOMFY_MAX_LINKED_REMOTES 2
+#define SOMFY_MAX_SHADES 32
+#define SOMFY_MAX_LINKED_REMOTES 5
 
 enum class somfy_commands : byte {
     My = 0x1,
@@ -25,11 +25,11 @@ typedef struct somfy_frame_t {
     somfy_commands cmd;
     uint32_t remoteAddress = 0;
     uint16_t rollingCode = 0;
-    uint8_t encKey = 0;
+    uint8_t encKey = 0xA7;
     uint8_t checksum = 0;
     bool valid = false;
     void print();
-    void encodeFrame(const uint32_t address, const somfy_commands cmd, const uint16_t rcode, byte* frame);
+    void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
 };
 
@@ -40,11 +40,6 @@ class SomfyRemote {
   protected:
     char m_remotePrefId[10] = "";
     uint32_t m_remoteAddress = 0;
-    void encodeFrame(byte *frame, somfy_commands cmd, uint16_t rcode);
-    void decodeFrame(byte *frame, somfy_frame_t *decoded);
-    void sendFrame(byte *frame, byte sync);
-    void sendHigh(uint16_t durationInMicroseconds);
-    void sendLow(uint16_t durationInMicroseconds);
   public:
     char *getRemotePrefId() {return m_remotePrefId;}
     virtual bool toJSON(JsonObject &obj);
@@ -53,7 +48,7 @@ class SomfyRemote {
     virtual uint16_t getNextRollingCode();
     virtual uint16_t setRollingCode(uint16_t code);
     uint16_t lastRollingCode = 0;
-    void sendCommand(somfy_commands, uint8_t repeat = 4);
+    virtual void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
 };
 class SomfyLinkedRemote : public SomfyRemote {
   public:
@@ -64,6 +59,7 @@ class SomfyShade : public SomfyRemote {
     uint8_t shadeId = 255;
     uint64_t moveStart = 0;
     float startPos = 0.0;
+    bool seekingPos = false;
   public:
     void load();
     float currentPos = 0.0;
@@ -75,19 +71,22 @@ class SomfyShade : public SomfyRemote {
     bool paired = false;
     bool fromJSON(JsonObject &obj);
     bool toJSON(JsonObject &obj) override;
-    char name[20] = "";
+    char name[21] = "";
     void setShadeId(uint8_t id) { shadeId = id; }
     uint8_t getShadeId() { return shadeId; }
     uint16_t upTime = 10000;
     uint16_t downTime = 1000;
     bool save();
     void checkMovement();
-    void processFrame(somfy_frame_t &frame);
+    void processFrame(somfy_frame_t &frame, bool internal = false);
     void setMovement(int8_t dir);
+    void setTarget(uint8_t target);
+    void moveToTarget(uint8_t target);
+    void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
     bool linkRemote(uint32_t remoteAddress, uint16_t rollingCode = 0);
     bool unlinkRemote(uint32_t remoteAddress);
-    void emitState();
-    void emitConfig();
+    void emitState(const char *evt = "shadeState");
+    void emitState(uint8_t num, const char *evt = "shadeState");
     void publish();
 };
 
@@ -95,8 +94,8 @@ typedef struct transceiver_config_t {
     bool printBuffer = false;
     uint8_t type = 56;                // 56 or 80 bit protocol.
     uint8_t SCKPin = 18;
-    uint8_t TXPin = 6;
-    uint8_t RXPin = 4;
+    uint8_t TXPin = 12;
+    uint8_t RXPin = 13;
     uint8_t MOSIPin = 23;
     uint8_t MISOPin = 19;
     uint8_t CSNPin = 5;
@@ -108,8 +107,8 @@ typedef struct transceiver_config_t {
     float channelSpacing = 199.95;    // Channel spacing in multiplied by the channel number and added to the base frequency in kHz. 25.39 to 405.45.  Default 199.95
     float rxBandwidth = 812.5;        // Receive bandwidth in kHz.  Value from 58.03 to 812.50.  Default is 99.97kHz.
     float dataRate = 99.97;           // The data rate in kBaud.  0.02 to 1621.83 Default is 99.97.
-    int8_t txPower = 12;              // Transmission power {-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12}.  Default is 12.
-    uint8_t syncMode = 2;             // 0=No preamble/sync, 
+    int8_t txPower = 10;              // Transmission power {-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12}.  Default is 12.
+    uint8_t syncMode = 0;             // 0=No preamble/sync, 
     // 1=16 sync word bits detected, 
     // 2=16/16 sync words bits detected. 
     // 3=30/32 sync word bits detected, 
@@ -177,29 +176,35 @@ class Transceiver {
     void enableReceive();
     void disableReceive();
     somfy_frame_t& lastFrame();
+    void sendFrame(byte *frame, uint8_t sync);
     void beginTransmit();
     void endTransmit();
 };
 class SomfyShadeController {
   protected:
     uint8_t m_shadeIds[SOMFY_MAX_SHADES];
-    uint8_t getNextShadeId();
   public:
     uint32_t startingAddress;
+    uint8_t getNextShadeId();
+    uint32_t getNextRemoteAddress(uint8_t shadeId);
     SomfyShadeController();
     Transceiver transceiver;
     SomfyShade *addShade();
+    SomfyShade *addShade(JsonObject &obj);
     bool deleteShade(uint8_t shadeId);
     bool begin();
     void loop();
     void end();
     SomfyShade shades[SOMFY_MAX_SHADES];
     bool toJSON(DynamicJsonDocument &doc);
+    bool toJSON(JsonArray &arr);
     bool toJSON(JsonObject &obj);
     uint8_t shadeCount();
     SomfyShade * getShadeById(uint8_t shadeId);
     SomfyShade * findShadeByRemoteAddress(uint32_t address);
-    void processFrame(somfy_frame_t &frame);
+    void sendFrame(somfy_frame_t &frame, uint8_t repeats = 0);
+    void processFrame(somfy_frame_t &frame, bool internal = false);
+    void emitState(uint8_t num = 255);
     void publish();
 };
 

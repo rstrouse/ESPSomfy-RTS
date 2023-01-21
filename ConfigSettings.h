@@ -2,7 +2,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v0.90.1"
+#define FW_VERSION "v1.03.1"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -35,6 +35,8 @@ class NTPSettings: BaseSettings {
 };
 class WifiSettings: BaseSettings {
   public:
+    WifiSettings();
+    char serverId[10] = "";
     char hostname[32] = "";
     char ssid[32] = "";
     char passphrase[32] = "";

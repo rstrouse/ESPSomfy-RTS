@@ -512,3 +512,42 @@ div.waitoverlay > .lds-roller {
         display: block;
         overflow: hidden;
     }
+.somfyShadeCtl {
+    height:60px;
+    border-bottom:dotted 2px gainsboro;
+    position:relative;
+}
+.shade-positioner {
+    position:absolute;
+    width:100%;
+    background-color:gainsboro;
+    color:gray;
+    height:60px;
+    top:0px;
+    padding-left:7px;
+    padding-right:7px;
+}
+.shade-positioner .shade-name {
+    display:block;
+    font-size:22px;
+    width:100%;
+    margin-top:-1px;
+}
+.shade-positioner input[type=range] {
+    width:100%;
+    margin-top:0px;
+    margin-bottom:0px;
+}
+.shade-positioner label {
+    display:block;
+    font-size:1em;
+    margin-top:-3px;
+    margin-left:27px;
+}
+    .shade-positioner label > span:last-child {
+        float: right;
+        margin-right: 7px;
+    }
+.shade-positioner label .shade-target {
+    display:inline-block;
+}

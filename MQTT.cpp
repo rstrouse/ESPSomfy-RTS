@@ -26,6 +26,68 @@ bool MQTTClass::loop() {
   mqttClient.loop();
   return true;
 }
+void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
+  //Serial.print("MQTT Topic:");
+  //Serial.print(topic);
+  //Serial.print(" payload:");
+  //for(uint32_t i=0; i<length; i++)
+  //  Serial.print((char)payload[i]);
+  //Serial.println();
+
+  // We need to start at the last slash in the data
+  uint16_t ndx = strlen(topic) - 1;
+  // ------------------+
+  // shades/1/target/set
+  while(ndx >= 0 && topic[ndx] != '/') ndx--; // Back off the set command
+  uint16_t end_command = --ndx;
+  // --------------+----
+  // shades/1/target/set
+  while(ndx >= 0 && topic[ndx] != '/') ndx--; // Get the start of the leaf.
+  // --------+----------
+  // shades/1/target/set
+  uint16_t start_command = ndx + 1;
+  uint16_t id_end = --ndx;
+  while(ndx >= 0 && topic[ndx] != '/') ndx--;
+  // ------+------------
+  // shades/1/target/set
+  uint16_t id_start = ndx + 1;
+  char shadeId[4];
+  char command[32];
+  memset(command, 0x00, sizeof(command));
+  memset(shadeId, 0x00, sizeof(shadeId));
+  for(uint16_t i = 0;id_start <= id_end; i++)
+    shadeId[i] = topic[id_start++];
+  for(uint16_t i = 0;start_command <= end_command; i++)
+    command[i] = topic[start_command++];
+
+  char value[10];
+  memset(value, 0x00, sizeof(value));
+  for(uint8_t i = 0; i < length; i++)
+    value[i] = payload[i];
+  
+  Serial.print("MQTT Command:[");
+  Serial.print(command);
+  Serial.print("] shadeId:");
+  Serial.print(shadeId);
+  Serial.print(" value:");
+  Serial.println(value);
+  SomfyShade* shade = somfy.getShadeById(atoi(shadeId));
+  if (shade) {
+    int val = atoi(value);
+    if(strncmp(command, "target", sizeof(command)) == 0) {
+      if(val >= 0 && val <= 100)
+        shade->moveToTarget(atoi(value));
+    }
+    else if(strncmp(command, "direction", sizeof(command)) == 0) {
+      if(val < 0)
+        shade->sendCommand(somfy_commands::Up);
+      else if(val > 0)
+        shade->sendCommand(somfy_commands::Down);
+      else
+        shade->sendCommand(somfy_commands::My);
+    }
+  }
+}
 bool MQTTClass::connect() {
   if(mqttClient.connected()) {
     if(!settings.MQTT.enabled)
@@ -42,6 +104,9 @@ bool MQTTClass::connect() {
         Serial.print("Successfully connected MQTT client ");
         Serial.println(this->clientId);
         somfy.publish();
+        this->subscribe("shades/+/target/set");
+        this->subscribe("shades/+/direction/set");
+        mqttClient.setCallback(MQTTClass::receive);
         return true;
       }
       else {
@@ -56,7 +121,33 @@ bool MQTTClass::connect() {
 }
 bool MQTTClass::disconnect() {
   if(mqttClient.connected()) {
+    this->unsubscribe("shades/+/target/set");
+    this->unsubscribe("shades/+/direction/set");
     mqttClient.disconnect();
+  }
+  return true;
+}
+bool MQTTClass::unsubscribe(const char *topic) {
+  if(mqttClient.connected()) {
+    char top[64];
+    if(strlen(settings.MQTT.rootTopic) > 0)
+      snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
+    else
+      strlcpy(top, topic, sizeof(top));
+    return mqttClient.unsubscribe(top);
+  }
+  return true;
+}
+bool MQTTClass::subscribe(const char *topic) {
+  if(mqttClient.connected()) {
+    char top[64];
+    if(strlen(settings.MQTT.rootTopic) > 0)
+      snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
+    else
+      strlcpy(top, topic, sizeof(top));
+    Serial.print("MQTT Subscribed to:");
+    Serial.println(top);
+    return mqttClient.subscribe(top);
   }
   return true;
 }

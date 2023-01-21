@@ -166,6 +166,18 @@ bool NTPSettings::apply() {
   setenv("TZ", this->posixZone, 1);
   return true;
 }
+WifiSettings::WifiSettings() {
+  uint32_t chipId = 0;
+  uint64_t mac = ESP.getEfuseMac();
+  for(int i=0; i<17; i=i+8) {
+    chipId |= ((mac >> (40 - i)) & 0xff) << i;
+  }
+  snprintf_P(this->serverId, sizeof(this->serverId), "%02X%02X%02X",
+    (uint16_t)((chipId >> 16) & 0xff),
+    (uint16_t)((chipId >> 8) & 0xff),
+    (uint16_t)chipId & 0xff);
+}
+
 bool WifiSettings::begin() {
   this->load();
   return true;

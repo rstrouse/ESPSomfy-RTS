@@ -5,6 +5,8 @@
 class Network {
   protected:
     unsigned long lastEmit = 0;
+    int lastRSSI = 0;
+    int lastChannel = 0;
   public:
     String ssid;
     String mac;

@@ -3,9 +3,12 @@
 #include <WebSocketsServer.h>
 #include "Sockets.h"
 #include "ConfigSettings.h"
+#include "Somfy.h"
 
 
 extern ConfigSettings settings;
+extern SomfyShadeController somfy;
+
 WebSocketsServer sockServer = WebSocketsServer(8080);
 char g_buffer[1024];
 
@@ -62,7 +65,7 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
                 // Send all the current Sensor readings to the client.
                 sockServer.sendTXT(num, "Connected");
                 settings.emitSockets();
-                //settings.Inputs.emitSocket(num);
+                somfy.emitState(num);
             }
             break;
         case WStype_TEXT:

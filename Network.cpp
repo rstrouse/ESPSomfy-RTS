@@ -45,9 +45,14 @@ void Network::loop() {
 }
 void Network::emitSockets() {
   if(WiFi.status() == WL_CONNECTED) {
-    char buf[50];
-    sprintf(buf, "{\"ssid\":\"%s\", \"strength\":%d, \"channel\":%d}", WiFi.SSID(), WiFi.RSSI(), WiFi.channel());
-    sockEmit.sendToClients("wifiStrength", buf);
+    
+    if(abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 2 || WiFi.channel() != this->lastChannel) {
+      char buf[50];
+      sprintf(buf, "{\"ssid\":\"%s\", \"strength\":%d, \"channel\":%d}", WiFi.SSID(), WiFi.RSSI(), WiFi.channel());
+      sockEmit.sendToClients("wifiStrength", buf);
+      this->lastRSSI = WiFi.RSSI();
+      this->lastChannel = WiFi.channel();
+    }
   }
   else
     sockEmit.sendToClients("wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
@@ -88,29 +93,32 @@ void Network::setConnected() {
   SSDP.setHTTPPort(80);
   SSDP.setSchemaURL(0, "upnp.xml");
   SSDP.setChipId(0, this->getChipId());
-  SSDP.setDeviceType(0, "urn:schemas-rstrouse-org:device:SomfyServer:1");
+  SSDP.setDeviceType(0, "urn:schemas-rstrouse-org:device:ESPSomfyRTS:1");
   SSDP.setName(0, settings.WIFI.hostname);
   
   //SSDP.setSerialNumber(0, "C2496952-5610-47E6-A968-2FC19737A0DB");
   //SSDP.setUUID(0, settings.uuid);
-  SSDP.setModelName(0, "Somfy Server");
+  SSDP.setModelName(0, "ESPSomfy RTS");
   SSDP.setModelNumber(0, "SS v1");
-  SSDP.setModelURL(0, "https://github.com/rstrouse/ESP32-somfyServer");
+  SSDP.setModelURL(0, "https://github.com/rstrouse/ESPSomfy-RTS");
   SSDP.setManufacturer(0, "rstrouse");
   SSDP.setManufacturerURL(0, "https://github.com/rstrouse");
   SSDP.setURL(0, "/");
   if(MDNS.begin(settings.WIFI.hostname)) {
-    Serial.println(F("MDNS Responder Started"));
-    MDNS.addService("_http", "_tcp", 80);
-    MDNS.addServiceTxt("_http", "_tcp", "board", "ESP32");
-    //MDNS.addServiceTxt("_osc", "_udp", "board", settings.WIFI.hostname);
+    Serial.printf("MDNS Responder Started: serverId=%s\n", settings.WIFI.serverId);
+    MDNS.addService("http", "tcp", 80);
+    MDNS.addServiceTxt("http", "tcp", "board", "ESP32");
+    MDNS.addServiceTxt("http", "tcp", "model", "ESPSomfyRTS");
+    
+    MDNS.addService("espsomfy_rts", "tcp", 8080);
+    MDNS.addServiceTxt("espsomfy_rts", "tcp", "serverId", String(settings.WIFI.serverId));
+    MDNS.addServiceTxt("espsomfy_rts", "tcp", "model", "ESPSomfyRTS");
+    MDNS.addServiceTxt("espsomfy_rts", "tcp", "version", String(settings.fwVersion));
   }
   if(settings.WIFI.ssdpBroadcast) {
-    if( SSDP.begin()) Serial.println("SSDP Client Started..."); 
+    if(SSDP.begin()) Serial.println("SSDP Client Started..."); 
   }
   else if(SSDP.isStarted) SSDP.end();
-  
-  //digitalWrite(LED_BUILTIN, HIGH);
   this->emitSockets();
 }
 bool Network::connect() {
@@ -243,7 +251,7 @@ bool Network::openSoftAP() {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_AP_STA);
   delay(100);
-  WiFi.softAP("Somfy Controller", "");
+  WiFi.softAP("ESPSomfy RTS", "");
   Serial.println("Initializing AP for credentials modification");
   Serial.println();
   Serial.print("SoftAP IP: ");
@@ -251,6 +259,7 @@ bool Network::openSoftAP() {
   pinMode(D0, INPUT_PULLUP);
   long startTime = millis();
   int c = 0;
+  
   while ((WiFi.status() != WL_CONNECTED))
   {
     for(int i = 0; i < 3; i++) {
