@@ -11,9 +11,8 @@ This software uses a couple of readily available hardware components.  These inc
 
 # Functionality
 After you get this up and running you will have the ability to interact with your shades using the built-in web interface, socket interface, and MQTT.  There is also a full [Home Assistant integration](https://github.com/rstrouse/ESPSomfy-RTS-HA) that can be installed through HACS that can control your shades remotely and provide automations.
+
 ![image](https://user-images.githubusercontent.com/47839015/213935196-753e994c-7cd6-480f-8e6e-e5a61266fc3c.png)
-
-
 
 # Getting Started
 To get started you must create a radio device.  There wiki contains full instructions on how to get this up and running.  You don't need a soldering iron to make this project work. Dupont connections between the radio and the ESP32 will suffice.  However, I have also included some instructions on how to make an inconspicuous radio enclosure for a few bucks.
