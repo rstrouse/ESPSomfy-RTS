@@ -1041,7 +1041,7 @@
         };
         var firmware = new Firmware();
 
-        function setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.00.1'; }
+        function setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.7'; }
         Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
         Number.prototype.fmt = function (format, empty) {
             if (isNaN(this)) return empty || '';
@@ -1444,7 +1444,7 @@
 
                         </div>
                         <hr />
-                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:50px;"></div>
+                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:77px;"></div>
                         <div class="button-container">
                             <button id="btnLinkRemote" type="button" onclick="somfy.linkRemote(parseInt(document.getElementById('spanShadeId').innerText, 10));">
                                 Link Remote

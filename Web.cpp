@@ -346,7 +346,7 @@ void Web::begin() {
         int shadeId = atoi(server.arg("shadeId").c_str());
         SomfyShade* shade = somfy.getShadeById(shadeId);
         if (shade) {
-          DynamicJsonDocument doc(256);
+          DynamicJsonDocument doc(512);
           JsonObject obj = doc.to<JsonObject>();
           shade->toJSON(obj);
           serializeJson(doc, g_content);

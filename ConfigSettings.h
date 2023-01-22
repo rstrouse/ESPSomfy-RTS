@@ -2,7 +2,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v1.03.1"
+#define FW_VERSION "v1.0.7"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -37,7 +37,7 @@ class WifiSettings: BaseSettings {
   public:
     WifiSettings();
     char serverId[10] = "";
-    char hostname[32] = "";
+    char hostname[32] = "ESPSomfyRTS";
     char ssid[32] = "";
     char passphrase[32] = "";
     bool ssdpBroadcast = true;
