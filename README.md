@@ -9,7 +9,19 @@ The research led me to several projects that looked like they would do what I wa
 
 This software uses a couple of readily available hardware components.  These include an ESP32 module and a CC1101 Transceiver module.  The CC1101 is connected via SPI to the ESP32 and controlled using SmartRC-CC1101-Driver library.  All in at the start of 2023 the total cost for me was about $12us for the final components.
 
-## Getting Started
+# Functionality
+After you get this up and running you will have the ability to interact with your shades using the built-in web interface, socket interface, and MQTT.  There is also a full [Home Assistant integration](https://github.com/rstrouse/ESPSomfy-RTS-HA) that can be installed through HACS that can control your shades remotely and provide automations.
+![image](https://user-images.githubusercontent.com/47839015/213935196-753e994c-7cd6-480f-8e6e-e5a61266fc3c.png)
+
+
+
+# Getting Started
+To get started you must create a radio device.  There wiki contains full instructions on how to get this up and running.  You don't need a soldering iron to make this project work. Dupont connections between the radio and the ESP32 will suffice.  However, I have also included some instructions on how to make an inconspicuous radio enclosure for a few bucks.
+
+Once you have your hardware built it is simply a matter of connecting the ESP32 to your network and begin pariing your shades.  The software guide in the wiki will walk you through pairing your shades, linking remotes, and configuring your shades.
+
+
+
 Originally I bought a cc1101 transceiver with a spring type antenna and could not figure out why it would not consistently receive commands from my remotes.  I then went about purchasing several other transceiver modules thinking that all my code is always perfect.  This hard-headedness led me to the conclusion that the timing algorithm I created to read the radio signal was not quite ready.  Since I ordered every type of CC1101 transceiver I could get my hands on, I can report that any of the CC1101 transceivers work very well.  I must have had an extra thumb or two when I built the orginal timing since it was dropping part of the hardware sync.  In the end, all of the cheap cc1101 transceivers I bought had a range over 300 feet and through a couple of walls.  I finally just stopped walking.
 
 Your first step is to connect your transceiver to your ESP32.  I did this with the use of some female to female dupont connectors for now but will be coming up with a cleaner setup and project enclosure.  Next you will want to install the firmware on your ESP32 and configure the radio to match your hardware connections.
