@@ -92,6 +92,7 @@ class SomfyShade : public SomfyRemote {
 
 typedef struct transceiver_config_t {
     bool printBuffer = false;
+    bool enabled = true;
     uint8_t type = 56;                // 56 or 80 bit protocol.
     uint8_t SCKPin = 18;
     uint8_t TXPin = 12;

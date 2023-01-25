@@ -1,4 +1,5 @@
 ﻿<!DOCTYPE html>
+
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -166,7 +167,7 @@
                 });
 
             };
-            setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.7'; };
+            setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.8'; };
             setTimeZones() {
                 let dd = document.getElementById('selTimeZone');
                 dd.length = 0;
@@ -215,6 +216,7 @@
             };
             rebootDevice() {
                 promptMessage(document.getElementById('fsGeneralSettings'), 'Are you sure you want to reboot the device?', () => {
+                    socket.close(3000, 'reboot');
                     let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
                     putJSON('/reboot', {}, (err, response) => {
                         overlay.remove();
@@ -367,11 +369,12 @@
                         document.getElementById('selTransRXPin').value = somfy.transceiver.config.RXPin.toString();
                         document.getElementById('selRadioType').value = somfy.transceiver.config.type;
                         document.getElementById('spanMaxShades').innerText = somfy.maxShades;
-                        document.getElementById('spanRxBandwidth').innerText = Math.round(somfy.transceiver.config.rxBandwidth * 100) / 100;
+                        document.getElementById('spanRxBandwidth').innerText = (Math.round(somfy.transceiver.config.rxBandwidth * 100) / 100).fmt('#,##0.00');
                         document.getElementById('slidRxBandwidth').value = Math.round(somfy.transceiver.config.rxBandwidth * 100);
                         document.getElementById('spanTxPower').innerText = somfy.transceiver.config.txPower;
-                        document.getElementById('spanDeviation').innerText = Math.round(somfy.transceiver.config.deviation * 100) / 100;
+                        document.getElementById('spanDeviation').innerText = (Math.round(somfy.transceiver.config.deviation * 100) / 100).fmt('#,##0.00');
                         document.getElementById('slidDeviation').value = Math.round(somfy.transceiver.config.deviation * 100);
+                        document.getElementsByName('enableRadio')[0].checked = somfy.transceiver.config.enabled;
 
                         let tx = document.getElementById('slidTxPower');
                         let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];
@@ -393,6 +396,7 @@
                 let valid = true;
                 let getIntValue = (fld) => { return parseInt(document.getElementById(fld).value, 10); }
                 let obj = {
+                    enabled: document.getElementsByName('enableRadio')[0].checked,
                     type: parseInt(document.getElementById('selRadioType').value, 10),
                     SCKPin: getIntValue('selTransSCKPin'),
                     CSNPin: getIntValue('selTransCSNPin'),
@@ -530,6 +534,7 @@
             };
             procRemoteFrame(frame) {
                 console.log(frame);
+                document.getElementById('spanRssi').innerHTML = frame.rssi;
                 let lnk = document.getElementById('divLinking');
                 if (lnk) {
                     let obj = {
@@ -798,7 +803,7 @@
                 html += '<li>You may now press the close button</li>'
                 html += '</ul>'
                 html += `<div class="button-container">`
-                html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="sendPairCommand(${shadeId});">Prog</button>`
+                html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendPairCommand(${shadeId});">Prog</button>`
                 html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`
                 html += `</div>`;
                 div.innerHTML = html;
@@ -818,7 +823,7 @@
                 html += '<li>You may now press the close button</li>'
                 html += '</ul>'
                 html += `<div class="button-container">`
-                html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="sendUnpairCommand(${shadeId});">Prog</button>`
+                html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendUnpairCommand(${shadeId});">Prog</button>`
                 html += `<button id="btnStopUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`
                 html += `</div>`;
                 div.innerHTML = html;
@@ -827,7 +832,7 @@
             };
             sendCommand(shadeId, command) {
                 let data = { shadeId: shadeId };
-                if (isNaN(parseInt(command, 10))) 
+                if (isNaN(parseInt(command, 10)))
                     putJSON('/shadeCommand', { shadeId: shadeId, command: command }, (err, shade) => {
                     });
                 else
@@ -862,11 +867,10 @@
                 });
             };
             deviationChanged(el) {
-                document.getElementById('spanDeviation').innerText = el.value / 100;
+                document.getElementById('spanDeviation').innerText = (el.value / 100).fmt('#,##0.00');
             };
             rxBandwidthChanged(el) {
-                console.log(el.value);
-                document.getElementById('spanRxBandwidth').innerText = el.value / 100;
+                document.getElementById('spanRxBandwidth').innerText = (el.value / 100).fmt('#,##0.00');
             };
             txPowerChanged(el) {
                 console.log(el.value);
@@ -900,7 +904,7 @@
                         let shadeName = elname.innerHTML;
                         let html = `<div class="shade-name">${shadeName}</div>`;
                         html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" value="${currPos}" onchange="somfy.processShadeTarget(this, ${shadeId});" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
-                        html += `<label for="shadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
+                        html += `<label for="slidShadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
                         html += `</div>`;
                         let div = document.createElement('div');
                         div.setAttribute('class', 'shade-positioner');
@@ -1041,7 +1045,7 @@
         };
         var firmware = new Firmware();
 
-        function setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.7'; }
+        function setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.8'; }
         Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
         Number.prototype.fmt = function (format, empty) {
             if (isNaN(this)) return empty || '';
@@ -1215,10 +1219,22 @@
             }
             xhr.send(JSON.stringify(data));
         }
+        var socket;
+        var tConnect = null;
+        var sockIsOpen = false;
+        var connecting = false;
         function initSockets() {
-            let socket = new WebSocket(`ws://${location.host}:8080`);
-            
-            //let socket = new WebSocket(`ws://192.168.1.244:8080`);
+            if (connecting) return;
+            console.log('Connecting to socket...');
+            connecting = true;
+            if (tConnect) clearTimeout(tConnect);
+            tConnect = null;
+            let wms = document.getElementsByClassName('socket-wait');
+            for (let i = 0; i < wms.length; i++) {
+                wms[i].remove();
+            }
+            waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
+            socket = new WebSocket(`ws://${location.host}:8080`);
             socket.onmessage = (evt) => {
                 if (evt.data.startsWith('42')) {
                     let ndx = evt.data.indexOf(',');
@@ -1259,28 +1275,42 @@
                     }
                 }
             };
-            let tConnect = null;
             socket.onopen = (evt) => {
                 if (tConnect) clearTimeout(tConnect);
+                tConnect = null;
                 console.log({ msg: 'open', evt: evt });
+                sockIsOpen = true;
+                connecting = false;
+                let wms = document.getElementsByClassName('socket-wait');
+                for (let i = 0; i < wms.length; i++) {
+                    wms[i].remove();
+                }
             };
             socket.onclose = (evt) => {
-                if (evt.wasClean) console.log({ msg: 'close-clean', evt: evt });
-                else console.log({ msg: 'close-died', evt: evt });
-                tConnect = setTimeout(reopenSocket, 3000);
+                waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
+                if (evt.wasClean) {
+                    console.log({ msg: 'close-clean', evt: evt });
+                    tConnect = setTimeout(() => { reopenSocket(); }, 10000);
+                    console.log('Reconnecting socket in 10 seconds');
+                }
+                else {
+                    console.log({ msg: 'close-died', reason: evt.reason, evt: evt });
+                    tConnect = setTimeout(() => { reopenSocket(); }, 3000);
+                }
             };
             socket.onerror = (evt) => {
                 console.log({ msg: 'socket error', evt: evt });
             }
-            let reopenSocket = () => {
-                if (tConnect) clearTimeout(tConnect);
-                initSockets();
-            }
+        }
+        function reopenSocket() {
+            if (tConnect) clearTimeout(tConnect);
+            tConnect = null;
+            initSockets();
         }
     </script>
 </head>
 <body>
-    <div class="container" style="user-select:none;">
+    <div id="divContainer" class="container" style="user-select:none;">
         <h1 style="text-align: center;"><span>ESPSomfy RTS</span><span class="button-outline" onclick="general.toggleConfig();" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-gear" style=""></i></span></span></h1>
         <div id="divConfigPnl" style="display:none;">
             <div style="margin-top:-10px;text-align:center;font-size:12px;">
@@ -1299,20 +1329,20 @@
                 <legend>General Settings</legend>
                 <form method="post" action="/general" style="margin-top:8px;">
                     <div class="field-group">
-                        <input name="hostname" type="text" length=32 placeholder="Host Name">
-                        <label for="hostname">Host Name</label>
+                        <input id="fldHostname" name="hostname" type="text" length=32 placeholder="Host Name">
+                        <label for="fldHostname">Host Name</label>
                     </div>
                     <div class="field-group">
                         <select id="selTimeZone" name="timeZone" type="password" length=32 placeholder="Time Zone" style="width:100%;"></select>
-                        <label for="timeZone">Time Zone</label>
+                        <label for="selTimeZone">Time Zone</label>
                     </div>
                     <div class="field-group">
-                        <input name="ntptimeserver" type="text" length=32 placeholder="Time Server">
-                        <label for="ntptimeserver">NTP Time Server</label>
+                        <input id="fldNtptimesever" name="ntptimeserver" type="text" length=32 placeholder="Time Server">
+                        <label for="fldNtptimeserver">NTP Time Server</label>
                     </div>
                     <div class="field-group" style="vertical-align:middle;">
-                        <input name="ssdpBroadcast" type="checkbox" style="display:inline-block;" />
-                        <label for="ssdpBroadcast" style="display:inline-block;cursor:pointer;">Broadcast uPnP over SSDP</label>
+                        <input id="cbSsdpBroadcast" name="ssdpBroadcast" type="checkbox" style="display:inline-block;" />
+                        <label for="cbSsdpBroadcast" style="display:inline-block;cursor:pointer;">Broadcast uPnP over SSDP</label>
                     </div>
                     <div class="button-container">
                         <button id="btnSaveGeneral" type="button" onclick="general.setGeneral();">
@@ -1334,12 +1364,12 @@
                 </form>
                 <form method="post" action="/wifi" style="margin-top:8px;">
                     <div class="field-group">
-                        <input name="ssid" type="text" length=32 placeholder="SSID">
-                        <label for="ssid">Network SSID</label>
+                        <input id="fldSsid" name="ssid" type="text" length=32 placeholder="SSID">
+                        <label for="fldSsid">Network SSID</label>
                     </div>
                     <div class="field-group">
-                        <input name="passphrase" type="password" length=32 placeholder="Passphrase">
-                        <label for="passphrase">Passphrase</label>
+                        <input id="fldPassphrase" name="passphrase" type="password" length=32 placeholder="Passphrase">
+                        <label for="fldPassphrase">Passphrase</label>
                     </div>
                     <div class="button-container">
                         <button id="btnConnectWiFi" type="button" onclick="wifi.connectWiFi();">
@@ -1352,8 +1382,8 @@
                 <legend>MQTT Settings</legend>
                 <form method="post" action="/mqtt">
                     <div class="field-group" style="vertical-align:middle;">
-                        <input name="mqtt-enabled" type="checkbox" style="display:inline-block;" />
-                        <label for="mqtt-enabled" style="display:inline-block;cursor:pointer;">Enable MQTT client</label>
+                        <input id="cbMqttEnabled" name="mqtt-enabled" type="checkbox" style="display:inline-block;" />
+                        <label for="cbMqttEnabled" style="display:inline-block;cursor:pointer;">Enable MQTT client</label>
                     </div>
                     <div class="field-group1" style="white-space:nowrap;">
                         <select name="mqtt-protocol" style="width:54px;">
@@ -1366,16 +1396,16 @@
                         <input name="mqtt-port" type="text" length=5 placeholder="Port" style="width:50px;">
                     </div>
                     <div class="field-group">
-                        <input name="mqtt-username" type="text" length=32 placeholder="Username">
-                        <label for="mqtt-username">Username</label>
+                        <input id="fldMqttUsername" name="mqtt-username" type="text" length=32 placeholder="Username">
+                        <label for="fldMqttUsername">Username</label>
                     </div>
                     <div class="field-group">
-                        <input name="mqtt-password" type="text" length=64 placeholder="Password">
-                        <label for="mqtt-password">Password</label>
+                        <input id="fldMqttPassword" name="mqtt-password" type="text" length=64 placeholder="Password">
+                        <label for="fldMqttPassword">Password</label>
                     </div>
                     <div class="field-group">
-                        <input name="mqtt-topic" type="text" length=64 placeholder="Root Topic">
-                        <label for="mqtt-topic">Root Topic</label>
+                        <input id="fldMqttTopic" name="mqtt-topic" type="text" length=64 placeholder="Root Topic">
+                        <label for="fldMqttTopic">Root Topic</label>
                     </div>
 
                     <div class="button-container">
@@ -1407,8 +1437,8 @@
                         <div style="display:inline-block;float:right;position:relative;margin-top:-14px;"><span id="spanShadeId">*</span>/<span id="spanMaxShades">5</span></div>
                         <div>
                             <div class="field-group" style="width:127px;display:inline-block;">
-                                <input name="shadeAddress" type="number" length=5 placeholder="Address" style="width:100%;">
-                                <label for="shadeAddress">Remote Address</label>
+                                <input id="fldShadeAddress" name="shadeAddress" type="number" length=5 placeholder="Address" style="width:100%;">
+                                <label for="fldShadeAddress">Remote Address</label>
                             </div>
                             <div id="divSomfyButtons" style="float:right">
                                 <div style="display:inline-block;padding-right:7px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;font-size:32px;"></i></div>
@@ -1418,17 +1448,17 @@
                             </div>
                         </div>
                         <div class="field-group">
-                            <input name="shadeName" type="text" length=20 placeholder="Name">
-                            <label for="shadeName">Name</label>
+                            <input id="fldShadeName" name="shadeName" type="text" length=20 placeholder="Name">
+                            <label for="fldShadeName">Name</label>
                         </div>
                         <div>
                             <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;">
-                                <input name="shadeUpTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
-                                <label for="shadeId">Up Time (ms)</label>
+                                <input id="fldShadeUpTime" name="shadeUpTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
+                                <label for="fldShadeUpTime">Up Time (ms)</label>
                             </div>
                             <div class="field-group" style="display:inline-block;max-width:127px;">
-                                <input name="shadeDownTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
-                                <label for="shadeId">Down Time (ms)</label>
+                                <input id="fldShadeDownTime" name="shadeDownTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
+                                <label for="fldShadeDownTime">Down Time (ms)</label>
                             </div>
                         </div>
                         <div class="button-container" style="text-align:center;">
@@ -1457,62 +1487,74 @@
                 </div>
                 <div id="somfyTransceiver" style="display:none;">
                     <form>
-                        <div id="divRadioSettings" name="divRadioSettings" class="field-group1" style="white-space:nowrap;display:block;position:relative">
+                        <div id="divRadioSettings" name="divRadioSettings" class="field-group1" style="display:block;position:relative">
                             <div class="field-group" style="">
                                 <label for="selRadioType">Radio</label>
-                                <select id="selRadioType" name="radioType" style="">
+                                <select id="selRadioType" name="radioType" style="width:77px;">
                                     <option value="none" selected>None</option>
                                     <option value="56">56-BIT</option>
                                     <option value="80">80-BIT</option>
                                 </select>
                             </div>
-                            <div class="field-group1" style="margin-top:-20px;">
+                            <div class="field-group" style="vertical-align:middle;margin-left:7px;float:right;">
+                                <input id="cbEnableRadio" name="enableRadio" type="checkbox" style="display:inline-block;" />
+                                <label for="cbEnableRadio" style="display:inline-block;cursor:pointer;">Enable Radio</label>
+                            </div>
+
+                            <div class="field-group1" style="margin-top:-20px;white-space:nowrap">
                                 <div class="field-group radioPins">
                                     <select id="selTransSCKPin" name="transSCK"></select>
-                                    <label for="transSCK">SCLK</label>
+                                    <label for="selTransSCKPin">SCLK</label>
                                 </div>
                                 <div class="field-group radioPins">
                                     <select id="selTransCSNPin" name="transCSN"></select>
-                                    <label for="transCSN">CSN</label>
+                                    <label for="selTransCSNPin">CSN</label>
                                 </div>
                                 <div class="field-group radioPins">
                                     <select id="selTransMOSIPin" name="transMOSI"></select>
-                                    <label for="transMOSI">MOSI</label>
+                                    <label for="selTransMOSIPin">MOSI</label>
                                 </div>
                                 <div class="field-group radioPins">
                                     <select id="selTransMISOPin" name="transMISO"></select>
-                                    <label for="transMISO">MISO</label>
+                                    <label for="selTransMISOPin">MISO</label>
                                 </div>
                             </div>
                             <div class="field-group1" style="margin-top:-20px;">
                                 <div class="field-group radioPins">
                                     <select id="selTransTXPin" name="transTX"></select>
-                                    <label for="transTX">TX</label>
+                                    <label for="selTransTXPin">TX</label>
                                 </div>
                                 <div class="field-group radioPins">
                                     <select id="selTransRXPin" name="transRX"></select>
-                                    <label for="transRX">RX</label>
+                                    <label for="selTransRXPin">RX</label>
                                 </div>
                             </div>
-                                <div class="field-group" style="display:inline-block;width:auto;min-width:247px;margin-top:-20px;">
-                                    <div class="field-group">
-                                        <input id="slidRxBandwidth" name="rxBandwidth" type="range" min="5803" max="81250" step="1" style="width:100%;" onchange="somfy.rxBandwidthChanged(this);" />
-                                        <label for="rxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
-                                            <span>RX Bandwidth </span>
-                                            <span style="float:right;display:inline-block;margin-right:7px;">
-                                                <span id="spanRxBandwidth" style="color:black;"></span><span>kHz</span>
-                                            </span>
-                                        </label>
-                                    </div>
-                                    <div class="field-group" style="margin-top:-10px;">
-                                        <input id="slidDeviation" name="deviation" type="range" min="158" max="38085" step="1" style="width:100%;" onchange="somfy.deviationChanged(this);" />
-                                        <label for="deviation" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>Frequency Deviation </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanDeviation" style="color:black;"></span><span>kHz</span></span></label>
-                                    </div>
-                                    <div class="field-group" style="margin-top:-10px;">
-                                        <input id="slidTxPower" name="txPower" type="range" min="0" max="10" step="1" style="width:100%;" onchange="somfy.txPowerChanged(this);" />
-                                        <label for="txPower" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>TX Power </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanTxPower" style="color:black;"></span><span>dBm</span></span></label>
-                                    </div>
+                            <div class="field-group" style="display:inline-block;width:auto;min-width:247px;margin-top:-20px;vertical-align:top;">
+                                <div class="field-group">
+                                    <input id="slidRxBandwidth" name="rxBandwidth" type="range" min="5803" max="81250" step="1" style="width:100%;" oninput="somfy.rxBandwidthChanged(this);" />
+                                    <label for="slidRxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
+                                        <span>RX Bandwidth </span>
+                                        <span style="float:right;display:inline-block;margin-right:7px;">
+                                            <span id="spanRxBandwidth" style="color:black;"></span><span>kHz</span>
+                                        </span>
+                                    </label>
                                 </div>
+                                <div class="field-group" style="margin-top:-10px;">
+                                    <input id="slidDeviation" name="deviation" type="range" min="158" max="38085" step="1" style="width:100%;" oninput="somfy.deviationChanged(this);" />
+                                    <label for="slidDeviation" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>Frequency Deviation </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanDeviation" style="color:black;"></span><span>kHz</span></span></label>
+                                </div>
+                                <div class="field-group" style="margin-top:-10px;">
+                                    <input id="slidTxPower" name="txPower" type="range" min="0" max="10" step="1" style="width:100%;" oninput="somfy.txPowerChanged(this);" />
+                                    <label for="slidTxPower" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>TX Power </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanTxPower" style="color:black;"></span><span>dBm</span></span></label>
+                                </div>
+                            </div>
+                            <div style="display:inline-block;vertical-align:top;padding-left:14px;">
+                                <div class="field-group" style="">
+                                    <label style="display:block;width:100%;text-align:center;">RSSI</label>
+                                    <span id="spanRssi" name="rssi" style="display:block;font-size:32px;width:100%;text-align:center;">---</span>
+                                    <span style="display: block; color: #00bcd4;width:100%;text-align:center;">dBm</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="button-container">
                             <button id="btnSaveRadio" type="button" onclick="somfy.saveRadio();">

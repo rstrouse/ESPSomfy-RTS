@@ -211,6 +211,10 @@ bool WifiSettings::load() {
   pref.getString("hostname", this->hostname, sizeof(this->hostname));
   pref.getString("ssid", this->ssid, sizeof(this->ssid));
   pref.getString("passphrase", this->passphrase, sizeof(this->passphrase));
+  this->hostname[sizeof(this->hostname) - 1] = '\0';
+  this->ssid[sizeof(this->ssid) - 1] = '\0';
+  this->passphrase[sizeof(this->passphrase) - 1] = '\0';
+  if(strlen(this->hostname) == 0) strlcpy(this->hostname, "ESPSomfyRTS", sizeof(this->hostname));
   this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
   pref.end();
   return true;

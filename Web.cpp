@@ -629,7 +629,7 @@ void Web::begin() {
               else {
                 server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Remote address not provided.\"}"));
               }
-              DynamicJsonDocument sdoc(256);
+              DynamicJsonDocument sdoc(512);
               JsonObject sobj = sdoc.to<JsonObject>();
               shade->toJSON(sobj);
               serializeJson(sdoc, g_content);
@@ -677,7 +677,7 @@ void Web::begin() {
               else {
                 server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Remote address not provided.\"}"));
               }
-              DynamicJsonDocument sdoc(256);
+              DynamicJsonDocument sdoc(512);
               JsonObject sobj = sdoc.to<JsonObject>();
               shade->toJSON(sobj);
               serializeJson(sdoc, g_content);

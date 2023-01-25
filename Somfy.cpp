@@ -230,7 +230,6 @@ void somfy_frame_t::print() {
     Serial.print(" CS:");
     Serial.println(this->checksum);
 }
-
 void SomfyShadeController::end() { this->transceiver.disableReceive(); }
 SomfyShadeController::SomfyShadeController() {
   memset(this->m_shadeIds, 255, sizeof(this->m_shadeIds));
@@ -299,6 +298,14 @@ SomfyShade * SomfyShadeController::getShadeById(uint8_t shadeId) {
   return nullptr;
 }
 bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
+  // Check to see if the remote is already linked. If it is
+  // just return true after setting the rolling code
+  for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
+    if(this->linkedRemotes[i].getRemoteAddress() == address) {
+      this->linkedRemotes[i].setRollingCode(rollingCode);
+      return true;
+    }
+  }
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
     if(this->linkedRemotes[i].getRemoteAddress() == 0) {
       char shadeKey[15];
@@ -950,6 +957,7 @@ static struct somfy_rx_t
 uint8_t receive_buffer[10]; // 80 bits
 bool packet_received = false;
 void Transceiver::sendFrame(byte *frame, uint8_t sync) {
+  if(!this->config.enabled) return;
   uint32_t pin = 1 << this->config.TXPin;
   if (sync == 2) {  // Only with the first frame.
     // Wake-up pulse & Silence
@@ -1063,7 +1071,9 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
 bool Transceiver::receive() {
     if (packet_received) {
         packet_received = false;
+        this->frame.rssi = ELECHOUSE_cc1101.getRssi();
         this->frame.decodeFrame(receive_buffer);
+        //this->frame.lqi = ELECHOUSE_cc1101.getLqi();
         if (!this->frame.valid) this->clearReceived();
         return this->frame.valid;
     }
@@ -1072,17 +1082,23 @@ bool Transceiver::receive() {
 void Transceiver::clearReceived(void) {
     packet_received = false;
     memset(receive_buffer, 0x00, sizeof(receive_buffer));
-    attachInterrupt(interruptPin, handleReceive, CHANGE);
+    if(this->config.enabled)
+      attachInterrupt(interruptPin, handleReceive, CHANGE);
 }
 void Transceiver::enableReceive(void) {
-    Serial.print("Enabling receive on Pin #");
-    Serial.println(this->config.RXPin);
-    pinMode(this->config.RXPin, INPUT);
-    interruptPin = digitalPinToInterrupt(this->config.RXPin);
-    ELECHOUSE_cc1101.SetRx();
-    attachInterrupt(interruptPin, handleReceive, CHANGE);
+    if(this->config.enabled) {
+      Serial.print("Enabling receive on Pin #");
+      Serial.println(this->config.RXPin);
+      pinMode(this->config.RXPin, INPUT);
+      interruptPin = digitalPinToInterrupt(this->config.RXPin);
+      ELECHOUSE_cc1101.SetRx();
+      attachInterrupt(interruptPin, handleReceive, CHANGE);
+    }
 }
-void Transceiver::disableReceive(void) { detachInterrupt(interruptPin); }
+void Transceiver::disableReceive(void) { 
+  if(interruptPin > 0) detachInterrupt(interruptPin); 
+  interruptPin = 0;
+}
 bool Transceiver::toJSON(JsonObject& obj) {
     Serial.println("Setting Transceiver Json");
     JsonObject objConfig = obj.createNestedObject("config");
@@ -1090,7 +1106,6 @@ bool Transceiver::toJSON(JsonObject& obj) {
     return true;
 }
 bool Transceiver::fromJSON(JsonObject& obj) {
-    
     if (obj.containsKey("config")) {
       JsonObject objConfig = obj["config"];
       this->config.fromJSON(objConfig);
@@ -1099,9 +1114,10 @@ bool Transceiver::fromJSON(JsonObject& obj) {
 }
 bool Transceiver::save() {
     this->config.save();
-    ELECHOUSE_cc1101.setRxBW(this->config.rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
-    ELECHOUSE_cc1101.setPA(this->config.txPower);                    // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
-    ELECHOUSE_cc1101.setDeviation(this->config.deviation);
+    this->config.apply();
+    //ELECHOUSE_cc1101.setRxBW(this->config.rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
+    //ELECHOUSE_cc1101.setPA(this->config.txPower);                    // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
+    //ELECHOUSE_cc1101.setDeviation(this->config.deviation);
     return true;
 }
 bool Transceiver::end() {
@@ -1139,6 +1155,7 @@ void transceiver_config_t::fromJSON(JsonObject& obj) {
     if (obj.containsKey("pqtThreshold")) this->pqtThreshold = obj["pqtThreshold"];
     if (obj.containsKey("appendStatus")) this->appendStatus = obj["appendStatus"];
     if (obj.containsKey("printBuffer")) this->printBuffer = obj["printBuffer"];
+    if(obj.containsKey("enabled")) this->enabled = obj["enabled"];
 }
 void transceiver_config_t::toJSON(JsonObject& obj) {
     obj["type"] = this->type;
@@ -1175,6 +1192,7 @@ void transceiver_config_t::toJSON(JsonObject& obj) {
     obj["pqtThreshold"] = this->pqtThreshold;
     obj["appendStatus"] = this->appendStatus;
     obj["printBuffer"] = somfy.transceiver.printBuffer;
+    obj["enabled"] = this->enabled;
     Serial.print("Serialize Radio JSON ");
     Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
 }
@@ -1213,6 +1231,7 @@ void transceiver_config_t::save() {
     pref.putUChar("minPreambleBytes", this->minPreambleBytes);
     pref.putUChar("pqtThreshold", this->pqtThreshold);
     pref.putBool("appendStatus", this->appendStatus);
+    pref.putBool("enabled", this->enabled);
     pref.end();
     Serial.print("Save Radio Settings ");
     Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
@@ -1252,28 +1271,37 @@ void transceiver_config_t::load() {
     this->minPreambleBytes = pref.getUChar("minPreambleBytes", this->minPreambleBytes);
     this->pqtThreshold = pref.getUChar("pqtThreshold", this->pqtThreshold);
     this->appendStatus = pref.getBool("appendStatus", this->appendStatus);
+    this->enabled = pref.getBool("enabled", this->enabled);
     pref.end();
     this->printBuffer = somfy.transceiver.printBuffer;
 }
 void transceiver_config_t::apply() {
     somfy.transceiver.disableReceive();
     bit_length = this->type;    
-    Serial.print("Applying radio settings ");
-    Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
-    
-    ELECHOUSE_cc1101.setGDO(this->RXPin, this->TXPin);
-    Serial.println("Set GDO");
-    ELECHOUSE_cc1101.setSpiPin(this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin);
-    Serial.println("Set SPI");
-    ELECHOUSE_cc1101.Init();
-    Serial.println("Initialized");
-    ELECHOUSE_cc1101.setMHZ(this->frequency);                 // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
-    Serial.println("Set Frequency");
-    ELECHOUSE_cc1101.setRxBW(this->rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
-    Serial.println("Set RxBW");
-    ELECHOUSE_cc1101.setPA(this->txPower);                    // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
-    ELECHOUSE_cc1101.setCCMode(this->internalCCMode);         // set config for internal transmission mode.
-    ELECHOUSE_cc1101.setModulation(this->modulationMode);     // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
+    if(this->enabled) {
+      Serial.print("Applying radio settings ");
+      Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
+      
+      ELECHOUSE_cc1101.setGDO(this->RXPin, this->TXPin);
+      ELECHOUSE_cc1101.setSpiPin(this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin);
+      ELECHOUSE_cc1101.Init();
+      ELECHOUSE_cc1101.setMHZ(this->frequency);                 // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
+      ELECHOUSE_cc1101.setRxBW(this->rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
+      ELECHOUSE_cc1101.setPA(this->txPower);                    // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
+      ELECHOUSE_cc1101.setCCMode(this->internalCCMode);         // set config for internal transmission mode.
+      ELECHOUSE_cc1101.setModulation(this->modulationMode);     // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
+      if (!ELECHOUSE_cc1101.getCC1101()) {
+          Serial.println("Error setting up the radio");
+      }
+      else {
+          Serial.println("Successfully set up the radio");
+          somfy.transceiver.enableReceive();
+      }
+    }
+    else {
+      ELECHOUSE_cc1101.setSidle();
+      somfy.transceiver.disableReceive();
+    }
     /*
     ELECHOUSE_cc1101.setDeviation(this->deviation);           // Set the Frequency deviation in kHz. Value from 1.58 to 380.85. Default is 47.60 kHz.
     ELECHOUSE_cc1101.setChannel(this->channel);               // Set the Channelnumber from 0 to 255. Default is cahnnel 0.
@@ -1297,13 +1325,6 @@ void transceiver_config_t::apply() {
     ELECHOUSE_cc1101.setAppendStatus(this->appendStatus);     // When enabled, two status bytes will be appended to the payload of the packet. The status bytes contain RSSI and LQI values, as well as CRC OK.
     */
     //somfy.transceiver.printBuffer = this->printBuffer;
-    if (!ELECHOUSE_cc1101.getCC1101()) {
-        Serial.println("Error setting up the radio");
-    }
-    else {
-        Serial.println("Successfully set up the radio");
-        somfy.transceiver.enableReceive();
-    }
 }
 bool Transceiver::begin() {
     this->config.load();
@@ -1314,19 +1335,23 @@ void Transceiver::loop() {
     if (this->receive()) {
         this->clearReceived();
         somfy.processFrame(this->frame, false);
-        char buf[128];
-        sprintf(buf, "{\"encKey\":%d, \"address\":%d, \"rcode\":%d, \"command\":\"%s\"}", this->frame.encKey, this->frame.remoteAddress, this->frame.rollingCode, translateSomfyCommand(this->frame.cmd));
+        char buf[177];
+        sprintf(buf, "{\"encKey\":%d, \"address\":%d, \"rcode\":%d, \"command\":\"%s\", \"rssi\":%d}", this->frame.encKey, this->frame.remoteAddress, this->frame.rollingCode, translateSomfyCommand(this->frame.cmd), this->frame.rssi);
         sockEmit.sendToClients("remoteFrame", buf);
     }
 }
 somfy_frame_t& Transceiver::lastFrame() { return this->frame; }
 void Transceiver::beginTransmit() {
-    this->disableReceive();
-    pinMode(this->config.TXPin, OUTPUT);
-    ELECHOUSE_cc1101.SetTx();
+    if(this->config.enabled) {
+      this->disableReceive();
+      pinMode(this->config.TXPin, OUTPUT);
+      ELECHOUSE_cc1101.SetTx();
+    }
 }
 void Transceiver::endTransmit() {
-    ELECHOUSE_cc1101.setSidle();
-    delay(100);
-    this->enableReceive();
+    if(this->config.enabled) {
+      ELECHOUSE_cc1101.setSidle();
+      delay(100);
+      this->enableReceive();
+    }
 }
