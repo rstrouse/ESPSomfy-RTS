@@ -1,5 +1,4 @@
 ﻿<!DOCTYPE html>
-
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -167,7 +166,7 @@
                 });
 
             };
-            setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.8'; };
+            setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.9'; };
             setTimeZones() {
                 let dd = document.getElementById('selTimeZone');
                 dd.length = 0;
@@ -535,6 +534,7 @@
             procRemoteFrame(frame) {
                 console.log(frame);
                 document.getElementById('spanRssi').innerHTML = frame.rssi;
+                document.getElementById('spanFrameCount').innerHTML = parseInt(document.getElementById('spanFrameCount').innerHTML, 10) + 1
                 let lnk = document.getElementById('divLinking');
                 if (lnk) {
                     let obj = {
@@ -1016,8 +1016,24 @@
                 document.getElementById('fsUpdates').appendChild(div);
             };
             async uploadFile(service, el) {
-                let formData = new FormData();
                 let field = el.querySelector('input[type="file"]');
+                let filename = field.value;
+                console.log(filename);
+                switch (service) {
+                    case '/updateApplication':
+                        if (filename.indexOf('.littlefs') === -1 || !filename.endsWith('.bin')) {
+                            errorMessage(el, 'This file is not a valid littleFS file system.');
+                            return;
+                        }
+                        break;
+                    case '/updateFirmware':
+                        if (filename.indexOf('.ino.esp') === -1 || !filename.endsWith('.bin')) {
+                            errorMessage(el, 'This file is not a valid firmware binary file.');
+                            return;
+                        }
+                        break;
+                }
+                let formData = new FormData();
                 let btnUpload = el.querySelector('button[id="btnUploadFile"]');
                 let btnCancel = el.querySelector('button[id="btnClose"]');
                 btnUpload.style.display = 'none';
@@ -1026,7 +1042,6 @@
                 let prog = el.querySelector('div[id="progFileUpload"]');
                 prog.style.display = '';
                 btnSelectFile.style.visibility = 'hidden';
-
                 formData.append('file', field.files[0]);
                 let xhr = new XMLHttpRequest();
                 xhr.open('POST', service, true);
@@ -1234,72 +1249,80 @@
                 wms[i].remove();
             }
             waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
-            socket = new WebSocket(`ws://${location.host}:8080`);
-            socket.onmessage = (evt) => {
-                if (evt.data.startsWith('42')) {
-                    let ndx = evt.data.indexOf(',');
-                    let eventName = evt.data.substring(3, ndx);
-                    let data = evt.data.substring(ndx + 1, evt.data.length - 1);
-                    try {
-                        var reISO = /^(\d{4}|\+010000)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*))(?:Z|(\+|-)([\d|:]*))?$/;
-                        var reMsAjax = /^\/Date\((d|-|.*)\)[\/|\\]$/;
-                        var msg = JSON.parse(data, (key, value) => {
-                            if (typeof value === 'string') {
-                                var a = reISO.exec(value);
-                                if (a) return new Date(value);
-                                a = reMsAjax.exec(value);
-                                if (a) {
-                                    var b = a[1].split(/[-+,.]/);
-                                    return new Date(b[0] ? +b[0] : 0 - +b[1]);
+            try {
+                console.log(location);
+                socket = new WebSocket(`ws://${window.location.hostname}:8080/`);
+                socket.onmessage = (evt) => {
+                    if (evt.data.startsWith('42')) {
+                        let ndx = evt.data.indexOf(',');
+                        let eventName = evt.data.substring(3, ndx);
+                        let data = evt.data.substring(ndx + 1, evt.data.length - 1);
+                        try {
+                            var reISO = /^(\d{4}|\+010000)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*))(?:Z|(\+|-)([\d|:]*))?$/;
+                            var reMsAjax = /^\/Date\((d|-|.*)\)[\/|\\]$/;
+                            var msg = JSON.parse(data, (key, value) => {
+                                if (typeof value === 'string') {
+                                    var a = reISO.exec(value);
+                                    if (a) return new Date(value);
+                                    a = reMsAjax.exec(value);
+                                    if (a) {
+                                        var b = a[1].split(/[-+,.]/);
+                                        return new Date(b[0] ? +b[0] : 0 - +b[1]);
+                                    }
                                 }
+                                return value;
+                            });
+                            switch (eventName) {
+                                case 'wifiStrength':
+                                    wifi.procWifiStrength(msg);
+                                    break;
+                                case 'remoteFrame':
+                                    somfy.procRemoteFrame(msg);
+                                    break;
+                                case 'shadeState':
+                                    somfy.procShadeState(msg);
+                                    break;
+                                case 'shadeRemoved':
+                                    break;
+                                case 'shadeAdded':
+                                    break;
                             }
-                            return value;
-                        });
-                        switch (eventName) {
-                            case 'wifiStrength':
-                                wifi.procWifiStrength(msg);
-                                break;
-                            case 'remoteFrame':
-                                somfy.procRemoteFrame(msg);
-                                break;
-                            case 'shadeState':
-                                somfy.procShadeState(msg);
-                                break;
-                            case 'shadeRemoved':
-                                break;
-                            case 'shadeAdded':
-                                break;
+                        } catch (err) {
+                            console.log({ eventName: eventName, data: data, err: err });
                         }
-                    } catch (err) {
-                        console.log({ eventName: eventName, data: data, err: err });
                     }
+                };
+                socket.onopen = (evt) => {
+                    if (tConnect) clearTimeout(tConnect);
+                    tConnect = null;
+                    console.log({ msg: 'open', evt: evt });
+                    sockIsOpen = true;
+                    connecting = false;
+                    let wms = document.getElementsByClassName('socket-wait');
+                    for (let i = 0; i < wms.length; i++) {
+                        wms[i].remove();
+                    }
+                };
+                socket.onclose = (evt) => {
+                    waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
+                    if (evt.wasClean) {
+                        console.log({ msg: 'close-clean', evt: evt });
+                        tConnect = setTimeout(() => { reopenSocket(); }, 10000);
+                        console.log('Reconnecting socket in 10 seconds');
+                    }
+                    else {
+                        console.log({ msg: 'close-died', reason: evt.reason, evt: evt, sock: socket });
+                        tConnect = setTimeout(() => { reopenSocket(); }, 3000);
+                    }
+                };
+                socket.onerror = (evt) => {
+                    console.log({ msg: 'socket error', evt: evt, sock: socket });
                 }
-            };
-            socket.onopen = (evt) => {
-                if (tConnect) clearTimeout(tConnect);
-                tConnect = null;
-                console.log({ msg: 'open', evt: evt });
-                sockIsOpen = true;
-                connecting = false;
-                let wms = document.getElementsByClassName('socket-wait');
-                for (let i = 0; i < wms.length; i++) {
-                    wms[i].remove();
-                }
-            };
-            socket.onclose = (evt) => {
-                waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
-                if (evt.wasClean) {
-                    console.log({ msg: 'close-clean', evt: evt });
-                    tConnect = setTimeout(() => { reopenSocket(); }, 10000);
-                    console.log('Reconnecting socket in 10 seconds');
-                }
-                else {
-                    console.log({ msg: 'close-died', reason: evt.reason, evt: evt });
-                    tConnect = setTimeout(() => { reopenSocket(); }, 3000);
-                }
-            };
-            socket.onerror = (evt) => {
-                console.log({ msg: 'socket error', evt: evt });
+            } catch (err) {
+                console.log({
+                    msg: 'Websocket connection error', err: err
+                });
+                tConnect = setTimeout(() => { reopenSocket(); }, 5000);
             }
         }
         function reopenSocket() {
@@ -1550,7 +1573,7 @@
                             </div>
                             <div style="display:inline-block;vertical-align:top;padding-left:14px;">
                                 <div class="field-group" style="">
-                                    <label style="display:block;width:100%;text-align:center;">RSSI</label>
+                                    <label style="display:block;width:100%;text-align:center;">RSSI: <span id="spanFrameCount" style="color:silver;">0</span></label>
                                     <span id="spanRssi" name="rssi" style="display:block;font-size:32px;width:100%;text-align:center;">---</span>
                                     <span style="display: block; color: #00bcd4;width:100%;text-align:center;">dBm</span>
                                 </div>
@@ -1600,7 +1623,7 @@
     </div>
     <script type="text/javascript">
         waitMessage(document.getElementById('divShadeControls'));
-        general.init(); somfy.init(); wifi.init(); mqtt.init();
+        general.init(); somfy.init(); mqtt.init(); wifi.init();
         let tabs = document.querySelectorAll('div.tab-container > span');
         tabs.forEach((tab) => {
             tab.addEventListener('click', (evt) => {

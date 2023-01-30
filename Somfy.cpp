@@ -13,6 +13,7 @@ extern SomfyShadeController somfy;
 extern SocketEmitter sockEmit;
 extern MQTTClass mqtt;
 
+uint8_t rxmode = 0;  // Indicates whether the radio is in receive mode.  Just to ensure there isn't more than one interrupt hooked.
 #define SYMBOL 640
 #if defined(ESP8266)
     #define RECEIVE_ATTR ICACHE_RAM_ATTR
@@ -254,12 +255,7 @@ bool SomfyShadeController::begin() {
   pref.begin("Shades");
   pref.getBytes("shadeIds", this->m_shadeIds, sizeof(this->m_shadeIds));
   pref.end();
-  this->transceiver.begin();
-  for(uint8_t i = 0; i < sizeof(this->m_shadeIds); i++) {
-    if(i != 0) Serial.print(",");
-    Serial.print(this->m_shadeIds[i]);
-  }
-  Serial.println();
+  //this->transceiver.begin();
   sortArray<uint8_t>(this->m_shadeIds, sizeof(this->m_shadeIds));
   for(uint8_t i = 0; i < sizeof(this->m_shadeIds); i++) {
     if(i != 0) Serial.print(",");
@@ -461,8 +457,8 @@ void SomfyShade::load() {
     memset(linkedAddresses, 0x00, sizeof(uint32_t) * SOMFY_MAX_LINKED_REMOTES);
     snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
     // Now load up each of the shades into memory.
-    Serial.print("key:");
-    Serial.println(shadeKey);
+    //Serial.print("key:");
+    //Serial.println(shadeKey);
     pref.begin(shadeKey);
     pref.getString("name", this->name, sizeof(this->name));
     this->paired = pref.getBool("paired", false);
@@ -513,9 +509,7 @@ void SomfyShade::publish() {
 void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
   char buf[220];
-  char shadeKey[15];
-  snprintf(shadeKey, sizeof(shadeKey), "Shade_%u", this->shadeId);
-  sprintf(buf, "{\"shadeId\":%d, \"remoteAddress\":%d, \"name\":\"%s\", \"direction\":%d, \"position\":%d, \"target\":%d}", this->shadeId, this->getRemoteAddress(), this->name, this->direction, this->position, this->target);
+  snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d}", this->shadeId, this->getRemoteAddress(), this->name, this->direction, this->position, this->target);
   if(num >= 255) sockEmit.sendToClients(evt, buf);
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
@@ -1086,9 +1080,11 @@ void Transceiver::clearReceived(void) {
       attachInterrupt(interruptPin, handleReceive, CHANGE);
 }
 void Transceiver::enableReceive(void) {
+    if(rxmode > 0) return;
     if(this->config.enabled) {
       Serial.print("Enabling receive on Pin #");
       Serial.println(this->config.RXPin);
+      rxmode = 1;
       pinMode(this->config.RXPin, INPUT);
       interruptPin = digitalPinToInterrupt(this->config.RXPin);
       ELECHOUSE_cc1101.SetRx();
@@ -1096,8 +1092,10 @@ void Transceiver::enableReceive(void) {
     }
 }
 void Transceiver::disableReceive(void) { 
+  rxmode = 0;
   if(interruptPin > 0) detachInterrupt(interruptPin); 
   interruptPin = 0;
+  
 }
 bool Transceiver::toJSON(JsonObject& obj) {
     Serial.println("Setting Transceiver Json");
@@ -1281,15 +1279,14 @@ void transceiver_config_t::apply() {
     if(this->enabled) {
       Serial.print("Applying radio settings ");
       Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
-      
+      ELECHOUSE_cc1101.Init();
       ELECHOUSE_cc1101.setGDO(this->RXPin, this->TXPin);
       ELECHOUSE_cc1101.setSpiPin(this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin);
-      ELECHOUSE_cc1101.Init();
       ELECHOUSE_cc1101.setMHZ(this->frequency);                 // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
       ELECHOUSE_cc1101.setRxBW(this->rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
       ELECHOUSE_cc1101.setPA(this->txPower);                    // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
-      ELECHOUSE_cc1101.setCCMode(this->internalCCMode);         // set config for internal transmission mode.
-      ELECHOUSE_cc1101.setModulation(this->modulationMode);     // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
+      //ELECHOUSE_cc1101.setCCMode(this->internalCCMode);         // set config for internal transmission mode.
+      //ELECHOUSE_cc1101.setModulation(this->modulationMode);     // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
       if (!ELECHOUSE_cc1101.getCC1101()) {
           Serial.println("Error setting up the radio");
       }
@@ -1336,7 +1333,7 @@ void Transceiver::loop() {
         this->clearReceived();
         somfy.processFrame(this->frame, false);
         char buf[177];
-        sprintf(buf, "{\"encKey\":%d, \"address\":%d, \"rcode\":%d, \"command\":\"%s\", \"rssi\":%d}", this->frame.encKey, this->frame.remoteAddress, this->frame.rollingCode, translateSomfyCommand(this->frame.cmd), this->frame.rssi);
+        snprintf(buf, sizeof(buf), "{\"encKey\":%d,\"address\":%d,\"rcode\":%d,\"command\":\"%s\",\"rssi\":%d}", this->frame.encKey, this->frame.remoteAddress, this->frame.rollingCode, translateSomfyCommand(this->frame.cmd), this->frame.rssi);
         sockEmit.sendToClients("remoteFrame", buf);
     }
 }

@@ -961,7 +961,7 @@ void Web::begin() {
         bool reboot;
         if (ssid.compareTo(settings.WIFI.ssid) != 0) reboot = true;
         if (passphrase.compareTo(settings.WIFI.passphrase) != 0) reboot = true;
-        if (!settings.WIFI.ssidExists(ssid.c_str())) {
+        if (!settings.WIFI.ssidExists(ssid.c_str()) && ssid.length() > 0) {
           server.send(400, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"WiFi Network Does not exist\"}");
         }
         else {

@@ -13,6 +13,8 @@ extern ConfigSettings settings;
 extern Web webServer;
 extern SocketEmitter sockEmit;
 extern MQTTClass mqtt;
+extern rebootDelay_t rebootDelay;
+
 void Network::end() {
   sockEmit.end();
   SSDP.end();
@@ -21,10 +23,10 @@ void Network::end() {
 }
 bool Network::setup() {
   WiFi.persistent(false);
-  Serial.print("WiFi Mode: ");
-  Serial.println(WiFi.getMode());
+  //Serial.print("WiFi Mode: ");
+  //Serial.println(WiFi.getMode());
   if(WiFi.status() == WL_CONNECTED) WiFi.disconnect(true);
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_STA);
   settings.WIFI.printNetworks();
   sockEmit.begin();
   if(!this->connect()) this->openSoftAP();
@@ -36,6 +38,7 @@ void Network::loop() {
     this->lastEmit = millis();
     this->emitSockets();
   }
+  else sockEmit.loop();
   if(settings.WIFI.ssdpBroadcast) {
     if(!SSDP.isStarted) SSDP.begin();
     SSDP.loop();
@@ -47,8 +50,8 @@ void Network::emitSockets() {
   if(WiFi.status() == WL_CONNECTED) {
     
     if(abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 2 || WiFi.channel() != this->lastChannel) {
-      char buf[50];
-      sprintf(buf, "{\"ssid\":\"%s\", \"strength\":%d, \"channel\":%d}", WiFi.SSID(), WiFi.RSSI(), WiFi.channel());
+      char buf[128];
+      sprintf(buf, "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID(), WiFi.RSSI(), WiFi.channel());
       sockEmit.sendToClients("wifiStrength", buf);
       this->lastRSSI = WiFi.RSSI();
       this->lastChannel = WiFi.channel();
@@ -263,18 +266,31 @@ bool Network::openSoftAP() {
   while ((WiFi.status() != WL_CONNECTED))
   {
     for(int i = 0; i < 3; i++) {
-      delay(100);
+      //delay(100);
       //digitalWrite(LED_BUILTIN, HIGH);
-      delay(100);
+      //delay(100);
       //digitalWrite(LED_BUILTIN, LOW);
     }
     int clients = WiFi.softAPgetStationNum();
-    if(clients > 0)
-      Serial.print(clients);
-    else
-      Serial.print(".");
-    delay(100);
+    
     webServer.loop();
+    if(millis() - this->lastEmit > 1500) {
+      if(this->connect()) {}
+      this->lastEmit = millis();
+      this->emitSockets();
+      if(clients > 0)
+        Serial.print(clients);
+      else
+        Serial.print(".");
+      c++;
+    }
+    sockEmit.loop();
+    if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
+      this->end();
+      ESP.restart();
+      break;
+    }
+
     // If no clients have connected in 3 minutes from starting this server reboot this pig.  This will
     // force a reboot cycle until we have some response.  That is unless the SSID has been cleared.
     if(clients == 0 && strlen(settings.WIFI.ssid) > 0 && millis() - startTime > 3 * 60000) {
@@ -289,8 +305,10 @@ bool Network::openSoftAP() {
       WiFi.softAPdisconnect(true);
       return false;
     }
-    if(++c % 100 == 0) {
+    if(c == 100) {
       Serial.println();
+      c = 0;
     }
+    yield();
   }
 }
