@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="main.css" type="text/css" />
     <link rel="stylesheet" href="icons.css" type="text/css" />
     <script>
+//{"ssid":"Casa Del Mar Resort and Spa 2.4","strength":-53,"channel":2}
         /******* SPRING TYPE BLUE ********/
         /******** E07-M1101D-SMA *********/
         // 1 Black: GND
@@ -1238,7 +1239,8 @@
         var tConnect = null;
         var sockIsOpen = false;
         var connecting = false;
-        function initSockets() {
+        var connects = 0;
+        async function initSockets() {
             if (connecting) return;
             console.log('Connecting to socket...');
             connecting = true;
@@ -1250,7 +1252,6 @@
             }
             waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
             try {
-                console.log(location);
                 socket = new WebSocket(`ws://${window.location.hostname}:8080/`);
                 socket.onmessage = (evt) => {
                     if (evt.data.startsWith('42')) {
@@ -1298,22 +1299,33 @@
                     console.log({ msg: 'open', evt: evt });
                     sockIsOpen = true;
                     connecting = false;
+                    connects++;
                     let wms = document.getElementsByClassName('socket-wait');
                     for (let i = 0; i < wms.length; i++) {
                         wms[i].remove();
                     }
                 };
                 socket.onclose = (evt) => {
-                    waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
+                    if(document.getElementsByClassName('socket-wait') === 0)
+                        waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
                     if (evt.wasClean) {
                         console.log({ msg: 'close-clean', evt: evt });
-                        tConnect = setTimeout(() => { reopenSocket(); }, 10000);
+                        tConnect = setTimeout(async () => { await reopenSocket(); }, 10000);
                         console.log('Reconnecting socket in 10 seconds');
                     }
                     else {
                         console.log({ msg: 'close-died', reason: evt.reason, evt: evt, sock: socket });
-                        tConnect = setTimeout(() => { reopenSocket(); }, 3000);
+                        if (connects > 0) {
+                            console.log('Reconnecting socket in 3 seconds');
+                            tConnect = setTimeout(async () => { await reopenSocket(); }, 3000);
+                        }
+                        else {
+                            console.log('Connecting socket in .5 seconds');
+                            tConnect = setTimeout(async () => { await reopenSocket(); }, 500);
+                        }
+
                     }
+                    connecting = false;
                 };
                 socket.onerror = (evt) => {
                     console.log({ msg: 'socket error', evt: evt, sock: socket });
@@ -1322,13 +1334,13 @@
                 console.log({
                     msg: 'Websocket connection error', err: err
                 });
-                tConnect = setTimeout(() => { reopenSocket(); }, 5000);
+                tConnect = setTimeout(async () => { await reopenSocket(); }, 5000);
             }
         }
-        function reopenSocket() {
+        async function reopenSocket() {
             if (tConnect) clearTimeout(tConnect);
             tConnect = null;
-            initSockets();
+            await initSockets();
         }
     </script>
 </head>
@@ -1645,7 +1657,8 @@
 
             });
         });
-        initSockets();
+        (async () => { await initSockets(); })();
+        //initSockets();
     </script>
 </body>
 </html>

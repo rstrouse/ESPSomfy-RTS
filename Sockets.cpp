@@ -16,7 +16,7 @@ char g_buffer[1024];
  * ClientSocketEvent class members
  ********************************************************************/
 void ClientSocketEvent::prepareMessage(const char *evt, const char *payload) {
-    sprintf(this->msg, "42[%s,%s]", evt, payload);
+    snprintf(this->msg, sizeof(this->msg), "42[%s,%s]", evt, payload);
 }
 
 
@@ -33,6 +33,7 @@ void SocketEmitter::begin() {
 void SocketEmitter::loop() {
   sockServer.loop();  
 }
+/*
 bool SocketEmitter::sendToClients(const char *evt, JsonObject &obj) {
   serializeJson(obj, g_buffer, sizeof(g_buffer));
   return this->sendToClients(evt, g_buffer);
@@ -41,6 +42,7 @@ bool SocketEmitter::sendToClient(uint8_t num, const char *evt, JsonObject &obj) 
   serializeJson(obj, g_buffer, sizeof(g_buffer));
   return this->sendToClient(num, evt, g_buffer);
 }
+*/
 bool SocketEmitter::sendToClients(const char *evt, const char *payload) {
     if(settings.status == DS_FWUPDATE) return true;
     this->evt.prepareMessage(evt, payload);
@@ -62,7 +64,7 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
             {
                 IPAddress ip = sockServer.remoteIP(num);
                 Serial.printf("Socket [%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-                // Send all the current Sensor readings to the client.
+                // Send all the current shade settings to the client.
                 sockServer.sendTXT(num, "Connected");
                 settings.emitSockets();
                 somfy.emitState(num);
@@ -84,5 +86,9 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
             // send message to client
             // sockServer.sendBIN(num, payload, length);
             break;
+        case WStype_PING:
+            Serial.printf("Ping from %u\n", num);
+            break;
+       
     }  
 }

@@ -604,7 +604,8 @@ void SomfyShade::moveToTarget(uint8_t target) {
   Serial.print("% using ");
   Serial.println(translateSomfyCommand(cmd));
   this->target = target;
-  this->seekingPos = true;
+  if(target > 0 && target != 100) this->seekingPos = true;
+  else this->seekingPos = false;
   SomfyRemote::sendCommand(cmd);  
 }
 
