@@ -4,9 +4,11 @@
 #include "Sockets.h"
 #include "ConfigSettings.h"
 #include "Somfy.h"
+#include "Network.h"
 
 
 extern ConfigSettings settings;
+extern Network net;
 extern SomfyShadeController somfy;
 
 WebSocketsServer sockServer = WebSocketsServer(8080);
@@ -28,6 +30,7 @@ void SocketEmitter::startup() {
 }
 void SocketEmitter::begin() {
   sockServer.begin();
+  sockServer.enableHeartbeat(20000, 10000, 3);
   sockServer.onEvent(this->wsEvent);
 }
 void SocketEmitter::loop() {
@@ -57,8 +60,17 @@ void SocketEmitter::end() { sockServer.close(); }
 void SocketEmitter::disconnect() { sockServer.disconnect(); }
 void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
     switch(type) {
+        case WStype_ERROR:
+            if(length > 0)
+              Serial.printf("Socket Error: %s\n", payload);
+            else
+              Serial.println("Socket Error: \n");
+            break;
         case WStype_DISCONNECTED:
-            Serial.printf("Socket [%u] Disconnected!\n", num);
+            if(length > 0)
+              Serial.printf("Socket [%u] Disconnected!\n [%s]", num, payload);
+            else
+              Serial.printf("Socket [%u] Disconnected!\n", num);
             break;
         case WStype_CONNECTED:
             {
@@ -66,8 +78,9 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
                 Serial.printf("Socket [%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
                 // Send all the current shade settings to the client.
                 sockServer.sendTXT(num, "Connected");
-                settings.emitSockets();
+                settings.emitSockets(num);
                 somfy.emitState(num);
+                net.emitSockets(num);
             }
             break;
         case WStype_TEXT:
@@ -86,8 +99,11 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
             // send message to client
             // sockServer.sendBIN(num, payload, length);
             break;
+        case WStype_PONG:
+            //Serial.printf("Pong from %u\n", num);
+            break;
         case WStype_PING:
-            Serial.printf("Ping from %u\n", num);
+            //Serial.printf("Ping from %u\n", num);
             break;
        
     }  

@@ -58,9 +58,8 @@ void ConfigSettings::print() {
   this->NTP.print();
   this->WIFI.print();
 }
-void ConfigSettings::emitSockets() {
-  
-}
+void ConfigSettings::emitSockets() {}
+void ConfigSettings::emitSockets(uint8_t num) {}
 bool MQTTSettings::begin() {
   this->load();
   return true;

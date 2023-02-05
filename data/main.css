@@ -19,7 +19,6 @@ body {
     margin-top: 77px;
     box-sizing: border-box;
 }
-
 .container {
     margin: 0 auto;
     max-width: 450px;
@@ -198,6 +197,12 @@ div.errorMessage {
 div.errorMessage > div {
     padding:10px;
 }
+div.socket-error {
+    opacity: 1;
+    font-size: 20px;
+    min-height: 277px;
+    z-index: 20001;
+}
 div.instructions {
     position: absolute;
     left: 0px;
@@ -269,22 +274,18 @@ div.wifiSignal {
     padding-left: 10px;
     padding-right: 10px;
 }
-
     div.wifiSignal:hover {
         background: #00bcd4;
         color: white;
     }
-
     div.wifiSignal > span {
         display: inline-block;
         vertical-align: middle;
     }
-
 span.ssid {
     width: calc(100% - 50px);
     margin-top: 10px;
 }
-
 #divAps {
     max-height: 200px;
     overflow-y: auto;
@@ -292,7 +293,6 @@ span.ssid {
     height: 150px;
     padding-right: 7px;
 }
-
 div.signal {
     margin: 0px;
     color: lawngreen;
@@ -300,7 +300,6 @@ div.signal {
     width: 32px;
     float: right;
 }
-
 span.strength {
     position: relative;
     margin-top: 2px;

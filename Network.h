@@ -25,6 +25,7 @@ class Network {
     void loop();
     void end();
     void emitSockets();
+    void emitSockets(uint8_t num);
     uint32_t getChipId();
 };
 #endif

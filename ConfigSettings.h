@@ -2,7 +2,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v1.0.9"
+#define FW_VERSION "v1.1.0"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -78,6 +78,7 @@ class ConfigSettings: BaseSettings {
     bool load();
     void print();
     void emitSockets();
+    void emitSockets(uint8_t num);
     bool toJSON(DynamicJsonDocument &doc);
 };
 

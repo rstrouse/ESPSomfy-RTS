@@ -6,39 +6,8 @@
     <link rel="stylesheet" href="main.css" type="text/css" />
     <link rel="stylesheet" href="icons.css" type="text/css" />
     <script>
-//{"ssid":"Casa Del Mar Resort and Spa 2.4","strength":-53,"channel":2}
-        /******* SPRING TYPE BLUE ********/
-        /******** E07-M1101D-SMA *********/
-        // 1 Black: GND
-        // 2 Red: VCC           3v3
-        // 3 Purple: GDO0 - TX  GPIO12
-        // 4 Blue: CSN          GPIO5
-        // 5 Brown: SCK         GPIO18
-        // 6 Green: MOSI        GPIO23
-        // 7 Orange: MISO       GPIO19
-        // 8 Yellow: GD02 - RX  GPIO13
-
-        /********** D-SUN GREEN *********/
-        // 1 GND
-        // 2 VCC
-        // 3 MOSI
-        // 4 SCLK
-        // 5 MISO
-        // 6 GDO2-RX
-        // 7 GDO0-TX
-        // 8 CSN
-
-        /********** KYNAR colors ********/
-        // Black: GND
-        // Red: VCC
-        // White: GDO0-TX
-        // Blue: CSN
-        // White: SCK
-        // Yellow: MOSI
-        // Green: MISO
-        // Blue: GDO2-RX
         class General {
-            init() {
+            async init() {
                 this.setAppVersion();
                 this.setTimeZones();
                 this.loadGeneral();
@@ -158,7 +127,6 @@
                                 break;
                             }
                         }
-                        //if (dd.selectedIndex < 0) dd.selectedIndex = 0;
                         document.getElementById('spanFwVersion').innerText = settings.fwVersion;
                         document.getElementsByName('hostname')[0].value = settings.hostname;
                         document.getElementsByName('ntptimeserver')[0].value = settings.ntpServer;
@@ -167,7 +135,7 @@
                 });
 
             };
-            setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.9'; };
+            setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.1.0'; };
             setTimeZones() {
                 let dd = document.getElementById('selTimeZone');
                 dd.length = 0;
@@ -247,14 +215,17 @@
         class Wifi {
             init() {
                 document.getElementById("divNetworkStrength").innerHTML = this.displaySignal(-100);
-                this.loadAPs();
+
+                //this.loadAPs();
             };
             async loadAPs() {
                 if (document.getElementById('btnScanAPs').classList.contains('disabled')) return;
                 document.getElementById('divAps').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;"><div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
                 document.getElementById('btnScanAPs').classList.add('disabled');
+                document.getElementById('btnConnectWiFi').classList.add('disabled');
                 getJSON('/scanaps', (err, aps) => {
                     document.getElementById('btnScanAPs').classList.remove('disabled');
+                    document.getElementById('btnConnectWiFi').classList.remove('disabled');
                     console.log(aps);
                     if (err) {
                         this.displayAPs({ connected: { name: '', passphrase: '' }, accessPoints: [] });
@@ -284,7 +255,9 @@
                     let ap = nets[i];
                     div += `<div class="wifiSignal" onclick="wifi.selectSSID(this);" data-channel="${ap.channel}" data-encryption="${ap.encryption}" data-strength="${ap.strength}" data-mac="${ap.macAddress}"><span class="ssid">${ap.name}</span><span class="strength">${this.displaySignal(ap.strength)}</span></div>`;
                 }
-                document.getElementById('divAps').innerHTML = div;
+                let divAps = document.getElementById('divAps');
+                divAps.setAttribute('data-lastloaded', new Date().getTime());
+                divAps.innerHTML = div;
                 document.getElementsByName('ssid')[0].value = aps.connected.name;
                 document.getElementsByName('passphrase')[0].value = aps.connected.passphrase;
                 this.procWifiStrength(aps.connected);
@@ -341,7 +314,7 @@
         };
         var wifi = new Wifi();
         class Somfy {
-            init() {
+            async init() {
                 this.loadPins('inout', document.getElementById('selTransSCKPin'));
                 this.loadPins('inout', document.getElementById('selTransCSNPin'));
                 this.loadPins('inout', document.getElementById('selTransMOSIPin'));
@@ -926,9 +899,7 @@
         };
         var somfy = new Somfy();
         class MQTT {
-            init() {
-                this.loadMQTT();
-            }
+            async init() { this.loadMQTT(); }
             async loadMQTT() {
                 let overlay = waitMessage(document.getElementById('fsMQTTSettings'));
                 getJSON('/mqttsettings', (err, settings) => {
@@ -983,7 +954,7 @@
         };
         var mqtt = new MQTT();
         class Firmware {
-            init() { }
+            async init() { }
             createFileUploader(service) {
                 let div = document.createElement('div');
                 div.setAttribute('id', 'divUploadFile');
@@ -1197,6 +1168,15 @@
             el.appendChild(div);
             return div;
         }
+        function socketError(el, msg) {
+            let div = document.createElement('div');
+            div.innerHTML = '<div id="divSocketAttempts" style="position:absolute;width:100%;left:0px;padding-right:24px;text-align:right;top:0px;font-size:18px;"><span>Attempts: </span><span id="spanSocketAttempts"></span></div><div class="innerError"><div>Could not connect to server</div><hr></hr><div style="font-size:.7em">' + msg + '</div></div>';
+            div.classList.add('errorMessage');
+            div.classList.add('socket-error');
+            el.appendChild(div);
+            return div;
+        }
+
         function promptMessage(el, msg, onYes) {
             let div = document.createElement('div');
             div.innerHTML = '<div class="innerError">' + msg + '</div><button id="btnYes" type="button">Yes</button><button type="button" onclick="clearErrors();">No</button></div>';
@@ -1240,6 +1220,7 @@
         var sockIsOpen = false;
         var connecting = false;
         var connects = 0;
+        var connectFailed = 0;
         async function initSockets() {
             if (connecting) return;
             console.log('Connecting to socket...');
@@ -1300,18 +1281,30 @@
                     sockIsOpen = true;
                     connecting = false;
                     connects++;
+                    connectFailed = 0;
                     let wms = document.getElementsByClassName('socket-wait');
                     for (let i = 0; i < wms.length; i++) {
                         wms[i].remove();
                     }
+                    let errs = document.getElementsByClassName('socket-error');
+                    for (let i = 0; i < errs.length; i++)
+                        errs[i].remove();
+                    (async () => {
+                        await general.init();
+                        await somfy.init();
+                        await mqtt.init();
+                        await wifi.init();
+                    })();
                 };
                 socket.onclose = (evt) => {
-                    if(document.getElementsByClassName('socket-wait') === 0)
+                    if (document.getElementsByClassName('socket-wait') === 0)
                         waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
                     if (evt.wasClean) {
                         console.log({ msg: 'close-clean', evt: evt });
+                        connectFailed = 0;
                         tConnect = setTimeout(async () => { await reopenSocket(); }, 10000);
                         console.log('Reconnecting socket in 10 seconds');
+
                     }
                     else {
                         console.log({ msg: 'close-died', reason: evt.reason, evt: evt, sock: socket });
@@ -1320,8 +1313,23 @@
                             tConnect = setTimeout(async () => { await reopenSocket(); }, 3000);
                         }
                         else {
-                            console.log('Connecting socket in .5 seconds');
-                            tConnect = setTimeout(async () => { await reopenSocket(); }, 500);
+                            if (connecting) {
+                                connectFailed++;
+                                let timeout = Math.min(connectFailed * 500, 10000);
+                                console.log(`Initial socket did not connect try again (server was busy and timed out ${connectFailed} times)`);
+                                tConnect = setTimeout(async () => { await reopenSocket(); }, timeout);
+                                if (connectFailed === 5) {
+                                    socketError(document.getElementById('divContainer'), 'Too many clients connected.  A maximum of 5 clients may be connected at any one time.  Close some connections to the ESP Somfy RTS device to proceed.');
+                                }
+                                let spanAttempts = document.getElementById('spanSocketAttempts');
+                                if (spanAttempts) spanAttempts.innerHTML = connectFailed.fmt("#,##0");
+
+                            }
+                            else {
+                                console.log('Connecting socket in .5 seconds');
+                                tConnect = setTimeout(async () => { await reopenSocket(); }, 500);
+                            }
+
                         }
 
                     }
@@ -1345,7 +1353,7 @@
     </script>
 </head>
 <body>
-    <div id="divContainer" class="container" style="user-select:none;">
+    <div id="divContainer" class="container" style="user-select:none;position:relative;">
         <h1 style="text-align: center;"><span>ESPSomfy RTS</span><span class="button-outline" onclick="general.toggleConfig();" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-gear" style=""></i></span></span></h1>
         <div id="divConfigPnl" style="display:none;">
             <div style="margin-top:-10px;text-align:center;font-size:12px;">
@@ -1394,7 +1402,7 @@
             <fieldset id="fsWiFiSettings" style="display:none;">
                 <legend>WiFi Settings</legend>
                 <form method="post" action="/scan">
-                    <div id="divAps"></div>
+                    <div id="divAps" data-lastloaded="0"></div>
                     <div class="button-container"><button id="btnScanAPs" type="button" onclick="wifi.loadAPs();">Scan</button></div>
                 </form>
                 <form method="post" action="/wifi" style="margin-top:8px;">
@@ -1635,7 +1643,6 @@
     </div>
     <script type="text/javascript">
         waitMessage(document.getElementById('divShadeControls'));
-        general.init(); somfy.init(); mqtt.init(); wifi.init();
         let tabs = document.querySelectorAll('div.tab-container > span');
         tabs.forEach((tab) => {
             tab.addEventListener('click', (evt) => {
@@ -1651,13 +1658,20 @@
                         }
                     });
                     tab.classList.add('selected');
+                    if (tab.getAttribute('data-grpid') === 'fsWiFiSettings') {
+                        // Only load the networks if we need them.
+                        if(new Date().getTime() - parseInt(document.getElementById('divAps').getAttribute('data-lastloaded'), 10) > 60000)
+                            wifi.loadAPs();
+                    }
                     let grp = document.getElementById(tab.getAttribute('data-grpid'));
                     if (typeof grp !== 'undefined' && grp) grp.style.display = '';
                 }
 
             });
         });
-        (async () => { await initSockets(); })();
+        (async () => {
+            await initSockets();
+        })();
         //initSockets();
     </script>
 </body>

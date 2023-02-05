@@ -58,7 +58,17 @@ void Network::emitSockets() {
   }
   else
     sockEmit.sendToClients("wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
-  
+}
+void Network::emitSockets(uint8_t num) {
+  if(WiFi.status() == WL_CONNECTED) {
+      char buf[128];
+      snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID(), WiFi.RSSI(), WiFi.channel());
+      sockEmit.sendToClient(num, "wifiStrength", buf);
+      this->lastRSSI = WiFi.RSSI();
+      this->lastChannel = WiFi.channel();
+  }
+  else
+    sockEmit.sendToClient(num, "wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
 }
 void Network::setConnected() {
   WiFi.hostname(settings.WIFI.hostname);
