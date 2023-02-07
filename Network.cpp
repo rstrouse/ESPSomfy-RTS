@@ -15,6 +15,7 @@ extern SocketEmitter sockEmit;
 extern MQTTClass mqtt;
 extern rebootDelay_t rebootDelay;
 
+int connectRetries = 0;
 void Network::end() {
   sockEmit.end();
   SSDP.end();
@@ -34,11 +35,21 @@ bool Network::setup() {
 }
 void Network::loop() {
   if(millis() - this->lastEmit > 1500) {
-    if(this->connect()) {}
+    while(!this->connect()) {
+      // If we lost our connenction
+      connectRetries++;
+      if(connectRetries > 100) {
+        this->openSoftAP();
+        break;
+      }
+      sockEmit.loop();
+    }
+    connectRetries = 0;
     this->lastEmit = millis();
     this->emitSockets();
+    if(WiFi.status() != WL_CONNECTED) return;
   }
-  else sockEmit.loop();
+  sockEmit.loop();
   if(settings.WIFI.ssdpBroadcast) {
     if(!SSDP.isStarted) SSDP.begin();
     SSDP.loop();
@@ -147,7 +158,7 @@ bool Network::connect() {
       Serial.print(this->channel);
       Serial.print(" (");
       Serial.print(this->strength);
-      Serial.print("dbm)  ");
+      Serial.println("dbm)  ");
     }
     else Serial.println("Connecting to AP");
     this->connectAttempts++;
@@ -274,17 +285,10 @@ bool Network::openSoftAP() {
   
   while ((WiFi.status() != WL_CONNECTED))
   {
-    for(int i = 0; i < 3; i++) {
-      //delay(100);
-      //digitalWrite(LED_BUILTIN, HIGH);
-      //delay(100);
-      //digitalWrite(LED_BUILTIN, LOW);
-    }
     int clients = WiFi.softAPgetStationNum();
-    
     webServer.loop();
     if(millis() - this->lastEmit > 1500) {
-      if(this->connect()) {}
+      //if(this->connect()) {}
       this->lastEmit = millis();
       this->emitSockets();
       if(clients > 0)

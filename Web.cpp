@@ -798,6 +798,25 @@ void Web::begin() {
     Serial.print("Scanned ");
     Serial.print(n);
     Serial.println(" networks");
+    DynamicJsonDocument doc(16384);
+    JsonObject obj = doc.to<JsonObject>();
+    JsonObject connected = obj.createNestedObject("connected");
+    connected["name"] = settings.WIFI.ssid;
+    connected["passphrase"] = settings.WIFI.passphrase;
+    connected["strength"] = WiFi.RSSI();
+    connected["channel"] = WiFi.channel();
+    JsonArray arr = obj.createNestedArray("accessPoints");
+    for(int i = 0; i < n; ++i) {
+      if(WiFi.SSID(i).length() == 0 || WiFi.RSSI(i) < -95) continue; // Ignore hidden and weak networks that we cannot connect to anyway.
+      JsonObject a = arr.createNestedObject();
+      a["name"] = WiFi.SSID(i);
+      a["channel"] = WiFi.channel(i);
+      a["encryption"] = settings.WIFI.mapEncryptionType(WiFi.encryptionType(i));
+      a["strength"] = WiFi.RSSI(i);
+      a["macAddress"] = WiFi.BSSIDstr(i);
+    }
+    serializeJson(doc, g_content);
+    /*
     String content = "{\"connected\": {\"name\":\"" + String(settings.WIFI.ssid) + "\",\"passphrase\":\"" + String(settings.WIFI.passphrase) + "\",\"strength\":" + WiFi.RSSI() + ",\"channel\":" + WiFi.channel() + "}, \"accessPoints\":[";
     for (int i = 0; i < n; ++i) {
       if (i != 0) content += ",";
@@ -805,7 +824,8 @@ void Web::begin() {
       delay(10);
     }
     content += "]}";
-    server.send(statusCode, "application/json", content);
+    */
+    server.send(statusCode, "application/json", g_content);
     });
   server.on("/reboot", []() {
     webServer.sendCORSHeaders();

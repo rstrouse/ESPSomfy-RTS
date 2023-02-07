@@ -131,6 +131,8 @@
                         document.getElementsByName('hostname')[0].value = settings.hostname;
                         document.getElementsByName('ntptimeserver')[0].value = settings.ntpServer;
                         document.getElementsByName('ssdpBroadcast')[0].checked = settings.ssdpBroadcast;
+                        document.getElementById('fldSsid').value = settings.ssid;
+                        document.getElementById('fldPassphrase').value = settings.passphrase;
                     }
                 });
 
@@ -215,17 +217,15 @@
         class Wifi {
             init() {
                 document.getElementById("divNetworkStrength").innerHTML = this.displaySignal(-100);
-
-                //this.loadAPs();
             };
             async loadAPs() {
                 if (document.getElementById('btnScanAPs').classList.contains('disabled')) return;
                 document.getElementById('divAps').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;"><div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
                 document.getElementById('btnScanAPs').classList.add('disabled');
-                document.getElementById('btnConnectWiFi').classList.add('disabled');
+                //document.getElementById('btnConnectWiFi').classList.add('disabled');
                 getJSON('/scanaps', (err, aps) => {
                     document.getElementById('btnScanAPs').classList.remove('disabled');
-                    document.getElementById('btnConnectWiFi').classList.remove('disabled');
+                    //document.getElementById('btnConnectWiFi').classList.remove('disabled');
                     console.log(aps);
                     if (err) {
                         this.displayAPs({ connected: { name: '', passphrase: '' }, accessPoints: [] });
@@ -258,9 +258,9 @@
                 let divAps = document.getElementById('divAps');
                 divAps.setAttribute('data-lastloaded', new Date().getTime());
                 divAps.innerHTML = div;
-                document.getElementsByName('ssid')[0].value = aps.connected.name;
-                document.getElementsByName('passphrase')[0].value = aps.connected.passphrase;
-                this.procWifiStrength(aps.connected);
+                //document.getElementsByName('ssid')[0].value = aps.connected.name;
+                //document.getElementsByName('passphrase')[0].value = aps.connected.passphrase;
+                //this.procWifiStrength(aps.connected);
             };
             selectSSID(el) {
                 let obj = {
@@ -309,7 +309,7 @@
                     elWave.classList.remove('waveStrength-0', 'waveStrength-1', 'waveStrength-2', 'waveStrength-3', 'waveStrength-4');
                     elWave.classList.add(cssClass);
                 }
-                document.getElementById('spanNetworkStrength').innerHTML = (isNaN(strength.strength) || strength < -100) ? '---' : strength.strength;
+                document.getElementById('spanNetworkStrength').innerHTML = (isNaN(strength.strength) || strength.strength <= -100) ? '----' : strength.strength;
             }
         };
         var wifi = new Wifi();
@@ -1660,8 +1660,8 @@
                     tab.classList.add('selected');
                     if (tab.getAttribute('data-grpid') === 'fsWiFiSettings') {
                         // Only load the networks if we need them.
-                        if(new Date().getTime() - parseInt(document.getElementById('divAps').getAttribute('data-lastloaded'), 10) > 60000)
-                            wifi.loadAPs();
+                        //if(new Date().getTime() - parseInt(document.getElementById('divAps').getAttribute('data-lastloaded'), 10) > 60000)
+                        //    wifi.loadAPs();
                     }
                     let grp = document.getElementById(tab.getAttribute('data-grpid'));
                     if (typeof grp !== 'undefined' && grp) grp.style.display = '';
