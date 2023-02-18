@@ -11,6 +11,8 @@
   #define D0 0
 #endif
 
+#define DEBUG_SOMFY Serial
+
 static void SETCHARPROP(char *prop, const char *value, size_t size) {strncpy(prop, value, size); prop[size - 1] = '\0';}
 namespace util { 
   // Createa a custom to_string function.  C++ can be annoying

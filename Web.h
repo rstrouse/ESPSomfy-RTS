@@ -3,6 +3,7 @@
 class Web {
   public:
     void sendCORSHeaders();
+    void sendCacheHeaders(uint32_t seconds=604800);
     void startup();
     void begin();
     void loop();

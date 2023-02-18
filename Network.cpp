@@ -165,6 +165,7 @@ bool Network::connect() {
     this->connectStart = millis();
     Serial.print("Set hostname to:");
     Serial.println(WiFi.getHostname());
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     WiFi.mode(WIFI_STA);
     delay(100);
     WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase);

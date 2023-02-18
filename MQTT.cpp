@@ -86,6 +86,10 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
       else
         shade->sendCommand(somfy_commands::My);
     }
+    else if(strncmp(command, "mypos", sizeof(command)) == 0) {
+      if(val >= 0 && val <= 100)
+        shade->setMyPosition(val);
+    }
   }
 }
 bool MQTTClass::connect() {
@@ -106,6 +110,7 @@ bool MQTTClass::connect() {
         somfy.publish();
         this->subscribe("shades/+/target/set");
         this->subscribe("shades/+/direction/set");
+        this->subscribe("shades/+/mypos/set");
         mqttClient.setCallback(MQTTClass::receive);
         return true;
       }

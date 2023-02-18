@@ -20,6 +20,8 @@ String translateSomfyCommand(const somfy_commands cmd);
 somfy_commands translateSomfyCommand(const String& string);
 
 typedef struct somfy_frame_t {
+    bool valid = false;
+    bool processed = false;
     int rssi = 0;
     byte lqi = 0x0;
     somfy_commands cmd;
@@ -27,10 +29,14 @@ typedef struct somfy_frame_t {
     uint16_t rollingCode = 0;
     uint8_t encKey = 0xA7;
     uint8_t checksum = 0;
-    bool valid = false;
+    uint8_t hwsync = 0;
+    uint8_t repeats = 0;
+    uint32_t await = 0;
     void print();
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
+    bool isRepeat(somfy_frame_t &f);
+    void copy(somfy_frame_t &f);
 };
 
 class SomfyRemote {
@@ -60,13 +66,18 @@ class SomfyShade : public SomfyRemote {
     uint64_t moveStart = 0;
     float startPos = 0.0;
     bool seekingPos = false;
+    bool seekingMyPos = false;
+    bool settingMyPos = false;
+    uint32_t awaitMy = 0;
   public:
     void load();
+    somfy_frame_t lastFrame;
     float currentPos = 0.0;
     //uint16_t movement = 0;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
     uint8_t position = 0;
     uint8_t target = 0;
+    uint8_t myPos = 255;
     SomfyLinkedRemote linkedRemotes[SOMFY_MAX_LINKED_REMOTES];
     bool paired = false;
     bool fromJSON(JsonObject &obj);
@@ -87,6 +98,9 @@ class SomfyShade : public SomfyRemote {
     bool unlinkRemote(uint32_t remoteAddress);
     void emitState(const char *evt = "shadeState");
     void emitState(uint8_t num, const char *evt = "shadeState");
+    void setMyPosition(uint8_t target);
+    void moveToMyPosition();
+    void processWaitingFrame();
     void publish();
 };
 
@@ -207,6 +221,7 @@ class SomfyShadeController {
     void processFrame(somfy_frame_t &frame, bool internal = false);
     void emitState(uint8_t num = 255);
     void publish();
+    void processWaitingFrame();
 };
 
 #endif

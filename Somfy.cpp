@@ -23,6 +23,8 @@ uint8_t rxmode = 0;  // Indicates whether the radio is in receive mode.  Just to
     #define RECEIVE_ATTR
 #endif
 
+#define SETMY_REPEATS 15
+
 int sort_asc(const void *cmp1, const void *cmp2) {
   int a = *((uint8_t *)cmp1);
   int b = *((uint8_t *)cmp2);
@@ -120,36 +122,6 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     }
 
     if (this->valid) {
-        /*
-        Serial.println("    KEY  1   2   3   4   5   6  ");
-        Serial.println("--------------------------------");
-        Serial.print("ENC ");
-        for(byte i = 0; i < 7; i++) {
-          if(frame[i] < 10)
-            Serial.print("  ");
-          else if(frame[i] < 100)
-            Serial.print(" ");
-          Serial.print(frame[i]);
-          Serial.print(" ");
-        }
-        Serial.println();
-        Serial.print("DEC ");
-        for(byte i = 0; i < 7; i++) {
-          if(decoded[i] < 10)
-            Serial.print("  ");
-          else if(decoded[i] < 100)
-            Serial.print(" ");
-          Serial.print(decoded[i]);
-          Serial.print(" ");
-        }
-        Serial.println();
-        Serial.print("VALID:");
-        Serial.print(this->valid ? "true" : "false");
-        Serial.print(" ENCCS:");
-        Serial.print(checksum);
-        Serial.print(" DECCS:");
-        Serial.println(this->checksum);
-        */
         Serial.print("KEY:");
         Serial.print(this->encKey);
         Serial.print(" ADDR:");
@@ -157,7 +129,9 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         Serial.print(" CMD:");
         Serial.print(translateSomfyCommand(this->cmd));
         Serial.print(" RCODE:");
-        Serial.println(this->rollingCode);
+        Serial.print(this->rollingCode);
+        Serial.print(" HWSYNC:");
+        Serial.println(this->hwsync);
     }
     else {
         Serial.print("INVALID FRAME ");
@@ -196,7 +170,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
 void somfy_frame_t::encodeFrame(byte *frame) { 
   const byte btn = static_cast<byte>(cmd);
   frame[0] = this->encKey;              // Encryption key. Doesn't matter much
-  frame[1] = btn << 4;                  // Which button did  you press? The 4 LSB will be the checksum
+  frame[1] = btn << 4;                  // Which button did you press? The 4 LSB will be the checksum
   frame[2] = this->rollingCode >> 8;    // Rolling code (big endian)
   frame[3] = this->rollingCode;         // Rolling code
   frame[4] = this->remoteAddress >> 16; // Remote address
@@ -231,6 +205,27 @@ void somfy_frame_t::print() {
     Serial.print(" CS:");
     Serial.println(this->checksum);
 }
+bool somfy_frame_t::isRepeat(somfy_frame_t &frame) { return this->remoteAddress == frame.remoteAddress && this->cmd == frame.cmd && this->rollingCode == frame.rollingCode; }
+void somfy_frame_t::copy(somfy_frame_t &frame) {
+  if(this->isRepeat(frame)) {
+    this->repeats++;
+    this->rssi = frame.rssi;
+    this->lqi = frame.lqi;
+  }
+  else {
+    this->valid = frame.valid;
+    this->processed = frame.processed;
+    this->rssi = frame.rssi;
+    this->lqi = frame.lqi;
+    this->cmd = frame.cmd;
+    this->remoteAddress = frame.remoteAddress;
+    this->rollingCode = frame.rollingCode;
+    this->encKey = frame.encKey;
+    this->checksum = frame.checksum;
+    this->hwsync = frame.hwsync;
+    this->repeats = frame.repeats;
+  }
+}
 void SomfyShadeController::end() { this->transceiver.disableReceive(); }
 SomfyShadeController::SomfyShadeController() {
   memset(this->m_shadeIds, 255, sizeof(this->m_shadeIds));
@@ -251,17 +246,19 @@ SomfyShade *SomfyShadeController::findShadeByRemoteAddress(uint32_t address) {
 }
 bool SomfyShadeController::begin() {
   // Load up all the configuration data.
-  Serial.printf("sizeof(SomfyShade) = %d\n", sizeof(SomfyShade));
+  //Serial.printf("sizeof(SomfyShade) = %d\n", sizeof(SomfyShade));
   pref.begin("Shades");
   pref.getBytes("shadeIds", this->m_shadeIds, sizeof(this->m_shadeIds));
   pref.end();
   //this->transceiver.begin();
   sortArray<uint8_t>(this->m_shadeIds, sizeof(this->m_shadeIds));
+  #ifdef DEBUG_SOMFY
   for(uint8_t i = 0; i < sizeof(this->m_shadeIds); i++) {
-    if(i != 0) Serial.print(",");
-    Serial.print(this->m_shadeIds[i]);
+    if(i != 0) DEBUG_SOMFY.print(",");
+    DEBUG_SOMFY.print(this->m_shadeIds[i]);
   }
-  Serial.println();
+  DEBUG_SOMFY.println();
+  #endif
 
   uint8_t id = 0;
   for(uint8_t i = 0; i < sizeof(this->m_shadeIds); i++) {
@@ -274,16 +271,18 @@ bool SomfyShadeController::begin() {
     }
     shade->load();
   }
+  #ifdef DEBUG_SOMFY
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
-    Serial.print(this->shades[i].getShadeId());
-    Serial.print(":");
-    Serial.print(this->m_shadeIds[i]);
-    if(i < SOMFY_MAX_SHADES - 1) Serial.print(",");
+    DEBUG_SOMFY.print(this->shades[i].getShadeId());
+    DEBUG_SOMFY.print(":");
+    DEBUG_SOMFY.print(this->m_shadeIds[i]);
+    if(i < SOMFY_MAX_SHADES - 1) DEBUG_SOMFY.print(",");
   }
+  Serial.println();
+  #endif
   pref.begin("Shades");
   pref.putBytes("shadeIds", this->m_shadeIds, sizeof(this->m_shadeIds));
   pref.end();
-  Serial.println();
   this->transceiver.begin();
   return true;
 }
@@ -344,7 +343,6 @@ bool SomfyShade::unlinkRemote(uint32_t address) {
   }
   return false;
 }
-
 void SomfyShade::checkMovement() {
   int8_t currDir = this->direction;
   uint8_t currPos = this->position;
@@ -392,10 +390,11 @@ void SomfyShade::checkMovement() {
         Serial.print("% target ");
         Serial.print(this->target);
         Serial.println("%");
-        this->sendCommand(somfy_commands::My);
+        if(!this->seekingMyPos) this->sendCommand(somfy_commands::My);
+        else this->direction = 0;
         this->seekingPos = false;
+        this->seekingMyPos = false;
       }
-      
     }
   }
   else if(this->direction < 0) {
@@ -432,23 +431,42 @@ void SomfyShade::checkMovement() {
       Serial.print("% target ");
       Serial.print(this->target);
       Serial.println("%");
-      this->sendCommand(somfy_commands::My);
+      if(!this->seekingMyPos) this->sendCommand(somfy_commands::My);
+      else this->direction = 0;
+      this->seekingMyPos = false;
       this->seekingPos = false;
+    }
+  }
+  if(currDir != this->direction && this->direction == 0) {
+    char shadeKey[15];
+    snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
+    Serial.print("Writing current shade position: ");
+    Serial.println(this->currentPos, 4);
+    pref.begin(shadeKey);
+    pref.putFloat("currentPos", this->currentPos);
+    pref.end();
+    if(this->settingMyPos) {
+      delay(200);
+      // Set this position before sending the command.  If you don't the processFrame function
+      // will send the shade back to its original My position.
+      if(this->myPos == this->position) this->myPos = 255;
+      else this->myPos = this->position;
+      SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
+      this->settingMyPos = false;
+      this->seekingMyPos = false;
+      Serial.print("Committing My Position: ");
+      Serial.print(this->myPos);
+      Serial.println("%");
+
+      pref.begin(shadeKey);
+      pref.putUShort("myPos", this->myPos);
+      pref.end();
     }
   }
   if(currDir != this->direction || currPos != this->position) {
     // We need to emit on the socket that our state has changed.
     this->position = floor(this->currentPos * 100.0);
     this->emitState();
-  }
-  if(currDir != this->direction && this->direction == 0) {
-    char shadeKey[15];
-    snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
-    Serial.print("Writing current shade position:");
-    Serial.println(this->currentPos);
-    pref.begin(shadeKey);
-    pref.putFloat("currentPos", this->currentPos);
-    pref.end();
   }
 }
 void SomfyShade::load() {
@@ -468,6 +486,7 @@ void SomfyShade::load() {
     this->currentPos = pref.getFloat("currentPos", 0);
     this->position = (uint8_t)floor(this->currentPos * 100);
     this->target = this->position;
+    this->myPos = pref.getUShort("myPos", this->myPos);
     pref.getBytes("linkedAddr", linkedAddresses, sizeof(linkedAddresses));
     pref.end();
     Serial.print("shadeId:");
@@ -477,14 +496,17 @@ void SomfyShade::load() {
     Serial.print(" address:");
     Serial.print(this->getRemoteAddress());
     Serial.print(" position:");
-    Serial.println(this->position);
+    Serial.print(this->position);
+    Serial.print(" myPos:");
+    Serial.println(this->myPos);
+    pref.begin("ShadeCodes");
+    this->lastRollingCode = pref.getUShort(this->m_remotePrefId, 0);
     for(uint8_t j = 0; j < SOMFY_MAX_LINKED_REMOTES; j++) {
       SomfyLinkedRemote &lremote = this->linkedRemotes[j];
       lremote.setRemoteAddress(linkedAddresses[j]);
-      pref.begin("ShadeCodes");
       lremote.lastRollingCode = pref.getUShort(lremote.getRemotePrefId(), 0);
-      pref.end();
     }
+    pref.end();
   
 }
 void SomfyShade::publish() {
@@ -504,12 +526,15 @@ void SomfyShade::publish() {
     mqtt.publish(topic, this->target);
     snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
     mqtt.publish(topic, this->lastRollingCode);
+    snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
+    mqtt.publish(topic, this->myPos);
+    
   }
 }
 void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
   char buf[220];
-  snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d}", this->shadeId, this->getRemoteAddress(), this->name, this->direction, this->position, this->target);
+  snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d}", this->shadeId, this->getRemoteAddress(), this->name, this->direction, this->position, this->target, this->myPos);
   if(num >= 255) sockEmit.sendToClients(evt, buf);
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
@@ -522,9 +547,54 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
     mqtt.publish(topic, this->target);
     snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
     mqtt.publish(topic, this->lastRollingCode);
+    snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
+    mqtt.publish(topic, this->myPos);
+  }
+}
+void SomfyShade::processWaitingFrame() {
+  if(this->shadeId == 255) {
+    this->lastFrame.await = 0; 
+    return;
+  }
+  if(this->lastFrame.processed) return;
+  if(this->lastFrame.await > 0 && (millis() > this->lastFrame.await || this->lastFrame.repeats >= SETMY_REPEATS)) {
+    switch(this->lastFrame.cmd) {
+      case somfy_commands::My:
+        if(this->lastFrame.repeats >= SETMY_REPEATS && this->direction == 0) {
+          if(this->myPos == this->position) // We are clearing it.
+            this->myPos = 255;
+          else
+            this->myPos = this->position;
+          Serial.print(this->name);
+          Serial.print(" MY POSITION SET TO:");
+          Serial.print(this->myPos);
+          Serial.println("%");
+          this->lastFrame.processed = true;
+          this->emitState();
+        }
+        else if(this->myPos >= 0 && this->myPos <= 100) {
+          int8_t dir = 0;
+          if(myPos < this->position) dir = -1;
+          else if(myPos > this->position) dir = 1;
+          if(dir != 0) this->seekingMyPos = true;
+          this->seekingPos = true;
+          this->target = this->myPos;
+          this->setMovement(dir);
+          this->lastFrame.processed = true;
+        }
+        if(this->lastFrame.repeats > SETMY_REPEATS + 2) this->lastFrame.processed = true;
+        if(this->lastFrame.processed) {
+          Serial.print(this->name);
+          Serial.print(" Processing MY after ");
+          Serial.print(this->lastFrame.repeats);
+          Serial.println(" repeats");
+        }
+        break;
+    }
   }
 }
 void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
+  if(this->shadeId == 255) return; 
   bool hasRemote = this->getRemoteAddress() == frame.remoteAddress;
   if(!hasRemote) {
     for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -536,8 +606,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     }
   }
   if(!hasRemote) return;
+  this->lastFrame.copy(frame);
   int8_t dir = 0;
-  // If the frame came from the radio it cannot be seeing a position.  This means that the target will be set.
+  // If the frame came from the radio it cannot be seeking a position.  This means that the target will be set.
   if(!internal) this->seekingPos = false;
   // At this point we are not processing the combo buttons
   // will need to see what the shade does when you press both.
@@ -545,10 +616,37 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::Up:
       dir = -1;
       if(!internal) this->target = 0;
+      this->lastFrame.processed = true;
       break;
     case somfy_commands::Down:
       dir = 1;
       if(!internal) this->target = 100;
+      this->lastFrame.processed = true;
+      break;
+    case somfy_commands::My:
+      dir = 0;
+      if(this->direction == 0) {
+        if(!internal) {
+          this->lastFrame.await = millis() + 500;
+        }
+        else if(myPos >= 0 && this->myPos <= 100) {
+          this->lastFrame.processed = true;
+          // In this instance we will be moving to the my position.  This
+          // will be up or down or not.
+          if(this->myPos < this->position) dir = -1;
+          else if(this->myPos > this->position) dir = 1;
+          if(dir != 0) {
+            Serial.println("Start moving to My Position");
+            this->seekingMyPos = true;
+          }
+          this->seekingPos = true;
+          this->target = this->myPos;
+        }
+      }
+      else
+        // This will occur if the shade needs to be stopped or there
+        // is no my position set.
+        this->lastFrame.processed = true;
       break;
     default:
       dir = 0;
@@ -563,7 +661,15 @@ void SomfyShade::setMovement(int8_t dir) {
     this->startPos = this->currentPos;
     this->moveStart = 0;
     this->direction = dir;
-    this->emitState();
+    if(currDir != dir) {
+      char shadeKey[15];
+      snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
+      Serial.print("Writing current shade position:");
+      Serial.println(this->currentPos, 4);
+      pref.begin(shadeKey);
+      pref.putFloat("currentPos", this->currentPos);
+      pref.end();
+    }
   }
   else if(this->direction != dir) {
     this->moveStart = millis();
@@ -575,6 +681,53 @@ void SomfyShade::setMovement(int8_t dir) {
     this->emitState();
   }
 }
+void SomfyShade::setMyPosition(uint8_t target) {
+  if(this->direction != 0) return; // Don't do this if it is moving.
+  Serial.println("setMyPosition called");
+  if(target != this->position) {
+    this->settingMyPos = true;
+    Serial.println("Moving to set My Position");
+    if(target == this->myPos)
+      // Setting the My Position to the same position will toggle it off. So lets send a my
+      // command instead of an up/down.  This will ensure we get the thing cleared.
+      this->moveToMyPosition();
+    else
+      this->moveToTarget(target);
+  }
+  else {
+    this->sendCommand(somfy_commands::My, SETMY_REPEATS);
+    char shadeKey[15];
+    snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
+    if(target == this->myPos)
+      this->myPos = 255;
+    else
+      this->myPos = target;
+    Serial.print("Writing my shade position:");
+    Serial.print(this->myPos);
+    Serial.println("%");
+    pref.begin(shadeKey);
+    pref.putUShort("myPos", this->myPos);
+    pref.end();
+    this->emitState();
+  }
+}
+void SomfyShade::moveToMyPosition() {
+  if(this->direction != 0 || this->myPos > 100 || this->myPos < 0) return;
+  if(this->position == this->myPos) return; // Nothing to see here since we are already here.
+  Serial.print("Seeking my Position:");
+  Serial.print(this->myPos);
+  Serial.println("%");
+  this->seekingMyPos = true;
+  this->target = this->myPos;
+  Serial.print("Moving to ");
+  Serial.print(this->target);
+  Serial.print("% from ");
+  Serial.print(this->position);
+  Serial.print("% using ");
+  Serial.println(translateSomfyCommand(somfy_commands::My));
+  this->seekingPos = true;
+  SomfyRemote::sendCommand(somfy_commands::My);
+}
 void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
   if(cmd == somfy_commands::Up) {
     this->target = 0;
@@ -585,8 +738,14 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     this->seekingPos = false;
   }
   else if(cmd == somfy_commands::My) {
-    this->target = this->position;
-    this->seekingPos = false;
+    if(this->direction == 0 && this->myPos >= 0 && this->myPos <= 100) {
+      this->moveToMyPosition();      
+      return;
+    }
+    else {
+      this->target = this->position;
+      this->seekingPos = false;
+    }
   }
   SomfyRemote::sendCommand(cmd, repeat);
 }
@@ -608,7 +767,6 @@ void SomfyShade::moveToTarget(uint8_t target) {
   else this->seekingPos = false;
   SomfyRemote::sendCommand(cmd);  
 }
-
 bool SomfyShade::save() {
   char shadeKey[15];
   snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->getShadeId());
@@ -619,6 +777,7 @@ bool SomfyShade::save() {
   pref.putUShort("downTime", this->downTime);
   pref.putULong("remoteAddress", this->getRemoteAddress());
   pref.putFloat("currentPos", this->currentPos);
+  pref.putUShort("myPos", this->myPos);
   uint32_t linkedAddresses[SOMFY_MAX_LINKED_REMOTES];
   memset(linkedAddresses, 0x00, sizeof(linkedAddresses));
   uint8_t j = 0;
@@ -664,6 +823,8 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["lastRollingCode"] = this->lastRollingCode;
   obj["position"] = this->position;
   obj["target"] = this->target;
+  obj["myPos"] = this->myPos;
+  obj["direction"] = this->direction;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -685,7 +846,11 @@ void SomfyRemote::setRemoteAddress(uint32_t address) { this->m_remoteAddress = a
 uint32_t SomfyRemote::getRemoteAddress() { return this->m_remoteAddress; }
 void SomfyShadeController::processFrame(somfy_frame_t &frame, bool internal) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++)
-    this->shades[i].processFrame(frame, internal);
+    if(this->shades[i].getShadeId() != 255) this->shades[i].processFrame(frame, internal);
+}
+void SomfyShadeController::processWaitingFrame() {
+  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++)
+    if(this->shades[i].getShadeId() != 255) this->shades[i].processWaitingFrame();
 }
 void SomfyShadeController::emitState(uint8_t num) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
@@ -797,7 +962,6 @@ SomfyShade *SomfyShadeController::addShade() {
   }
   return shade;
 }
-
 void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   somfy_frame_t frame;
   frame.rollingCode = this->getNextRollingCode();
@@ -826,7 +990,6 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
   }
   this->transceiver.endTransmit();
 }
-
 bool SomfyShadeController::deleteShade(uint8_t shadeId) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() == shadeId) {
@@ -846,7 +1009,6 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
   pref.end();
   return true;
 }
-
 uint16_t SomfyRemote::getNextRollingCode() {
   pref.begin("ShadeCodes");
   uint16_t code = pref.getUShort(this->m_remotePrefId, 0);
@@ -857,10 +1019,12 @@ uint16_t SomfyRemote::getNextRollingCode() {
   return code;
 }
 uint16_t SomfyRemote::setRollingCode(uint16_t code) {
-  pref.begin("ShadeCodes");
-  pref.putUShort(this->m_remotePrefId, code);
-  pref.end();  
-  this->lastRollingCode = code;
+  if(this->lastRollingCode != code) {
+    pref.begin("ShadeCodes");
+    pref.putUShort(this->m_remotePrefId, code);
+    pref.end();  
+    this->lastRollingCode = code;
+  }
   return code;
 }
 bool SomfyShadeController::toJSON(DynamicJsonDocument &doc) {
@@ -908,7 +1072,6 @@ bool SomfyShadeController::toJSON(JsonArray &arr) {
   }
   return true;
 }
-
 void SomfyShadeController::loop() { 
   this->transceiver.loop(); 
   for(uint8_t i; i < SOMFY_MAX_SHADES; i++) {
@@ -951,6 +1114,7 @@ static struct somfy_rx_t
 } somfy_rx;
 uint8_t receive_buffer[10]; // 80 bits
 bool packet_received = false;
+uint8_t m_hwsync = 0;
 void Transceiver::sendFrame(byte *frame, uint8_t sync) {
   if(!this->config.enabled) return;
   uint32_t pin = 1 << this->config.TXPin;
@@ -997,7 +1161,6 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync) {
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
   delayMicroseconds(30415);
 }
-
 void RECEIVE_ATTR Transceiver::handleReceive() {
     static unsigned long last_time = 0;
     const long time = micros();
@@ -1012,15 +1175,18 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
     case waiting_synchro:
         if (duration > tempo_synchro_hw_min && duration < tempo_synchro_hw_max) {
             // We have found a hardware sync bit.  There should be at least 4 of these.
-            // The original code sets gpio 2 on and off but only when in debug mode.  I suspect this was to flash an LED
-            // to see the tempo.
             ++somfy_rx.cpt_synchro_hw;
         }
         else if (duration > tempo_synchro_sw_min && duration < tempo_synchro_sw_max && somfy_rx.cpt_synchro_hw >= 4) {
             // If we have a full hardware sync then we should look for the software sync.  If we have a software sync
             // bit and enough hardware sync bits then we should start receiving data.
-            memset(&somfy_rx, 0x00, sizeof(somfy_rx));
+            //memset(&somfy_rx, 0x00, sizeof(somfy_rx));
+            memset(somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
+            somfy_rx.previous_bit = 0x00;
+            somfy_rx.waiting_half_symbol = false;
+            somfy_rx.cpt_bits = 0;
             somfy_rx.status = receiving_data;
+
         }
         else {
             // Reset and start looking for hardware sync again.
@@ -1047,7 +1213,11 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         }
         else {
             // Start over we are not within our parameters for bit timing.
+            memset(&somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
             somfy_rx.cpt_synchro_hw = 0;
+            somfy_rx.previous_bit = 0x00;
+            somfy_rx.waiting_half_symbol = false;
+            somfy_rx.cpt_bits = 0;
             somfy_rx.status = waiting_synchro;
         }
         break;
@@ -1055,17 +1225,21 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         break;
     }
     if (somfy_rx.status == receiving_data && somfy_rx.cpt_bits == bit_length) {
-        // The original code posted the task so that it would pick it up immediately.
-        // we don't need any of that so we will simply catch it on the next loop.
-        //task_post_high(DataReady_taskid, (task_param_t)0);
         memcpy(receive_buffer, somfy_rx.payload, sizeof(receive_buffer));
         packet_received = true;
+        m_hwsync = somfy_rx.cpt_synchro_hw;
+        memset(&somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
+        somfy_rx.cpt_synchro_hw = 0;
+        somfy_rx.previous_bit = 0x00;
+        somfy_rx.waiting_half_symbol = false;
+        somfy_rx.cpt_bits = 0;
         somfy_rx.status = waiting_synchro;
     }
 }
 bool Transceiver::receive() {
     if (packet_received) {
         packet_received = false;
+        this->frame.hwsync = m_hwsync;
         this->frame.rssi = ELECHOUSE_cc1101.getRssi();
         this->frame.decodeFrame(receive_buffer);
         //this->frame.lqi = ELECHOUSE_cc1101.getLqi();
@@ -1336,6 +1510,9 @@ void Transceiver::loop() {
         char buf[177];
         snprintf(buf, sizeof(buf), "{\"encKey\":%d,\"address\":%d,\"rcode\":%d,\"command\":\"%s\",\"rssi\":%d}", this->frame.encKey, this->frame.remoteAddress, this->frame.rollingCode, translateSomfyCommand(this->frame.cmd), this->frame.rssi);
         sockEmit.sendToClients("remoteFrame", buf);
+    }
+    else {
+      somfy.processWaitingFrame();
     }
 }
 somfy_frame_t& Transceiver::lastFrame() { return this->frame; }

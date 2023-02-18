@@ -41,6 +41,9 @@ void Web::sendCORSHeaders() {
     //server.sendHeader(F("Access-Control-Allow-Methods"), F("PUT,POST,GET,OPTIONS"));
     //server.sendHeader(F("Access-Control-Allow-Headers"), F("*"));
 }
+void Web::sendCacheHeaders(uint32_t seconds) {
+  server.sendHeader(F("Cache-Control"), F("public, max-age=604800, immutable"));
+}
 void Web::end() {
   //server.end();
 }
@@ -174,11 +177,11 @@ void Web::begin() {
       apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
     }
     });
-    
   server.on("/upnp.xml", []() {
     SSDP.schema(server.client());
     });
   server.on("/", []() {
+    webServer.sendCacheHeaders(604800);
     webServer.sendCORSHeaders();
     int statusCode = 200;
     // Load the index html page from the data directory.
@@ -204,6 +207,7 @@ void Web::begin() {
     file.close();
     });
   server.on("/main.css", []() {
+    webServer.sendCacheHeaders(604800);
     webServer.sendCORSHeaders();
     // Load the index html page from the data directory.
     Serial.println("Loading file main.css");
@@ -216,6 +220,7 @@ void Web::begin() {
     file.close();
     });
   server.on("/icons.css", []() {
+    webServer.sendCacheHeaders(604800);
     webServer.sendCORSHeaders();
     // Load the index html page from the data directory.
     Serial.println("Loading file icons.css");
@@ -225,6 +230,20 @@ void Web::begin() {
       server.send(500, _encoding_text, "Unable to open data/icons.css");
     }
     server.streamFile(file, "text/css");
+    file.close();
+    });
+  server.on("/favicon.png", []() {
+    webServer.sendCacheHeaders(604800);
+    webServer.sendCORSHeaders();
+    
+    // Load the index html page from the data directory.
+    Serial.println("Loading file favicon.png");
+    File file = LittleFS.open("/favicon.png", "r");
+    if (!file) {
+      Serial.println("Error opening data/favicon.png");
+      server.send(500, _encoding_text, "Unable to open data/icons.css");
+    }
+    server.streamFile(file, "image/png");
     file.close();
     });
   server.onNotFound([]() {
@@ -505,6 +524,109 @@ void Web::begin() {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
     }
     });
+  server.on("/setMyPosition", []() {
+    webServer.sendCORSHeaders();
+    HTTPMethod method = server.method();
+    uint8_t shadeId = 255;
+    uint8_t target = 255;
+    
+    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+      if (server.hasArg("shadeId")) {
+        shadeId = atoi(server.arg("shadeId").c_str());
+        if(server.hasArg("target")) target = atoi(server.arg("target").c_str());
+      }
+      else if (server.hasArg("plain")) {
+        DynamicJsonDocument doc(256);
+        DeserializationError err = deserializeJson(doc, server.arg("plain"));
+        if (err) {
+          switch (err.code()) {
+          case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+          case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+          default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+          }
+          return;
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
+          if(obj.containsKey("target")) {
+            target = obj["target"].as<uint8_t>();
+          }
+        }
+      }
+      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+    }
+    SomfyShade* shade = somfy.getShadeById(shadeId);
+    if (shade) {
+      // Send the command to the shade.
+      if(target == 255) target = shade->myPos;
+      if(target >= 0 && target <= 100)
+        shade->setMyPosition(target);
+      DynamicJsonDocument sdoc(256);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+    }
+    });
+  server.on("/setRollingCode", []() {
+    webServer.sendCORSHeaders();
+    HTTPMethod method = server.method();
+    if (method == HTTP_PUT || method == HTTP_POST) {
+      uint8_t shadeId = 255;
+      uint16_t rollingCode = 0;
+      if (server.hasArg("plain")) {
+        // Its coming in the body.
+        StaticJsonDocument<129> doc;
+        DeserializationError err = deserializeJson(doc, server.arg("plain"));
+        if (err) {
+          switch (err.code()) {
+          case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+          case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+          default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+          }
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+          if(obj.containsKey("rollingCode")) rollingCode = obj["rollingCode"];
+        }
+      }
+      else if (server.hasArg("shadeId")) {
+        shadeId = atoi(server.arg("shadeId").c_str());
+        rollingCode = atoi(server.arg("rollingCode").c_str());
+      }
+      SomfyShade* shade = nullptr;
+      if (shadeId != 255) shade = somfy.getShadeById(shadeId);
+      if (!shade) {
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade not found to set rolling code\"}"));
+      }
+      else {
+        shade->setRollingCode(rollingCode);
+        StaticJsonDocument<256> doc;
+        JsonObject obj = doc.to<JsonObject>();
+        shade->toJSON(obj);
+        serializeJson(doc, g_content);
+        server.send(200, _encoding_json, g_content);
+      }
+    }
+  });
   server.on("/pairShade", []() {
     webServer.sendCORSHeaders();
     HTTPMethod method = server.method();
