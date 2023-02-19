@@ -8,9 +8,46 @@ input[type="range"] {
     accent-color: #00bcd4;
     outline:none;
 }
+
     input[type="range"]:active {
         outline: dotted 1px silver;
     }
+.button-outline {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+    .button-outline:active {
+        -webkit-animation: flicker .5s infinite linear;
+        animation: flicker .5s infinite linear;
+    }
+@keyframes flicker {
+    0% {
+        transform: rotate(-4deg);
+        -webkit-transform: rotate(-4deg);
+    }
+
+    20% {
+        transform: rotate(1deg);
+    }
+
+    40% {
+        transform: rotate(-8deg);
+    }
+
+    60% {
+        transform: rotate(4deg) scaleY(1.04);
+    }
+
+    80% {
+        transform: rotate(-7deg) scaleY(0.92);
+    }
+
+    100% {
+        transform: rotate(7deg);
+    }
+}
 body {
     color: #434343;
     font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -515,7 +552,50 @@ div.waitoverlay > .lds-roller {
     height:60px;
     border-bottom:dotted 2px gainsboro;
     position:relative;
+    display:flex;
+    vertical-align:middle;
 }
+    .somfyShadeCtl .shade-icon {
+        display: inline-block;
+        padding-top: 7px;
+        padding-bottom: 7px;
+        padding-left: 0px;
+        padding-right: 0px;
+        vertical-align: middle;
+        margin-top: -5px;
+        font-size: 48px;
+    }
+.somfyShadeCtl .shade-name {
+    display:inline-block;
+    padding:7px;
+    vertical-align:middle;
+    width:100%;
+}
+    .somfyShadeCtl .shadectl-name {
+        font-size: 1.5em;
+        color: silver;
+        display: block;
+        vertical-align: middle;
+        white-space: nowrap;
+        width: 100%;
+    }
+    .somfyShadeCtl label {
+        color:silver;
+    }
+    .somfyShadeCtl .shadectl-mypos {
+        white-space: nowrap;
+        font-size: 12px;
+    }
+.somfyShadeCtl .shadectl-buttons {
+    float:right;
+    white-space:nowrap;
+}
+    .somfyShadeCtl .shadectl-buttons .button-outline {
+        display: inline-block;
+        padding: 7px;
+        cursor: pointer;
+    }
+
 .shade-positioner {
     position:absolute;
     width:100%;
@@ -525,6 +605,7 @@ div.waitoverlay > .lds-roller {
     top:0px;
     padding-left:7px;
     padding-right:7px;
+    z-index:100;
 }
 .shade-positioner .shade-name {
     display:block;

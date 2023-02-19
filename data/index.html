@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="icons.css" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <script>
+        document.oncontextmenu = (event) => { event.preventDefault(); event.stopPropagation(); return false; }
         class General {
             async init() {
                 this.setAppVersion();
@@ -445,17 +446,17 @@
                     divCfg += '</div>';
 
                     divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}">`;
-                    divCtl += `<div style="display:inline-block;padding:7px;font-size:48px;vertical-align:middle;margin-top:-5px;" data-shadeid="${shade.shadeId}">`;
+                    divCtl += `<div class="shade-icon" data-shadeid="${shade.shadeId}">`;
                     divCtl += `<i class="somfy-shade-icon icss-window-shade" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.position}%;vertical-align:top;" onclick="event.stopPropagation(); console.log(event); somfy.openSetPosition(${shade.shadeId});"></i></div >`;
-                    divCtl += `<div style="display:inline-block;vertical-align:middle;width:50px;">`;
-                    divCtl += `<span class="shadectl-name" style="font-size:1.5em;color:silver;display:block;vertical-align:middle;white-space:nowrap;width:50px;">${shade.name}</span>`;
-                    divCtl += `<span style="white-space:nowrap;font-size:12px;"><label style="color:silver;">My: </label><span id="spanMyPos">${shade.myPos !== 255 ? shade.myPos + '%' : '---'}</span>`
+                    divCtl += `<div class="shade-name">`;
+                    divCtl += `<span class="shadectl-name">${shade.name}</span>`;
+                    divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos !== 255 ? shade.myPos + '%' : '---'}</span>`
                     divCtl += '</div>'
                    
-                    divCtl += `<div class="shadectl-buttons" style="float:right;">`;
-                    divCtl += `<div class="button-outline" onclick="somfy.sendCommand(${shade.shadeId}, 'up');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-up"></i></div>`;
-                    divCtl += `<div class="button-outline my-button" data-shadeid="${shade.shadeId}" style="display:inline-block;font-size:2em;padding:10px;cursor:pointer;"><span>my</span></div>`;
-                    divCtl += `<div class="button-outline" onclick="somfy.sendCommand(${shade.shadeId}, 'down');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
+                    divCtl += `<div class="shadectl-buttons">`;
+                    divCtl += `<div class="button-outline" onclick="somfy.sendCommand(${shade.shadeId}, 'up');"><i class="icss-somfy-up"></i></div>`;
+                    divCtl += `<div class="button-outline my-button" data-shadeid="${shade.shadeId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
+                    divCtl += `<div class="button-outline" onclick="somfy.sendCommand(${shade.shadeId}, 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
                     divCtl += '</div></div>';
                 }
                 document.getElementById('divShadeList').innerHTML = divCfg;
@@ -467,6 +468,7 @@
                     btns[i].addEventListener('mouseup', (event) => {
                         console.log(this);
                         console.log(event);
+                        console.log('mouseup');
                         if (this.btnTimer) {
                             clearTimeout(this.btnTimer);
                             this.btnTimer = null;
@@ -481,8 +483,12 @@
 
                     }, true);
                     btns[i].addEventListener('mousedown', (event) => {
+                        if (this.btnTimer) return;
                         console.log(this);
                         console.log(event);
+
+                        console.log('mousedown');
+                                               
                         let shadeId = parseInt(event.currentTarget.getAttribute('data-shadeid'), 10);
                         let el = event.currentTarget.closest('.somfyShadeCtl');
                         this.btnDown = new Date().getTime();
@@ -499,6 +505,8 @@
                     btns[i].addEventListener('touchstart', (event) => {
                         let shadeId = parseInt(event.currentTarget.getAttribute('data-shadeid'), 10);
                         let el = event.currentTarget.closest('.somfyShadeCtl');
+                        console.log('touchstart');
+
                         this.btnDown = new Date().getTime();
                         if (parseInt(el.getAttribute('data-direction'), 10) === 0) {
                             this.btnTimer = setTimeout(() => {
@@ -509,7 +517,9 @@
                             }, 2000);
                         }
                     }, true);
+                    /*
                     btns[i].addEventListener('touchend', (event) => {
+                        event.preventDefault();  // Make sure the idiot 
                         console.log(this);
                         console.log(event);
                         if (this.btnTimer) {
@@ -523,12 +533,9 @@
                         else {
                             this.sendCommand(shadeId, 'my');
                         }
-
                     }, true);
-
-
+                    */
                 }
-
             };
             closeShadePositioners() {
                 let ctls = document.querySelectorAll('.shade-positioner');
@@ -549,13 +556,14 @@
                         let myPos = parseInt(shade.getAttribute('data-mypos'), 10);
                         let elname = shade.querySelector(`.shadectl-name`);
                         let shadeName = elname.innerHTML;
-                        let html = `<div class="shade-name">${shadeName}</div>`;
+                        let html = `<div class="shade-name">${shadeName}`;
+                        if (myPos !== 255)
+                            html += `<div style="float:right;vertical-align:top;cursor:pointer;font-size:14px;margin-top:4px;" onclick="document.getElementById('slidShadeTarget').value = ${myPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span>Current: </span><span>${myPos}</span><span>%</span></div>`
+                        html += `</div >`;
                         html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" value="${currPos}" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
                         html += `<label for="slidShadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
                         html += `<hr></hr>`;
                         html += '<div style="text-align:right;width:100%;">'
-                        if (myPos !== 255)
-                            html += `<div style="float:left;text-align:left;cursor:pointer;" onclick="document.getElementById('slidShadeTarget').value = ${myPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span>Current: </span><span>${myPos}</span><span>%</span></div>`
                         if (myPos === currPos)
                             html += `<button id="btnSetMyPosition" type="button" onclick="somfy.sendShadeMyPosition(${shadeId}, document.getElementById('slidShadeTarget').value);" style="background:orangered;width:auto;display:inline-block;padding-left:10px;padding-right:10px;margin-top:0px;margin-bottom:10px;margin-right:7px;">Clear My Position</button>`;
                         else
