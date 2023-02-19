@@ -1,4 +1,11 @@
-document.oncontextmenu = (event) => { event.preventDefault(); event.stopPropagation(); return false; }
+document.oncontextmenu = (event) => {
+    if (event.target && event.target.tagName.toLowerCase() === 'input' && (event.target.type.toLowerCase() === 'text' || event.target.type.toLowerCase() === 'password'))
+        return;
+    else {
+        event.preventDefault(); event.stopPropagation(); return false;
+    }
+}
+
 Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
 Number.prototype.fmt = function (format, empty) {
     if (isNaN(this)) return empty || '';
