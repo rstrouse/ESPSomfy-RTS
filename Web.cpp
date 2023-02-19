@@ -206,6 +206,19 @@ void Web::begin() {
     server.streamFile(file, _encoding_html);
     file.close();
     });
+  server.on("/index.js", []() {
+    webServer.sendCacheHeaders(604800);
+    webServer.sendCORSHeaders();
+    // Load the index html page from the data directory.
+    Serial.println("Loading file index.js");
+    File file = LittleFS.open("/index.js", "r");
+    if (!file) {
+      Serial.println("Error opening data/index.js");
+      server.send(500, _encoding_text, "Unable to open data/index.js");
+    }
+    server.streamFile(file, "text/javascript");
+    file.close();
+    });
   server.on("/main.css", []() {
     webServer.sendCacheHeaders(604800);
     webServer.sendCORSHeaders();
