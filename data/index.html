@@ -3,10 +3,12 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css" type="text/css" />
-    <link rel="stylesheet" href="icons.css" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=1.2.1" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=1.2.1" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <script>
+        let appVersion = 'v1.2.1';
+        let reloadApp = false;
         document.oncontextmenu = (event) => { event.preventDefault(); event.stopPropagation(); return false; }
         class General {
             async init() {
@@ -14,6 +16,18 @@
                 this.setTimeZones();
                 this.loadGeneral();
             };
+            reload() {
+                let addMetaTag = (name, content) => {
+                    let meta = document.createElement('meta');
+                    meta.httpEquiv = name;
+                    meta.content = content;
+                    document.getElementsByTagName('head')[0].appendChild(meta);
+                }
+                addMetaTag('pragma', 'no-cache');
+                addMetaTag('expires', '0');
+                addMetaTag('cache-control', 'no-cache');
+                document.location.reload();
+            }
             timeZones = [
                 { city: "Africa/Abidjan", code: "GMT0" },
                 { city: "Africa/Addis_Ababa", code: "EAT-3" },
@@ -129,6 +143,7 @@
                                 break;
                             }
                         }
+                        general.setAppVersion();
                         document.getElementById('spanFwVersion').innerText = settings.fwVersion;
                         document.getElementsByName('hostname')[0].value = settings.hostname;
                         document.getElementsByName('ntptimeserver')[0].value = settings.ntpServer;
@@ -139,7 +154,7 @@
                 });
 
             };
-            setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.2.0'; };
+            setAppVersion() { document.getElementById('spanAppVersion').innerText = appVersion; };
             setTimeZones() {
                 let dd = document.getElementById('selTimeZone');
                 dd.length = 0;
@@ -1185,6 +1200,7 @@
             };
             updateApplication() {
                 let div = this.createFileUploader('/updateApplication');
+                reloadApp = true;
                 let inst = div.querySelector('div[id=divInstText]');
                 inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file containing the littlefs data for the application then press the Upload File button.</div>';
                 document.getElementById('fsUpdates').appendChild(div);
@@ -1234,7 +1250,7 @@
         };
         var firmware = new Firmware();
 
-        function setAppVersion() { document.getElementById('spanAppVersion').innerText = 'v1.0.8'; }
+        function setAppVersion() { document.getElementById('spanAppVersion').innerText = appVersion; }
         Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
         Number.prototype.fmt = function (format, empty) {
             if (isNaN(this)) return empty || '';
@@ -1490,12 +1506,17 @@
                     let errs = document.getElementsByClassName('socket-error');
                     for (let i = 0; i < errs.length; i++)
                         errs[i].remove();
-                    (async () => {
-                        await general.init();
-                        await somfy.init();
-                        await mqtt.init();
-                        await wifi.init();
-                    })();
+                    if (reloadApp) {
+                        general.reload();
+                    }
+                    else {
+                        (async () => {
+                            await general.init();
+                            await somfy.init();
+                            await mqtt.init();
+                            await wifi.init();
+                        })();
+                    }
                 };
                 socket.onclose = (evt) => {
                     if (document.getElementsByClassName('socket-wait') === 0)
@@ -1832,6 +1853,10 @@
                         <button id="btnUpdateApplication" type="button" onclick="firmware.updateApplication();">
                             Update Application
                         </button>
+                        <button id="btnUpdateApplication" type="button" onclick="general.reload();">
+                            Refresh Cache
+                        </button>
+
                     </div>
                 </form>
             </fieldset>
