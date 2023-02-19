@@ -188,7 +188,7 @@ bool Network::connect() {
           break;
         case WL_CONNECTED:
           this->setConnected();
-          delay(100);
+          WiFi.setSleep(false);
           return true;
         case WL_NO_SHIELD:
           Serial.println("Connection failed - WiFi module not found");
