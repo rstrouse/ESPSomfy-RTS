@@ -601,7 +601,7 @@ div.waitoverlay > .lds-roller {
     width:100%;
     background-color:gainsboro;
     color:gray;
-    height:60px;
+    min-height:60px;
     top:0px;
     padding-left:7px;
     padding-right:7px;

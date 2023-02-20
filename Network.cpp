@@ -59,9 +59,9 @@ void Network::loop() {
 }
 void Network::emitSockets() {
   if(WiFi.status() == WL_CONNECTED) {
-    if(abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 2 || WiFi.channel() != this->lastChannel) {
+    if(abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel) {
       char buf[128];
-      snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID(), WiFi.RSSI(), WiFi.channel());
+      snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel());
       sockEmit.sendToClients("wifiStrength", buf);
       this->lastRSSI = WiFi.RSSI();
       this->lastChannel = WiFi.channel();
@@ -73,7 +73,7 @@ void Network::emitSockets() {
 void Network::emitSockets(uint8_t num) {
   if(WiFi.status() == WL_CONNECTED) {
       char buf[128];
-      snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID(), WiFi.RSSI(), WiFi.channel());
+      snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel());
       sockEmit.sendToClient(num, "wifiStrength", buf);
       this->lastRSSI = WiFi.RSSI();
       this->lastChannel = WiFi.channel();
