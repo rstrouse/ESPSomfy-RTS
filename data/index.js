@@ -328,7 +328,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.2.2';
+    appVersion = 'v1.2.3';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -555,6 +555,21 @@ class Wifi {
     init() {
         document.getElementById("divNetworkStrength").innerHTML = this.displaySignal(-100);
     };
+    loadNetwork() {
+        let overlay = waitMessage(document.getElementById('fsWiFiSettings'));
+        getJSON('/networksettings', (err, settings) => {
+            overlay.remove();
+            console.log(settings);
+            if (err) {
+                serviceError(document.getElementById('fsWiFiSettings'), err);
+            }
+            else {
+                document.getElementById('fldSsid').value = settings.wifi.ssid;
+                document.getElementById('fldPassphrase').value = settings.wifi.passphrase;
+            }
+        });
+
+    };
     async loadAPs() {
         if (document.getElementById('btnScanAPs').classList.contains('disabled')) return;
         document.getElementById('divAps').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;"><div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
@@ -657,7 +672,7 @@ class Somfy {
         this.loadPins('inout', document.getElementById('selTransMOSIPin'));
         this.loadPins('inout', document.getElementById('selTransMISOPin'));
         this.loadPins('out', document.getElementById('selTransTXPin'));
-        this.loadPins('inout', document.getElementById('selTransRXPin'));
+        this.loadPins('input', document.getElementById('selTransRXPin'));
         this.loadSomfy();
     }
     async loadSomfy() {
@@ -685,6 +700,13 @@ class Somfy {
                 document.getElementById('spanDeviation').innerText = (Math.round(somfy.transceiver.config.deviation * 100) / 100).fmt('#,##0.00');
                 document.getElementById('slidDeviation').value = Math.round(somfy.transceiver.config.deviation * 100);
                 document.getElementsByName('enableRadio')[0].checked = somfy.transceiver.config.enabled;
+                if (somfy.transceiver.config.radioInit) {
+                    document.getElementById('divRadioError').style.display = 'none';
+                }
+                else {
+                    document.getElementById('divRadioError').style.display = '';
+                }
+
 
                 let tx = document.getElementById('slidTxPower');
                 let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];
@@ -756,10 +778,21 @@ class Somfy {
             if (valid) valid = fnValDup(obj, 'RXPin');
             if (valid) {
                 let overlay = waitMessage(document.getElementById('fsSomfySettings'));
-                putJSON('/saveRadio', { config: obj }, (err, response) => {
+                putJSON('/saveRadio', { config: obj }, (err, trans) => {
                     overlay.remove();
-                    document.getElementById('btnSaveRadio').classList.remove('disabled');
-                    console.log(response);
+                    if (err) {
+                        serviceError(document.getElementById('fsSomfySettings'), err);
+                    }
+                    else {
+                        document.getElementById('btnSaveRadio').classList.remove('disabled');
+                        if (trans.config.radioInit) {
+                            document.getElementById('divRadioError').style.display = 'none';
+                        }
+                        else {
+                            document.getElementById('divRadioError').style.display = '';
+                        }
+                    }
+                    console.log(trans);
                 });
             }
         }
@@ -1559,6 +1592,7 @@ class Firmware {
             prog.style.setProperty('--progress', `${pct}%`);
             prog.setAttribute('data-progress', `${pct}%`);
             console.log(evt);
+            
         };
         xhr.onload = function () {
             console.log('File upload load called');

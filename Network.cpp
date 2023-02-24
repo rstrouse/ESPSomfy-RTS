@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ETH.h>
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include "ConfigSettings.h"
@@ -50,11 +51,11 @@ void Network::loop() {
     if(WiFi.status() != WL_CONNECTED) return;
   }
   sockEmit.loop();
-  if(settings.WIFI.ssdpBroadcast) {
+  if(settings.ssdpBroadcast) {
     if(!SSDP.isStarted) SSDP.begin();
     SSDP.loop();
   }
-  else if(!settings.WIFI.ssdpBroadcast && SSDP.isStarted) SSDP.end();
+  else if(!settings.ssdpBroadcast && SSDP.isStarted) SSDP.end();
   mqtt.loop();
 }
 void Network::emitSockets() {
@@ -82,7 +83,7 @@ void Network::emitSockets(uint8_t num) {
     sockEmit.sendToClient(num, "wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
 }
 void Network::setConnected() {
-  WiFi.hostname(settings.WIFI.hostname);
+  WiFi.hostname(settings.hostname);
   this->ssid = WiFi.SSID();
   this->mac = WiFi.BSSIDstr();
   this->strength = WiFi.RSSI();
@@ -117,7 +118,7 @@ void Network::setConnected() {
   SSDP.setSchemaURL(0, "upnp.xml");
   SSDP.setChipId(0, this->getChipId());
   SSDP.setDeviceType(0, "urn:schemas-rstrouse-org:device:ESPSomfyRTS:1");
-  SSDP.setName(0, settings.WIFI.hostname);
+  SSDP.setName(0, settings.hostname);
   
   //SSDP.setSerialNumber(0, "C2496952-5610-47E6-A968-2FC19737A0DB");
   //SSDP.setUUID(0, settings.uuid);
@@ -127,25 +128,25 @@ void Network::setConnected() {
   SSDP.setManufacturer(0, "rstrouse");
   SSDP.setManufacturerURL(0, "https://github.com/rstrouse");
   SSDP.setURL(0, "/");
-  if(MDNS.begin(settings.WIFI.hostname)) {
-    Serial.printf("MDNS Responder Started: serverId=%s\n", settings.WIFI.serverId);
+  if(MDNS.begin(settings.hostname)) {
+    Serial.printf("MDNS Responder Started: serverId=%s\n", settings.serverId);
     MDNS.addService("http", "tcp", 80);
     MDNS.addServiceTxt("http", "tcp", "board", "ESP32");
     MDNS.addServiceTxt("http", "tcp", "model", "ESPSomfyRTS");
     
     MDNS.addService("espsomfy_rts", "tcp", 8080);
-    MDNS.addServiceTxt("espsomfy_rts", "tcp", "serverId", String(settings.WIFI.serverId));
+    MDNS.addServiceTxt("espsomfy_rts", "tcp", "serverId", String(settings.serverId));
     MDNS.addServiceTxt("espsomfy_rts", "tcp", "model", "ESPSomfyRTS");
     MDNS.addServiceTxt("espsomfy_rts", "tcp", "version", String(settings.fwVersion));
   }
-  if(settings.WIFI.ssdpBroadcast) {
+  if(settings.ssdpBroadcast) {
     if(SSDP.begin()) Serial.println("SSDP Client Started..."); 
   }
   else if(SSDP.isStarted) SSDP.end();
   this->emitSockets();
 }
 bool Network::connect() {
-  if(settings.WIFI.hostname[0] != '\0') WiFi.hostname(settings.WIFI.hostname);
+  if(settings.hostname[0] != '\0') WiFi.hostname(settings.hostname);
   if(settings.WIFI.ssid[0] != '\0') {
     if(WiFi.status() == WL_CONNECTED && WiFi.SSID().compareTo(settings.WIFI.ssid) == 0) {
       this->disconnected = 0;

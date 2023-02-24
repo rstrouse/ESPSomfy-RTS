@@ -106,7 +106,7 @@ class SomfyShade : public SomfyRemote {
 
 typedef struct transceiver_config_t {
     bool printBuffer = false;
-    bool enabled = true;
+    bool enabled = false;
     uint8_t type = 56;                // 56 or 80 bit protocol.
     uint8_t SCKPin = 18;
     uint8_t TXPin = 12;
@@ -114,6 +114,7 @@ typedef struct transceiver_config_t {
     uint8_t MOSIPin = 23;
     uint8_t MISOPin = 19;
     uint8_t CSNPin = 5;
+    bool radioInit = false;
     bool internalCCMode = false;      // Use internal transmission mode FIFO buffers.
     byte modulationMode = 2;          // Modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
     float frequency = 433.42;         // Basic frequency

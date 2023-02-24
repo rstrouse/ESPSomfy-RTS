@@ -57,7 +57,7 @@ void Web::begin() {
       Serial.println("Discovery Requested");
       DynamicJsonDocument doc(16384);
       JsonObject obj = doc.to<JsonObject>();
-      obj["serverId"] = settings.WIFI.serverId;
+      obj["serverId"] = settings.serverId;
       obj["version"] = settings.fwVersion;
       obj["model"] = "ESPSomfyRTS";
       JsonArray arr = obj.createNestedArray("shades");
@@ -991,7 +991,7 @@ void Web::begin() {
       if (method == HTTP_POST || method == HTTP_PUT) {
         somfy.transceiver.fromJSON(obj);
         somfy.transceiver.save();
-        DynamicJsonDocument sdoc(512);
+        DynamicJsonDocument sdoc(1024);
         JsonObject sobj = sdoc.to<JsonObject>();
         somfy.transceiver.toJSON(sobj);
         serializeJson(sdoc, g_content);
@@ -1076,9 +1076,9 @@ void Web::begin() {
       HTTPMethod method = server.method();
       if (method == HTTP_POST || method == HTTP_PUT) {
         // Parse out all the inputs.
-        if (obj.containsKey("hostname")) {
-          settings.WIFI.fromJSON(obj);
-          settings.WIFI.save();
+        if (obj.containsKey("hostname") || obj.containsKey("ssdpBroadcast")) {
+          settings.fromJSON(obj);
+          settings.save();
         }
         if (obj.containsKey("ntpServer") || obj.containsKey("ntpServer")) {
           settings.NTP.fromJSON(obj);
@@ -1122,7 +1122,6 @@ void Web::begin() {
         else {
           SETCHARPROP(settings.WIFI.ssid, ssid.c_str(), sizeof(settings.WIFI.ssid));
           SETCHARPROP(settings.WIFI.passphrase, passphrase.c_str(), sizeof(settings.WIFI.passphrase));
-          if (obj.containsKey("ssdpBroadcast")) settings.WIFI.ssdpBroadcast = obj["ssdpBroadcast"].as<bool>();
           settings.WIFI.save();
           settings.WIFI.print();
           server.send(201, _encoding_json, "{\"status\":\"OK\",\"desc\":\"Successfully set server connection\"}");
@@ -1143,11 +1142,27 @@ void Web::begin() {
     DynamicJsonDocument doc(512);
     JsonObject obj = doc.to<JsonObject>();
     doc["fwVersion"] = settings.fwVersion;
-    settings.WIFI.toJSON(obj);
+    settings.toJSON(obj);
+    //settings.Ethernet.toJSON(obj);
+    //settings.WIFI.toJSON(obj);
     settings.NTP.toJSON(obj);
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     });
+  server.on("/networksettings", []() {
+    webServer.sendCORSHeaders();
+    DynamicJsonDocument doc(1024);
+    JsonObject obj = doc.to<JsonObject>();
+    doc["fwVersion"] = settings.fwVersion;
+    settings.toJSON(obj);
+    JsonObject eth = obj.createNestedObject("ethernet");
+    settings.Ethernet.toJSON(eth);
+    JsonObject wifi = obj.createNestedObject("wifi");
+    settings.WIFI.toJSON(wifi);
+    serializeJson(doc, g_content);
+    server.send(200, _encoding_json, g_content);
+    });
+   
   server.on("/connectmqtt", []() {
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));

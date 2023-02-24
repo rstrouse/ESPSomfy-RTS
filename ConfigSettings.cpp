@@ -39,6 +39,16 @@ bool BaseSettings::parseValueString(JsonObject &obj, const char *prop, char *pde
   if(obj.containsKey(prop)) strlcpy(pdest, obj[prop], size);
   return true;
 }
+bool BaseSettings::parseIPAddress(JsonObject &obj, const char *prop, IPAddress *pdest) {
+  if(obj.containsKey(prop)) {
+    char buff[16];
+    strlcpy(buff, obj[prop], sizeof(buff));
+    pdest->fromString(buff);
+  }
+  return true;
+}
+
+
 int BaseSettings::parseValueInt(JsonObject &obj, const char *prop, int defVal) {
   if(obj.containsKey(prop)) return obj[prop]; 
   return defVal;
@@ -48,11 +58,59 @@ double BaseSettings::parseValueDouble(JsonObject &obj, const char *prop, double 
   return defVal;
 }
 bool ConfigSettings::begin() {
+  uint32_t chipId = 0;
+  uint64_t mac = ESP.getEfuseMac();
+  for(int i=0; i<17; i=i+8) {
+    chipId |= ((mac >> (40 - i)) & 0xff) << i;
+  }
+  snprintf_P(this->serverId, sizeof(this->serverId), "%02X%02X%02X",
+    (uint16_t)((chipId >> 16) & 0xff),
+    (uint16_t)((chipId >> 8) & 0xff),
+    (uint16_t)chipId & 0xff);
   this->WIFI.begin();
+  this->Ethernet.begin();
   this->NTP.begin();
   this->MQTT.begin();
   this->print();
   return true;
+}
+bool ConfigSettings::load() {
+  pref.begin("CFG");
+  pref.getString("hostname", this->hostname, sizeof(this->hostname));
+  this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
+  this->connType = static_cast<conn_types>(pref.getChar("connType", 0x00));
+  pref.end();
+  if(this->connType == conn_types::unset) {
+    // We are doing this to convert the data from previous versions.
+    this->connType == conn_types::wifi;
+    pref.begin("WIFI");
+    pref.getString("hostname", this->hostname, sizeof(this->hostname));
+    this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
+    pref.remove("hostname");
+    pref.remove("ssdpBroadcast");
+    pref.end();
+    this->save();    
+  }
+  return true;
+}
+bool ConfigSettings::save() {
+  pref.begin("CFG");
+  pref.putString("hostname", this->hostname);
+  pref.putBool("ssdpBroadcast", this->ssdpBroadcast);
+  pref.putChar("connType", static_cast<uint8_t>(this->connType));
+  pref.end();
+  return true;
+}
+bool ConfigSettings::toJSON(JsonObject &obj) {
+  obj["ssdpBroadcast"] = this->ssdpBroadcast;
+  obj["hostname"] = this->hostname;
+  obj["connType"] = static_cast<uint8_t>(this->connType);
+  return true;
+}
+bool ConfigSettings::fromJSON(JsonObject &obj) {
+    if(obj.containsKey("ssdpBroadcast")) this->ssdpBroadcast = obj["ssdpBroadcast"];
+    if(obj.containsKey("hostname")) this->parseValueString(obj, "hostname", this->hostname, sizeof(this->hostname));
+    return true;
 }
 void ConfigSettings::print() {
   this->NTP.print();
@@ -165,56 +223,36 @@ bool NTPSettings::apply() {
   setenv("TZ", this->posixZone, 1);
   return true;
 }
-WifiSettings::WifiSettings() {
-  uint32_t chipId = 0;
-  uint64_t mac = ESP.getEfuseMac();
-  for(int i=0; i<17; i=i+8) {
-    chipId |= ((mac >> (40 - i)) & 0xff) << i;
-  }
-  snprintf_P(this->serverId, sizeof(this->serverId), "%02X%02X%02X",
-    (uint16_t)((chipId >> 16) & 0xff),
-    (uint16_t)((chipId >> 8) & 0xff),
-    (uint16_t)chipId & 0xff);
-}
+WifiSettings::WifiSettings() {}
 
 bool WifiSettings::begin() {
   this->load();
   return true;
 }
 bool WifiSettings::fromJSON(JsonObject &obj) {
-  this->parseValueString(obj, "hostname", this->hostname, sizeof(this->hostname));
   this->parseValueString(obj, "ssid", this->ssid, sizeof(this->ssid));
   this->parseValueString(obj, "passphrase", this->passphrase, sizeof(this->passphrase));
-  if(obj.containsKey("ssdpBroadcast")) this->ssdpBroadcast = obj["ssdpBroadcast"];
   return true;
 }
 bool WifiSettings::toJSON(JsonObject &obj) {
-  obj["hostname"] = this->hostname;
   obj["ssid"] = this->ssid;
   obj["passphrase"] = this->passphrase;
-  obj["ssdpBroadcast"] = this->ssdpBroadcast;
   return true;
 }
 bool WifiSettings::save() {
   pref.begin("WIFI");
   pref.clear();
-  pref.putString("hostname", this->hostname);
   pref.putString("ssid", this->ssid);
   pref.putString("passphrase", this->passphrase);
-  pref.putBool("ssdpBroadcast", this->ssdpBroadcast);
   pref.end();
   return true;
 }
 bool WifiSettings::load() {
   pref.begin("WIFI");
-  pref.getString("hostname", this->hostname, sizeof(this->hostname));
   pref.getString("ssid", this->ssid, sizeof(this->ssid));
   pref.getString("passphrase", this->passphrase, sizeof(this->passphrase));
-  this->hostname[sizeof(this->hostname) - 1] = '\0';
   this->ssid[sizeof(this->ssid) - 1] = '\0';
   this->passphrase[sizeof(this->passphrase) - 1] = '\0';
-  if(strlen(this->hostname) == 0) strlcpy(this->hostname, "ESPSomfyRTS", sizeof(this->hostname));
-  this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
   pref.end();
   return true;
 }
@@ -237,8 +275,6 @@ String WifiSettings::mapEncryptionType(int type) {
 }
 void WifiSettings::print() {
   Serial.println("WIFI Settings");
-  Serial.print("HOST: ");
-  Serial.print(this->hostname);
   Serial.print(" SSID: [");
   Serial.print(this->ssid);
   Serial.print("] PassPhrase: [");
@@ -278,4 +314,58 @@ bool WifiSettings::ssidExists(const char *ssid) {
     if(WiFi.SSID(i).compareTo(ssid) == 0) return true;
   }
   return false;
+}
+EthernetSettings::EthernetSettings() {}
+bool EthernetSettings::begin() {
+  this->load();
+  return true;
+}
+bool EthernetSettings::fromJSON(JsonObject &obj) {
+  this->parseIPAddress(obj, "gateway", &this->gateway);
+  this->parseIPAddress(obj, "subnet", &this->subnet);
+  this->parseIPAddress(obj, "dns1", &this->dns1);
+  this->parseIPAddress(obj, "dns2", &this->dns2);
+  return true;
+}
+bool EthernetSettings::toJSON(JsonObject &obj) {
+  obj["gateway"] = this->gateway.toString();
+  obj["subnet"] = this->subnet.toString();
+  obj["dns1"] = this->dns1.toString();
+  obj["dns2"] = this->dns2.toString();
+  return true;
+}
+bool EthernetSettings::save() {
+  pref.begin("ETH");
+  pref.clear();
+  pref.putString("gateway", this->gateway.toString());
+  pref.putString("subnet", this->subnet.toString());
+  pref.putString("dns1", this->dns1.toString());
+  pref.putString("dns2", this->dns2.toString());
+  pref.end();
+  return true;
+}
+bool EthernetSettings::load() {
+  pref.begin("ETH");
+  char buff[16];
+  pref.getString("gateway", buff, sizeof(buff));
+  this->gateway.fromString(buff);
+  pref.getString("subnet", buff, sizeof(buff));
+  this->subnet.fromString(buff);
+  pref.getString("dns1", buff, sizeof(buff));
+  this->dns1.fromString(buff);
+  pref.getString("dns2", buff, sizeof(buff));
+  this->dns2.fromString(buff);
+  pref.end();
+  return true;
+}
+void EthernetSettings::print() {
+  Serial.println("Ethernet Settings");
+  Serial.print("   GATEWAY: ");
+  Serial.println(this->gateway);
+  Serial.print("   SUBNET: ");
+  Serial.println(this->subnet);
+  Serial.print("  DNS1: ");
+  Serial.println(this->dns1);
+  Serial.print("  DNS2: ");
+  Serial.println(this->dns2);
 }
