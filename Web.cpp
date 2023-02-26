@@ -1091,6 +1091,54 @@ void Web::begin() {
       }
     }
     });
+  server.on("/setNetwork", []() {
+    webServer.sendCORSHeaders();
+    DynamicJsonDocument doc(1024);
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (err) {
+      Serial.print("Error parsing JSON ");
+      Serial.println(err.c_str());
+      String msg = err.c_str();
+      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+    }
+    else {
+      JsonObject obj = doc.as<JsonObject>();
+      HTTPMethod method = server.method();
+      if (method == HTTP_POST || method == HTTP_PUT) {
+        // Parse out all the inputs.
+        bool reboot = false;
+        if(obj.containsKey("connType") && obj["connType"].as<uint8_t>() != static_cast<uint8_t>(settings.connType)) {
+          settings.connType = static_cast<conn_types>(obj["connType"].as<uint8_t>());
+          settings.save();
+          reboot = true;
+        }
+        if(settings.connType == conn_types::wifi) {
+          if(obj.containsKey("ssid") && obj["ssid"].as<String>().compareTo(settings.WIFI.ssid) != 0) reboot = true;
+          if(obj.containsKey("passphrase") && obj["passphrase"].as<String>().compareTo(settings.WIFI.passphrase) != 0) reboot = true;
+        }
+        else {
+          // This is an ethernet connection so if anything changes we need to reboot.
+          reboot = true;
+        }
+        JsonObject objWifi = obj["wifi"];
+        JsonObject objEth = obj["ethernet"];
+        settings.WIFI.fromJSON(objWifi);
+        settings.Ethernet.fromJSON(objEth);
+      
+        settings.WIFI.save();
+        settings.Ethernet.save();
+        if (reboot) {
+          Serial.println("Rebooting ESP for new Network settings...");
+          rebootDelay.reboot = true;
+          rebootDelay.rebootTime = millis() + 1000;
+        }
+        server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Successfully set Network Settings\"}");
+      }
+      else {
+        server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
+      }
+    }
+  });
   server.on("/connectwifi", []() {
     webServer.sendCORSHeaders();
     int statusCode = 200;

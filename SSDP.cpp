@@ -761,7 +761,7 @@ void SSDPClass::loop() {
   this->_sendQueuedResponses();
 }
 void SSDPClass::schema(Print &client) {
-  IPAddress ip = WiFi.localIP();
+  IPAddress ip = this->localIP();
   uint8_t devCount = 0;
   for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
     if(this->deviceTypes[i].deviceType && strlen(this->deviceTypes[i].deviceType) > 0) devCount++;

@@ -227,9 +227,6 @@ async function initSockets() {
                         return value;
                     });
                     switch (eventName) {
-                        case 'wifiStrength':
-                            wifi.procWifiStrength(msg);
-                            break;
                         case 'remoteFrame':
                             somfy.procRemoteFrame(msg);
                             break;
@@ -240,6 +237,13 @@ async function initSockets() {
                             break;
                         case 'shadeAdded':
                             break;
+                        case 'ethernet':
+                            wifi.procEthernet(msg);
+                            break;
+                        case 'wifiStrength':
+                            wifi.procWifiStrength(msg);
+                            break;
+
                     }
                 } catch (err) {
                     console.log({ eventName: eventName, data: data, err: err });
@@ -274,6 +278,8 @@ async function initSockets() {
             }
         };
         socket.onclose = (evt) => {
+            procWifiStrength({ ssid: '', channel: -1, strength: -100 });
+            procEthernet({ connected: '', speed: 0, fullduplex: false });
             if (document.getElementsByClassName('socket-wait') === 0)
                 waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
             if (evt.wasClean) {
@@ -328,7 +334,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.2.3';
+    appVersion = 'v1.3.0';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -552,9 +558,64 @@ class General {
 };
 var general = new General();
 class Wifi {
+    ethBoardTypes = [{ val: 0, label: 'Custom Config' },
+    { val: 1, label: 'WT32-ETH01', clk: 0, ct: 0, addr: 1, pwr: 16, mdc: 23, mdio: 18 },
+    { val: 2, label: 'Olimex ESP32-POE', clk: 3, ct: 0, addr: 0, pwr: 12, mdc: 23, mdio: 18 },
+    { val: 3, label: 'Olimex ESP32-EVB', clk: 0, ct: 0, addr: 0, pwr: -1, mdc: 23, mdio: 18 },
+    { val: 4, label: 'LILYGO T-Internet POE', clk: 3, ct: 0, addr: 0, pwr: 16, mdc: 23, mdio: 18 },
+    { val: 5, label: 'wESP32 v7+', clk: 0, ct: 3, addr: 0, pwr: -1, mdc: 16, mdio: 17 },
+    { val: 6, label: 'wESP32 < v7', clk: 0, ct: 0, addr: 0, pwr: -1, mdc: 16, mdio: 17 }
+    ];
+    ethClockModes = [{ val: 0, label: 'GPIO0 IN' }, { val: 1, label: 'GPIO0 OUT' }, { val: 2, label: 'GPIO16 OUT' }, { val: 3, label: 'GPIO17 OUT' }];
+    ethPhyTypes = [{ val: 0, label: 'LAN8720' }, { val: 1, label: 'TLK110' }, { val: 2, label: 'RTL8201' }, { val: 3, label: 'DP83848' }, { val: 4, label: 'DM9051' }, { val: 5, label: 'KZ8081' }];
     init() {
         document.getElementById("divNetworkStrength").innerHTML = this.displaySignal(-100);
+        let addr = [];
+        this.loadETHDropdown(document.getElementById('selETHClkMode'), this.ethClockModes);
+        this.loadETHDropdown(document.getElementById('selETHPhyType'), this.ethPhyTypes);
+        this.loadETHDropdown(document.getElementById('selETHBoardType'), this.ethBoardTypes);
+        for (let i = 0; i < 32; i++) addr.push({ val: i, label: `PHY ${i}` });
+        this.loadETHDropdown(document.getElementById('selETHAddress'), addr);
+        this.loadETHPins(document.getElementById('selETHPWRPin'), 'power');
+        this.loadETHPins(document.getElementById('selETHMDCPin'), 'mdc', 23);
+        this.loadETHPins(document.getElementById('selETHMDIOPin'), 'mdio', 18);
+        if (typeof document.querySelector('div.tab-container > span.selected[data-grpid="fsWiFiSettings"]') !== 'undefined') {
+            this.loadNetwork();
+        }
     };
+    loadETHPins(sel, type, selected) {
+        let arr = [];
+        switch (type) {
+            case 'power':
+                arr.push({ val: -1, label: 'None' });
+                break;
+        }
+        for (let i = 0; i < 36; i++) {
+            arr.push({ val: i, label: `GPIO ${i}` });
+        }
+        this.loadETHDropdown(sel, arr, selected);
+    };
+    loadETHDropdown(sel, arr, selected) {
+        while (sel.firstChild) sel.removeChild(sel.firstChild);
+        for (let i = 0; i < arr.length; i++) {
+            let elem = arr[i];
+            sel.options[sel.options.length] = new Option(elem.label, elem.val, elem.val === selected, elem.val === selected);
+        }
+    };
+    onETHBoardTypeChanged(sel) {
+        let type = this.ethBoardTypes.find(elem => parseInt(sel.value, 10) === elem.val);
+        if (typeof type !== 'undefined') {
+            // Change the values to represent what the board type says.
+            if(typeof type.ct !== 'undefined') document.getElementById('selETHPhyType').value = type.ct;
+            if (typeof type.clk !== 'undefined') document.getElementById('selETHClkMode').value = type.clk;
+            if (typeof type.addr !== 'undefined') document.getElementById('selETHAddress').value = type.addr;
+            if (typeof type.pwr !== 'undefined') document.getElementById('selETHPWRPin').value = type.pwr;
+            if (typeof type.mdc !== 'undefined') document.getElementById('selETHMDCPin').value = type.mdc;
+            if (typeof type.mdio !== 'undefined') document.getElementById('selETHMDIOPin').value = type.mdio;
+            document.getElementById('divETHSettings').style.display = type.val === 0 ? '' : 'none';
+        }
+    };
+    onDHCPClicked(cb) { document.getElementById('divStaticIP').style.display = cb.checked ? 'none' : ''; };
     loadNetwork() {
         let overlay = waitMessage(document.getElementById('fsWiFiSettings'));
         getJSON('/networksettings', (err, settings) => {
@@ -566,10 +627,47 @@ class Wifi {
             else {
                 document.getElementById('fldSsid').value = settings.wifi.ssid;
                 document.getElementById('fldPassphrase').value = settings.wifi.passphrase;
+                document.getElementById('selETHBoardType').value = settings.ethernet.boardType;
+                document.getElementById('cbUseDHCP').checked = settings.ethernet.dhcp;
+                document.getElementById('cbHardwired').checked = settings.connType >= 2;
+                document.getElementById('cbFallbackWireless').checked = settings.connType === 3;
+                document.getElementById('selETHPhyType').value = settings.ethernet.phyType;
+                document.getElementById('selETHAddress').value = settings.ethernet.phyAddress;
+                document.getElementById('selETHClkMode').value = settings.ethernet.CLKMode;
+                document.getElementById('selETHPWRPin').value = settings.ethernet.PWRPin;
+                document.getElementById('selETHMDCPin').value = settings.ethernet.MDCPin;
+                document.getElementById('selETHMDIOPin').value = settings.ethernet.MDIOPin;
+                document.getElementById('fldIPAddress').value = settings.ethernet.ip;
+                document.getElementById('fldSubnetMask').value = settings.ethernet.subnet;
+                document.getElementById('fldGateway').value = settings.ethernet.gateway;
+                document.getElementById('fldDNS1').value = settings.ethernet.dns1;
+                document.getElementById('fldDNS2').value = settings.ethernet.dns2;
+                if (settings.connType >= 2) {
+                    document.getElementById('divWiFiMode').style.display = 'none';
+                    document.getElementById('divEthernetMode').style.display = '';
+                    document.getElementById('divFallbackWireless').style.display = 'inline-block';
+                }
+                else {
+                    document.getElementById('divWiFiMode').style.display = '';
+                    document.getElementById('divEthernetMode').style.display = 'none';
+                    document.getElementById('divFallbackWireless').style.display = 'none';
+                }
+                if (settings.ethernet.boardType === 0) {
+                    document.getElementById('divETHSettings').style.display = '';
+                }
+                else {
+                    document.getElementById('divETHSettings').style.display = 'none';
+                }
             }
         });
 
     };
+    useEthernetClicked() {
+        let useEthernet = document.getElementById('cbHardwired').checked;
+        document.getElementById('divWiFiMode').style.display = useEthernet ? 'none' : '';
+        document.getElementById('divEthernetMode').style.display = useEthernet ? '' : 'none';
+        document.getElementById('divFallbackWireless').style.display = useEthernet ? 'inline-block' : 'none';
+    }
     async loadAPs() {
         if (document.getElementById('btnScanAPs').classList.contains('disabled')) return;
         document.getElementById('divAps').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;"><div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
@@ -636,6 +734,81 @@ class Wifi {
     displaySignal(sig) {
         return `<div class="signal waveStrength-${this.calcWaveStrength(sig)}"><div class="wv4 wave"><div class="wv3 wave"><div class="wv2 wave"><div class="wv1 wave"><div class="wv0 wave"></div></div></div></div></div></div>`;
     };
+    saveNetwork() {
+        
+        let obj = {
+            connType: document.getElementById('cbHardwired').checked ?  document.getElementById('cbFallbackWireless').checked ? 3 : 2 : 1,
+            wifi: {},
+            ethernet: {}
+        };
+        if (obj.connType >= 2) {
+            // We are connecting to a LAN but we need the user to be sure about this since
+            // the information needs to be correct.  Incorrect settings can destroy the board.
+            obj.ethernet = {
+                boardType: parseInt(document.getElementById('selETHBoardType').value, 10),
+                phyType: parseInt(document.getElementById('selETHPhyType').value, 10),
+                phyAddress: parseInt(document.getElementById('selETHAddress').value, 10),
+                dhcp: document.getElementById('cbUseDHCP').checked,
+                CLKMode: parseInt(document.getElementById('selETHClkMode').value, 10),
+                PWRPin: parseInt(document.getElementById('selETHPWRPin').value, 10),
+                MDCPin: parseInt(document.getElementById('selETHMDCPin').value, 10),
+                MDIOPin: parseInt(document.getElementById('selETHMDIOPin').value, 10),
+                ip: document.getElementById('fldIPAddress').value,
+                subnet: document.getElementById('fldSubnetMask').value,
+                gateway: document.getElementById('fldGateway').value,
+                dns1: document.getElementById('fldDNS1').value,
+                dns2: document.getElementById('fldDNS2').value
+            }
+
+
+            let boardType = this.ethBoardTypes.find(elem => obj.ethernet.boardType === elem.val);
+            let phyType = this.ethPhyTypes.find(elem => obj.ethernet.phyType === elem.val);
+            let clkMode = this.ethClockModes.find(elem => obj.ethernet.CLKMode === elem.val);
+            let div = document.createElement('div');
+            let html = `<form id="frmSetLAN"><div id="divLanSettings" class="instructions" style="display:block;height:auto;min-height:100%">`;
+            html += '<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="background:yellow;padding:10px;display:inline-block;border-radius:5px;background:white;">BEWARE ... WARNING ... DANGER<span></div>';
+            html += '<hr style="width:100%;margin:0px;"></hr>';
+            html += '<p style="font-size:14px;">Incorrect Ethernet settings can damage your ESP32.  Please verify the settings below and ensure they match the manufacturer spec sheet.</p>';
+            html += '<p style="font-size:14px;">If you are unsure do not press the Red button and press the Green button.  If any of the settings are incorrect please use the Custom Board type and set them to the correct values.';
+            html += '<hr/><div>';
+            html += `<div class="eth-setting-line"><label>Board Type</label><span>${boardType.label} [${boardType.val}]</span></div>`;
+            html += `<div class="eth-setting-line"><label>PHY Chip Type</label><span>${phyType.label} [${phyType.val}]</span></div>`;
+            html += `<div class="eth-setting-line"><label>PHY Address</label><span>${obj.ethernet.phyAddress}</span ></div >`;
+            html += `<div class="eth-setting-line"><label>Clock Mode</label><span>${clkMode.label} [${clkMode.val}]</span></div >`;
+            html += `<div class="eth-setting-line"><label>Power Pin</label><span>${obj.ethernet.PWRPin === -1 ? 'None' : obj.ethernet.PWRPin}</span></div>`;
+            html += `<div class="eth-setting-line"><label>MDC Pin</label><span>${obj.ethernet.MDCPin}</span></div>`;
+            html += `<div class="eth-setting-line"><label>MDIO Pin</label><span>${obj.ethernet.MDIOPin}</span></div>`;
+            html += '</div>'
+            html += `<div class="button-container">`
+            html += `<button id="btnSaveEthernet" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;">Save Ethernet Settings</button>`
+            html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('frmSetLAN').remove();">Cancel</button>`
+            html += `</div><form>`;
+            div.innerHTML = html;
+            document.getElementById('divContainer').appendChild(div);
+            div.querySelector('#btnSaveEthernet').addEventListener('click', (el, event) => {
+                console.log(obj);
+                document.getElementById('frmSetLAN').remove();
+                this.sendNetworkSettings(obj);
+            });
+        }
+        else {
+            obj.wifi = {
+                ssid: document.getElementsByName('ssid')[0].value,
+                passphrase: document.getElementsByName('passphrase')[0].value
+            };
+            this.sendNetworkSettings(obj);
+        }
+    }
+    sendNetworkSettings(obj) {
+        if (document.getElementById('btnSaveNetwork').classList.contains('disabled')) return;
+        document.getElementById('btnSaveNetwork').classList.add('disabled');
+        let overlay = waitMessage(document.getElementById('divContainer'));
+        putJSON('/setNetwork', obj, (err, response) => {
+            overlay.remove();
+            document.getElementById('btnSaveNetwork').classList.remove('disabled');
+            console.log(response);
+        });
+    }
     connectWiFi() {
         if (document.getElementById('btnConnectWiFi').classList.contains('disabled')) return;
         document.getElementById('btnConnectWiFi').classList.add('disabled');
@@ -662,6 +835,13 @@ class Wifi {
             elWave.classList.add(cssClass);
         }
         document.getElementById('spanNetworkStrength').innerHTML = (isNaN(strength.strength) || strength.strength <= -100) ? '----' : strength.strength;
+    }
+    procEthernet(ethernet) {
+        console.log(ethernet);
+        document.getElementById('divEthernetStatus').style.display = ethernet.connected ? '' : 'none';
+        document.getElementById('divWiFiStrength').style.display = ethernet.connected ? 'none' : '';
+        document.getElementById('spanEthernetStatus').innerHTML = ethernet.connected ? 'Connected' : 'Disconnected';
+        document.getElementById('spanEthernetSpeed').innerHTML = !ethernet.connected ? '--------' : `${ethernet.speed}Mbps ${ethernet.fullduplex ? 'Full-duplex' : 'Half-duplex'}`;
     }
 };
 var wifi = new Wifi();
@@ -1569,7 +1749,7 @@ class Firmware {
                 }
                 break;
             case '/updateFirmware':
-                if (filename.indexOf('.ino.esp') === -1 || !filename.endsWith('.bin')) {
+                if (filename.indexOf('.ino.') === -1 || !filename.endsWith('.bin')) {
                     errorMessage(el, 'This file is not a valid firmware binary file.');
                     return;
                 }

@@ -7,7 +7,12 @@ class Network {
     unsigned long lastEmit = 0;
     int lastRSSI = 0;
     int lastChannel = 0;
+    int linkSpeed = 0;
+    bool ethStarted = false;
   public:
+    bool wifiFallback = false;
+    conn_types connType = conn_types::unset;
+    bool connected();
     String ssid;
     String mac;
     int channel;
@@ -18,7 +23,9 @@ class Network {
     long connectTime = 0;
     bool openSoftAP();
     bool connect();
-    void setConnected();
+    bool connectWiFi();
+    bool connectWired();
+    void setConnected(conn_types connType);
     int getStrengthByMac(const char *mac);
     int getStrengthBySSID(const char *ssid);
     bool setup();
@@ -27,5 +34,6 @@ class Network {
     void emitSockets();
     void emitSockets(uint8_t num);
     uint32_t getChipId();
+    static void networkEvent(WiFiEvent_t event);
 };
 #endif

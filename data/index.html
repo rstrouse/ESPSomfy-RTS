@@ -3,17 +3,17 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=1.2.3" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=1.2.3" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=1.3.0" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=1.3.0" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=1.2.3"></script>
+    <script type="text/javascript" src="index.js?v=1.3.0"></script>
 </head>
 <body>
     <div id="divContainer" class="container" style="user-select:none;position:relative;">
         <div id="divRadioError" style="text-align:center;background:gainsboro;color:gray;margin-bottom:7px;text-transform:uppercase;font-weight:bold;padding:4px;border-radius:5px;">Radio Not Initialized</div>
         <h1 style="text-align: center;"><span>ESPSomfy RTS</span><span class="button-outline" onclick="general.toggleConfig();" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-gear" style=""></i></span></span></h1>
         <div id="divConfigPnl" style="display:none;">
-            <div style="margin-top:-10px;text-align:center;font-size:12px;">
+            <div id="divWiFiStrength" style="margin-top:-10px;text-align:center;font-size:12px;">
                 <div style="display:inline-block;vertical-align:middle;">
                     <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Network:</span><span id="spanNetworkSSID" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">-------------</span></div>
                     <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Channel:</span><span id="spanNetworkChannel" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">--</span></div>
@@ -22,6 +22,12 @@
                 </div>
                 <div style="position:absolute;display:inline-block;">
                     <div style="position:relative;border:solid 1px silver;background-color:cornsilk;padding:2px;font-size:12px;box-shadow: 0 3px 5px rgba(0,0,0,0.19), 0 2px 2px rgba(0,0,0,0.23);float:right;border-radius:4px;margin-left:-4px;"><span id="spanNetworkStrength">---</span><span>dBm</span></div>
+                </div>
+            </div>
+            <div id="divEthernetStatus" style="margin-top:-10px;text-align:center;font-size:12px;display:none;">
+                <div style="display:inline-block;vertical-align:middle;">
+                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Status:</span><span id="spanEthernetStatus" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">-------------</span></div>
+                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Speed:</span><span id="spanEthernetSpeed" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">--</span></div>
                 </div>
             </div>
             <div class="tab-container"><span class="selected" data-grpid="fsGeneralSettings">General</span><span data-grpid="fsWiFiSettings">WiFi</span><span data-grpid="fsMQTTSettings">MQTT</span><span data-grpid="fsSomfySettings">Somfy</span><span data-grpid="fsUpdates">Updates</span></div>
@@ -33,7 +39,7 @@
                         <label for="fldHostname">Host Name</label>
                     </div>
                     <div class="field-group">
-                        <select id="selTimeZone" name="timeZone" type="password" length=32 placeholder="Time Zone" style="width:100%;"></select>
+                        <select id="selTimeZone" name="timeZone" placeholder="Time Zone" style="width:100%;"></select>
                         <label for="selTimeZone">Time Zone</label>
                     </div>
                     <div class="field-group">
@@ -57,26 +63,101 @@
                 </form>
             </fieldset>
             <fieldset id="fsWiFiSettings" style="display:none;">
-                <legend>WiFi Settings</legend>
-                <form method="post" action="/scan">
-                    <div id="divAps" data-lastloaded="0"></div>
-                    <div class="button-container"><button id="btnScanAPs" type="button" onclick="wifi.loadAPs();">Scan</button></div>
-                </form>
+                <legend>WiFi/LAN Settings</legend>
+                <div class="field-group" style="vertical-align:middle;color:#00bcd4;margin-top:-30px;margin-bottom:18px;">
+                    <input id="cbHardwired" name="hardwired" type="checkbox" style="display:inline-block;" onclick="wifi.useEthernetClicked();" />
+                    <label for="cbHardwired" style="display:inline-block;cursor:pointer;">Use Ethernet</label>
+                    <div id="divFallbackWireless" style="display:inline-block;padding-left:7px;">
+                        <input id="cbFallbackWireless" name="fallbackwireless" type="checkbox" style="display:inline-block;" />
+                        <label for="cbFallbackWireless" style="display:inline-block;cursor:pointer;">Fallback to Wireless</label>
+                    </div>
+                </div>
+                <div id="divWiFiMode">
+                    <form method="post" action="/scan">
+                        <div id="divAps" data-lastloaded="0" style="border-radius:5px;border:solid 1px #00bcd4;margin-bottom:-10px;"></div>
+                        <div class="button-container"><button id="btnScanAPs" type="button" onclick="wifi.loadAPs();">Scan</button></div>
+                        <div class="field-group">
+                            <input id="fldSsid" name="ssid" type="text" length=32 placeholder="SSID">
+                            <label for="fldSsid">Network SSID</label>
+                        </div>
+                        <div class="field-group">
+                            <input id="fldPassphrase" name="passphrase" type="password" length=32 placeholder="Passphrase">
+                            <label for="fldPassphrase">Passphrase</label>
+                        </div>
+
+                    </form>
+                </div>
+                <div id="divEthernetMode" style="display:none;">
+                    <form method="post" action="/ethernet">
+                        <div class="field-group">
+                            <select id="selETHBoardType" name="ethBoardType" placeholder="Board Type" style="width:100%;" onchange="wifi.onETHBoardTypeChanged(this);"></select>
+                            <label for="selETHBoardType">Board Type</label>
+                        </div>
+                        <div id="divETHSettings">
+                            <div class="field-group" style="width:30%;margin-right:7px;display:inline-block;">
+                                <select id="selETHPhyType" name="ethphytype" placeholder="PHY Type" style="width:100%;"></select>
+                                <label for="selETHPhyType">PHY Chip Type</label>
+                            </div>
+                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
+                                <select id="selETHAddress" name="address" placeholder="Address" style="width:100%;"></select>
+                                <label for="selETHAddress">Address</label>
+                            </div>
+                            <div class="field-group" style="width:30%;display:inline-block;margin-right:7px;">
+                                <select id="selETHClkMode" name="clkmode" placeholder="Clock Mode" style="width:100%;"></select>
+                                <label for="selETHClkMode">Clock Mode</label>
+                            </div>
+                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
+                                <select id="selETHPWRPin" name="pwr" placeholder="Power Pin" style="width:100%;"></select>
+                                <label for="selETHPWRPin">Power Pin</label>
+                            </div>
+                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
+                                <select id="selETHMDCPin" name="mdc" placeholder="MDC Pin" style="width:100%;"></select>
+                                <label for="selETHPMDCPin">MDC Pin</label>
+                            </div>
+                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
+                                <select id="selETHMDIOPin" name="mdc" placeholder="MDIO Pin" style="width:100%;"></select>
+                                <label for="selETHMDIOPin">MDIO Pin</label>
+                            </div>
+                            <hr />
+                        </div>
+                        <div class="field-group">
+                            <input id="cbUseDHCP" name="dhcp" type="checkbox" style="display:inline-block;" onclick="wifi.onDHCPClicked(this);" checked="checked" />
+                            <label for="cbUseDHCP" style="display:inline-block;cursor:pointer;">Acquire IP Address automatically (DHCP)</label>
+                        </div>
+                        <div id="divStaticIP" style="display:none;">
+                            <div class="field-group">
+                                <input id="fldIPAddress" name="staticIP" type="text" length=32 placeholder="0.0.0.0">
+                                <label for="fldIPAddress">Static IP Address</label>
+                            </div>
+                            <div class="field-group">
+                                <input id="fldSubnetMask" name="subnet" type="text" length=32 placeholder="0.0.0.0">
+                                <label for="fldSubnetMask">Subnet Mask</label>
+                            </div>
+                            <div class="field-group">
+                                <input id="fldGateway" name="gateway" type="text" length=32 placeholder="0.0.0.0">
+                                <label for="fldGateway">Gateway</label>
+                            </div>
+                            <div class="field-group">
+                                <input id="fldDNS1" name="dns1" type="text" length=32 placeholder="0.0.0.0">
+                                <label for="fldDNS1">Domain Name Server 1</label>
+                            </div>
+                            <div class="field-group">
+                                <input id="fldDNS2" name="dns2" type="text" length=32 placeholder="0.0.0.0">
+                                <label for="fldDNS2">Domain Name Server 2</label>
+                            </div>
+
+
+                        </div>
+                    </form>
+                </div>
                 <form method="post" action="/wifi" style="margin-top:8px;">
-                    <div class="field-group">
-                        <input id="fldSsid" name="ssid" type="text" length=32 placeholder="SSID">
-                        <label for="fldSsid">Network SSID</label>
-                    </div>
-                    <div class="field-group">
-                        <input id="fldPassphrase" name="passphrase" type="password" length=32 placeholder="Passphrase">
-                        <label for="fldPassphrase">Passphrase</label>
-                    </div>
                     <div class="button-container">
-                        <button id="btnConnectWiFi" type="button" onclick="wifi.connectWiFi();">
+                        <button id="btnSaveNetwork" type="button" onclick="wifi.saveNetwork();">
                             Save
                         </button>
                     </div>
                 </form>
+
             </fieldset>
             <fieldset id="fsMQTTSettings" style="display:none;">
                 <legend>MQTT Settings</legend>

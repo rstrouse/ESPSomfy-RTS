@@ -1,8 +1,9 @@
 #include <ArduinoJson.h>
+#include <ETH.h>
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v1.2.3"
+#define FW_VERSION "v1.3.0"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -54,10 +55,20 @@ class WifiSettings: BaseSettings {
 class EthernetSettings: BaseSettings {
   public:
     EthernetSettings();
+    uint8_t boardType = 0; // These board types are enumerated in the ui and used to set the chip settings.
+    bool dhcp = true;
+    IPAddress ip;
     IPAddress subnet = IPAddress(255,255,255,0);
     IPAddress gateway;
     IPAddress dns1;
     IPAddress dns2;
+    eth_phy_type_t phyType = ETH_PHY_LAN8720;
+    eth_clock_mode_t CLKMode = ETH_CLOCK_GPIO0_IN;
+    int8_t phyAddress = ETH_PHY_ADDR;
+    int8_t PWRPin = ETH_PHY_POWER;
+    int8_t MDCPin = ETH_PHY_MDC;
+    int8_t MDIOPin = ETH_PHY_MDIO;
+    
     bool begin();
     bool fromJSON(JsonObject &obj);
     bool toJSON(JsonObject &obj);
@@ -83,15 +94,16 @@ class MQTTSettings: BaseSettings {
 };
 enum class conn_types : byte {
     unset = 0x00,
-    wifi = 0x1,
-    ethernet = 0x2
+    wifi = 0x01,
+    ethernet = 0x02,
+    ethernetpref = 0x03
 };
 
 class ConfigSettings: BaseSettings {
   public:
     char serverId[10] = "";
     char hostname[32] = "ESPSomfyRTS";
-    conn_types connType = conn_types::wifi;
+    conn_types connType = conn_types::unset;
     const char* fwVersion = FW_VERSION;
     bool ssdpBroadcast = true;
     uint8_t status;
