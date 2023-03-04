@@ -18,6 +18,8 @@ After you get this up and running you will have the ability to interact with you
 * Move the shade using up, down, and my buttons
 * Set and remove my button favorite
 * Interactive shade positioning
+* Tilt blinds
+* Set blind tilt by percentage
 
 ## Moving a Shade
 You can move the shade to the full up position by clicking the up button.  To stop the shade during travel, press the my button and the shade will stop.  To move the shade to the full down position press the down button.  At any point during the movement you can press the my button to stop the shade.
