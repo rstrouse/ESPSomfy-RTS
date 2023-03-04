@@ -394,7 +394,7 @@ void Web::begin() {
       // We are updating an existing shade.
       if (server.hasArg("plain")) {
         Serial.println("Updating a shade");
-        DynamicJsonDocument doc(256);
+        DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
           switch (err.code()) {
@@ -416,7 +416,7 @@ void Web::begin() {
             if (shade) {
               shade->fromJSON(obj);
               shade->save();
-              DynamicJsonDocument sdoc(256);
+              DynamicJsonDocument sdoc(512);
               JsonObject sobj = sdoc.to<JsonObject>();
               shade->toJSON(sobj);
               serializeJson(sdoc, g_content);
@@ -437,7 +437,7 @@ void Web::begin() {
       // We are updating an existing shade.
       if (server.hasArg("plain")) {
         Serial.println("Updating a shade");
-        DynamicJsonDocument doc(256);
+        DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
           switch (err.code()) {
@@ -459,7 +459,7 @@ void Web::begin() {
             if (shade) {
               shade->fromJSON(obj);
               shade->save();
-              DynamicJsonDocument sdoc(256);
+              DynamicJsonDocument sdoc(512);
               JsonObject sobj = sdoc.to<JsonObject>();
               shade->toJSON(sobj);
               serializeJson(sdoc, g_content);
@@ -471,6 +471,70 @@ void Web::begin() {
         }
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+    }
+    });
+  server.on("/tiltCommand", []() {
+    webServer.sendCORSHeaders();
+    HTTPMethod method = server.method();
+    uint8_t shadeId = 255;
+    uint8_t target = 255;
+    somfy_commands command = somfy_commands::My;
+    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+      if (server.hasArg("shadeId")) {
+        shadeId = atoi(server.arg("shadeId").c_str());
+        if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
+        else if(server.hasArg("target")) target = atoi(server.arg("target").c_str());
+      }
+      else if (server.hasArg("plain")) {
+        Serial.println("Sending Shade Tilt Command");
+        DynamicJsonDocument doc(256);
+        DeserializationError err = deserializeJson(doc, server.arg("plain"));
+        if (err) {
+          switch (err.code()) {
+          case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+          case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+          default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+          }
+          return;
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
+          if (obj.containsKey("command")) {
+            String scmd = obj["command"];
+            command = translateSomfyCommand(scmd);
+          }
+          else if(obj.containsKey("target")) {
+            target = obj["target"].as<uint8_t>();
+          }
+        }
+      }
+      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+    }
+    SomfyShade* shade = somfy.getShadeById(shadeId);
+    if (shade) {
+      Serial.print("Received:");
+      Serial.println(server.arg("plain"));
+      // Send the command to the shade.
+      if(target >= 0 && target <= 100)
+        shade->moveToTiltTarget(target);
+      else
+        shade->sendTiltCommand(command);
+      DynamicJsonDocument sdoc(256);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
     }
     });
   server.on("/shadeCommand", []() {
@@ -1210,7 +1274,6 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     });
-   
   server.on("/connectmqtt", []() {
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));

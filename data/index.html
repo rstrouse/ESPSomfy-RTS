@@ -3,10 +3,10 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=1.3.0" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=1.3.0" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=1.3.1" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=1.3.1" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=1.3.0"></script>
+    <script type="text/javascript" src="index.js?v=1.3.1"></script>
 </head>
 <body>
     <div id="divContainer" class="container" style="user-select:none;position:relative;">
@@ -200,7 +200,7 @@
                     <form method="post" action="/radioSettings">
                         <hr />
                         <div id="divShadeSection">
-                            <div id="divShadeList" style="overflow-y:auto;max-height:400px;"></div>
+                            <div id="divShadeList" style="overflow-y: auto; max-height: 400px; padding-top: 2px; padding-bottom: 2px;"></div>
                             <div class="button-container">
                                 <button id="btnAddShade" type="button" onclick="somfy.openEditShade();">
                                     Add Shade
@@ -217,15 +217,26 @@
                     <form method="post" action="/shadesettings">
                         <div style="display:inline-block;float:right;position:relative;margin-top:-14px;"><span id="spanShadeId">*</span>/<span id="spanMaxShades">5</span></div>
                         <div>
-                            <div class="field-group" style="width:127px;display:inline-block;">
-                                <input id="fldShadeAddress" name="shadeAddress" type="number" length=5 placeholder="Address" style="width:100%;">
-                                <label for="fldShadeAddress">Remote Address</label>
+                            <div class="field-group" style="width:127px;display:inline-block;margin-top:-20px;float:left;">
+                                <div class="field-group">
+                                    <select id="selShadeType" name="shadeType" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
+                                        <option value="0">Roller Shade</option>
+                                        <option value="1">Blind</option>
+                                        <option value="2">Drapery</option>
+                                    </select>
+                                    <label for="selShadeType">Type</label>
+                                </div>
+                                <div class="field-group">
+                                    <input id="fldShadeAddress" name="shadeAddress" type="number" length=5 placeholder="Address" style="width:100%;text-align:right;">
+                                    <label for="fldShadeAddress">Remote Address</label>
+                                </div>
+
                             </div>
-                            <div id="divSomfyButtons" style="float:right">
-                                <div style="display:inline-block;padding-right:7px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;font-size:32px;"></i></div>
-                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-up"></i></div>
-                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="display:inline-block;font-size:2em;padding:10px;cursor:pointer;"><span>my</span></div>
-                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');" style="display:inline-block;padding:7px;cursor:pointer;"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                            <div id="divSomfyButtons" style="float:right;margin-top:10px;position:relative">
+                                <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
+                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');" style="display:inline-block;padding:7px;cursor:pointer;vertical-align:middle;margin:0px;"><i class="icss-somfy-up"></i></div>
+                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="display: inline-block; font-size: 2em; padding: 10px; vertical-align: middle; cursor: pointer;margin:0px;"><span>my</span></div>
+                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');" style="display: inline-block; padding: 7px; cursor: pointer; vertical-align: middle;margin:0px;"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
                             </div>
                         </div>
                         <div class="field-group">
@@ -234,30 +245,42 @@
                         </div>
                         <div>
                             <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;">
-                                <input id="fldShadeUpTime" name="shadeUpTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
+                                <input id="fldShadeUpTime" name="shadeUpTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;"/>
                                 <label for="fldShadeUpTime">Up Time (ms)</label>
                             </div>
                             <div class="field-group" style="display:inline-block;max-width:127px;">
-                                <input id="fldShadeDownTime" name="shadeDownTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;">
+                                <input id="fldShadeDownTime" name="shadeDownTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;"/>
                                 <label for="fldShadeDownTime">Down Time (ms)</label>
                             </div>
                         </div>
+                        <div id="divTiltSettings" style="display:none;">
+                            <div class="field-group" style="display:inline-block; margin-right:17px;width:127px;vertical-align:middle;">
+                                <input id="cbHasTilt" type="checkbox" onchange="somfy.onShadeTypeChanged(this);" />
+                                <label for="cbHasTilt" style="display:inline-block;cursor:pointer;">Has Tilt</label>
+                            </div>
+                            <div class="field-group" style="display:inline-block;width:127px;vertical-align:middle;">
+                                <input id="fldTiltTime" name="shadeTiltTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
+                                <label for="fldTiltTime">Tilt Time (ms)</label>
+                            </div>
+                        </div>
                         <div class="button-container" style="text-align:center;">
-                            <button id="btnSaveShade" type="button" onclick="somfy.saveShade();" style="display:inline-block;width:47%;">
-                                Save Shade
-                            </button>
                             <button id="btnPairShade" type="button" onclick="somfy.pairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
                                 Pair Shade
                             </button>
                             <button id="btnUnpairShade" type="button" onclick="somfy.unpairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
                                 Unpair Shade
                             </button>
+                            <button id="btnSetRollingCode" type="button" onclick="somfy.openSetRollingCode(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
+                                Set Rolling Code
+                            </button>
                         </div>
                         <div class="button-container" style="margin-top:-10px;padding-left:7px;padding-right:7px;">
-                            <button id="btnChangeRollingCode" type="button" onclick="somfy.openSetRollingCode(parseInt(document.getElementById('spanShadeId').innerText, 10));">Set Rolling Code</button>
+                            <button id="btnSaveShade" type="button" onclick="somfy.saveShade();">
+                                Save Shade
+                            </button>
                         </div>
                         <hr />
-                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:77px;"></div>
+                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:77px;padding-top:2px;padding-bottom:2px;"></div>
                         <div class="button-container">
                             <button id="btnLinkRemote" type="button" onclick="somfy.linkRemote(parseInt(document.getElementById('spanShadeId').innerText, 10));">
                                 Link Remote

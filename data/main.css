@@ -564,6 +564,7 @@ div.waitoverlay > .lds-roller {
         vertical-align: middle;
         margin-top: -5px;
         font-size: 48px;
+        position:relative;
     }
 .somfyShadeCtl .shade-name {
     display:inline-block;
@@ -597,15 +598,20 @@ div.waitoverlay > .lds-roller {
     }
 
 .shade-positioner {
-    position:absolute;
-    width:100%;
-    background-color:gainsboro;
-    color:gray;
-    min-height:60px;
-    top:0px;
-    padding-left:7px;
-    padding-right:7px;
-    z-index:100;
+    position: absolute;
+    width: 100%;
+    background-color: oldlace;
+    color: gray;
+    min-height: 60px;
+    top: 0px;
+    padding-left: 7px;
+    padding-right: 7px;
+    padding-bottom: 7px;
+    z-index: 100;
+    margin-top: -7px;
+    box-shadow: 4px 4px 4px gray;
+    border: solid 1px silver;
+    border-radius: 5px;
 }
 .shade-positioner .shade-name {
     display:block;
@@ -623,6 +629,7 @@ div.waitoverlay > .lds-roller {
     font-size:1em;
     margin-top:-3px;
     margin-left:27px;
+    color:gray;
 }
     .shade-positioner label > span:last-child {
         float: right;

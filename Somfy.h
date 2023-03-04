@@ -15,6 +15,11 @@ enum class somfy_commands : byte {
     SunFlag = 0x9,
     Flag = 0xA
 };
+enum class shade_types : byte {
+  roller = 0x00,
+  blind = 0x01,
+  drapery = 0x02
+};
 
 String translateSomfyCommand(const somfy_commands cmd);
 somfy_commands translateSomfyCommand(const String& string);
@@ -64,19 +69,28 @@ class SomfyShade : public SomfyRemote {
   protected:
     uint8_t shadeId = 255;
     uint64_t moveStart = 0;
+    uint64_t tiltStart = 0;
     float startPos = 0.0;
+    float startTiltPos = 0.00;
     bool seekingPos = false;
+    bool seekingTiltPos = false;
     bool seekingMyPos = false;
     bool settingMyPos = false;
     uint32_t awaitMy = 0;
   public:
+    shade_types shadeType = shade_types::roller;
+    bool hasTilt = false;
     void load();
     somfy_frame_t lastFrame;
     float currentPos = 0.0;
+    float currentTiltPos = 0.0;
     //uint16_t movement = 0;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
+    int8_t tiltDirection = 0; // 0=stopped, 1=clockwise, -1=counter clockwise
+    uint8_t tiltPosition = 0;
     uint8_t position = 0;
     uint8_t target = 0;
+    uint8_t tiltTarget = 0;
     uint8_t myPos = 255;
     SomfyLinkedRemote linkedRemotes[SOMFY_MAX_LINKED_REMOTES];
     bool paired = false;
@@ -86,13 +100,18 @@ class SomfyShade : public SomfyRemote {
     void setShadeId(uint8_t id) { shadeId = id; }
     uint8_t getShadeId() { return shadeId; }
     uint16_t upTime = 10000;
-    uint16_t downTime = 1000;
+    uint16_t downTime = 10000;
+    uint16_t tiltTime = 5000;
     bool save();
+    bool isIdle();
     void checkMovement();
     void processFrame(somfy_frame_t &frame, bool internal = false);
+    void setTiltMovement(int8_t dir);
     void setMovement(int8_t dir);
     void setTarget(uint8_t target);
     void moveToTarget(uint8_t target);
+    void moveToTiltTarget(uint8_t target);
+    void sendTiltCommand(somfy_commands cmd);
     void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
     bool linkRemote(uint32_t remoteAddress, uint16_t rollingCode = 0);
     bool unlinkRemote(uint32_t remoteAddress);

@@ -308,7 +308,7 @@ bool Network::connectWiFi() {
   return false;
 }
 bool Network::connect() {
-  if(settings.connType != conn_types::wifi && !this->wifiFallback)
+  if(settings.connType != conn_types::wifi && settings.connType != conn_types::unset && !this->wifiFallback)
     return this->connectWired();
   return this->connectWiFi();
 }
