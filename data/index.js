@@ -1318,6 +1318,7 @@ class Somfy {
                     document.getElementById('btnLinkRemote').style.display = 'none';
                     document.getElementsByName('shadeUpTime')[0].value = 10000;
                     document.getElementsByName('shadeDownTime')[0].value = 10000;
+                    document.getElementById('fldTiltTime').value = 7000;
                     document.getElementById('somfyMain').style.display = 'none';
                     document.getElementById('somfyShade').style.display = '';
                     document.getElementById('btnSaveShade').innerText = 'Add Shade';

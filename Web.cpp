@@ -184,7 +184,7 @@ void Web::begin() {
     uint8_t target = 255;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (server.hasArg("shadeId")) {
+      if (apiServer.hasArg("shadeId")) {
         shadeId = atoi(apiServer.arg("shadeId").c_str());
         if (apiServer.hasArg("command")) command = translateSomfyCommand(apiServer.arg("command"));
         else if(apiServer.hasArg("target")) target = atoi(apiServer.arg("target").c_str());
