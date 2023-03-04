@@ -177,6 +177,71 @@ void Web::begin() {
       apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
     }
     });
+  apiServer.on("/tiltCommand", []() {
+    webServer.sendCORSHeaders();
+    HTTPMethod method = apiServer.method();
+    uint8_t shadeId = 255;
+    uint8_t target = 255;
+    somfy_commands command = somfy_commands::My;
+    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+      if (server.hasArg("shadeId")) {
+        shadeId = atoi(apiServer.arg("shadeId").c_str());
+        if (apiServer.hasArg("command")) command = translateSomfyCommand(apiServer.arg("command"));
+        else if(apiServer.hasArg("target")) target = atoi(apiServer.arg("target").c_str());
+      }
+      else if (apiServer.hasArg("plain")) {
+        Serial.println("Sending Shade Tilt Command");
+        DynamicJsonDocument doc(256);
+        DeserializationError err = deserializeJson(doc, apiServer.arg("plain"));
+        if (err) {
+          switch (err.code()) {
+          case DeserializationError::InvalidInput:
+            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+          case DeserializationError::NoMemory:
+            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+          default:
+            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+          }
+          return;
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+          else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
+          if (obj.containsKey("command")) {
+            String scmd = obj["command"];
+            command = translateSomfyCommand(scmd);
+          }
+          else if(obj.containsKey("target")) {
+            target = obj["target"].as<uint8_t>();
+          }
+        }
+      }
+      else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+    }
+    SomfyShade* shade = somfy.getShadeById(shadeId);
+    if (shade) {
+      Serial.print("Received:");
+      Serial.println(apiServer.arg("plain"));
+      // Send the command to the shade.
+      if(target >= 0 && target <= 100)
+        shade->moveToTiltTarget(target);
+      else
+        shade->sendTiltCommand(command);
+      DynamicJsonDocument sdoc(256);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      apiServer.send(200, _encoding_json, g_content);
+    }
+    else {
+      apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+    }
+    });
+
   server.on("/upnp.xml", []() {
     SSDP.schema(server.client());
     });

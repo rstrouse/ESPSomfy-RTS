@@ -822,6 +822,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       dir = 0;
       break;
   }
+  if(dir == 0 && this->hasTilt && this->tiltDirection != 0) this->setTiltMovement(0);
   this->setMovement(dir);
 }
 void SomfyShade::setTiltMovement(int8_t dir) {
