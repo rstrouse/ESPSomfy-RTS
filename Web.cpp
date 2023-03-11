@@ -271,6 +271,86 @@ void Web::begin() {
     server.streamFile(file, _encoding_html);
     file.close();
     });
+  server.on("/shades.cfg", []() {
+    webServer.sendCORSHeaders();
+    // Load the index html page from the data directory.
+    Serial.println("Loading file shades.cfg");
+    File file = LittleFS.open("/shades.cfg", "r");
+    if (!file) {
+      Serial.println("Error opening shades.cfg");
+      server.send(500, _encoding_text, "shades.cfg");
+    }
+    server.streamFile(file, _encoding_text);
+    file.close();
+    
+  });
+  server.on("/shades.tmp", []() {
+    webServer.sendCORSHeaders();
+    // Load the index html page from the data directory.
+    Serial.println("Loading file shades.cfg");
+    File file = LittleFS.open("/shades.tmp", "r");
+    if (!file) {
+      Serial.println("Error opening shades.tmp");
+      server.send(500, _encoding_text, "shades.tmp");
+    }
+    server.streamFile(file, _encoding_text);
+    file.close();
+  });
+
+  server.on("/backup", []() {
+    webServer.sendCORSHeaders();
+    char filename[120];
+    Timestamp ts;
+    char * iso = ts.getISOTime();
+    // Replace the invalid characters as quickly as we can.
+    for(uint8_t i = 0; i < strlen(iso); i++) {
+      switch(iso[i]) {
+        case '.':
+          // Just trim off the ms.
+          iso[i] = '\0';
+          break;
+        case ':':
+          iso[i] = '_';
+          break;
+      }
+    }
+    snprintf(filename, sizeof(filename), "attachment; filename=\"ESPSomfyRTS %s.backup\"", iso);
+    Serial.println(filename);
+    server.sendHeader(F("Content-Disposition"), filename);
+    Serial.println("Saving current shade information");
+    somfy.commit();
+    File file = LittleFS.open("/shades.cfg", "r");
+    if (!file) {
+      Serial.println("Error opening shades.cfg");
+      server.send(500, _encoding_text, "shades.cfg");
+    }
+    server.streamFile(file, _encoding_text);
+    file.close();
+  });
+  server.on("/restore", HTTP_POST, []() {
+    webServer.sendCORSHeaders();
+    server.sendHeader("Connection", "close");
+    server.send(200, _encoding_json, "{\"status\":\"Success\",\"desc\":\"Restoring Shade settings\"}");
+    }, []() {
+      HTTPUpload& upload = server.upload();
+      if (upload.status == UPLOAD_FILE_START) {
+        Serial.printf("Restore: %s\n", upload.filename.c_str());
+        // Begin by opening a new temporary file.
+        File fup = LittleFS.open("/shades.tmp", "w");
+        fup.close();
+      }
+      else if (upload.status == UPLOAD_FILE_WRITE) {
+        File fup = LittleFS.open("/shades.tmp", "a");
+        fup.write(upload.buf, upload.currentSize);
+        fup.close();
+      }
+      else if (upload.status == UPLOAD_FILE_END) {
+        // TODO: Do some validation of the file.
+        Serial.println("Validating restore");
+        // Go through the uploaded file to determine if it is valid.
+        somfy.loadShadesFile("/shades.tmp");
+      }
+    });
   server.on("/index.js", []() {
     webServer.sendCacheHeaders(604800);
     webServer.sendCORSHeaders();
@@ -317,6 +397,20 @@ void Web::begin() {
     // Load the index html page from the data directory.
     Serial.println("Loading file favicon.png");
     File file = LittleFS.open("/favicon.png", "r");
+    if (!file) {
+      Serial.println("Error opening data/favicon.png");
+      server.send(500, _encoding_text, "Unable to open data/icons.css");
+    }
+    server.streamFile(file, "image/png");
+    file.close();
+    });
+  server.on("/icon.png", []() {
+    webServer.sendCacheHeaders(604800);
+    webServer.sendCORSHeaders();
+    
+    // Load the index html page from the data directory.
+    Serial.println("Loading file favicon.png");
+    File file = LittleFS.open("/icon.png", "r");
     if (!file) {
       Serial.println("Error opening data/favicon.png");
       server.send(500, _encoding_text, "Unable to open data/icons.css");
@@ -385,7 +479,7 @@ void Web::begin() {
     SomfyShade* shade;
     if (method == HTTP_POST || method == HTTP_PUT) {
       Serial.println("Adding a shade");
-      DynamicJsonDocument doc(256);
+      DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
         switch (err.code()) {
@@ -410,7 +504,7 @@ void Web::begin() {
           Serial.println("Adding shade");
           shade = somfy.addShade(obj);
           if (shade) {
-            DynamicJsonDocument sdoc(256);
+            DynamicJsonDocument sdoc(512);
             JsonObject sobj = sdoc.to<JsonObject>();
             shade->toJSON(sobj);
             serializeJson(sdoc, g_content);
@@ -592,7 +686,7 @@ void Web::begin() {
         shade->moveToTiltTarget(target);
       else
         shade->sendTiltCommand(command);
-      DynamicJsonDocument sdoc(256);
+      DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);
       serializeJson(sdoc, g_content);
@@ -656,7 +750,7 @@ void Web::begin() {
         shade->moveToTarget(target);
       else
         shade->sendCommand(command);
-      DynamicJsonDocument sdoc(256);
+      DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);
       serializeJson(sdoc, g_content);
@@ -711,7 +805,7 @@ void Web::begin() {
       if(target == 255) target = shade->myPos;
       if(target >= 0 && target <= 100)
         shade->setMyPosition(target);
-      DynamicJsonDocument sdoc(256);
+      DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);
       serializeJson(sdoc, g_content);
@@ -761,7 +855,7 @@ void Web::begin() {
       }
       else {
         shade->setRollingCode(rollingCode);
-        StaticJsonDocument<256> doc;
+        DynamicJsonDocument doc(512);
         JsonObject obj = doc.to<JsonObject>();
         shade->toJSON(obj);
         serializeJson(doc, g_content);
@@ -776,7 +870,7 @@ void Web::begin() {
       uint8_t shadeId = 255;
       if (server.hasArg("plain")) {
         // Its coming in the body.
-        StaticJsonDocument<129> doc;
+        DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
           switch (err.code()) {
@@ -804,10 +898,10 @@ void Web::begin() {
         server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade not found to pair\"}"));
       }
       else {
-        shade->sendCommand(somfy_commands::Prog, 4);
+        shade->sendCommand(somfy_commands::Prog, 7);
         shade->paired = true;
         shade->save();
-        StaticJsonDocument<256> doc;
+        DynamicJsonDocument doc(512);
         JsonObject obj = doc.to<JsonObject>();
         shade->toJSON(obj);
         serializeJson(doc, g_content);
@@ -822,7 +916,7 @@ void Web::begin() {
       uint8_t shadeId = 255;
       if (server.hasArg("plain")) {
         // Its coming in the body.
-        StaticJsonDocument<129> doc;
+        DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
           switch (err.code()) {
@@ -850,10 +944,10 @@ void Web::begin() {
         server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade not found to unpair\"}"));
       }
       else {
-        shade->sendCommand(somfy_commands::Prog, 4);
+        shade->sendCommand(somfy_commands::Prog, 7);
         shade->paired = false;
         shade->save();
-        StaticJsonDocument<256> doc;
+        DynamicJsonDocument doc(512);
         JsonObject obj = doc.to<JsonObject>();
         shade->toJSON(obj);
         serializeJson(doc, g_content);
@@ -867,7 +961,7 @@ void Web::begin() {
     if (method == HTTP_PUT || method == HTTP_POST) {
       // We are updating an existing shade by adding a linked remote.
       if (server.hasArg("plain")) {
-        DynamicJsonDocument doc(256);
+        DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
           switch (err.code()) {
@@ -914,7 +1008,7 @@ void Web::begin() {
       // We are updating an existing shade by adding a linked remote.
       if (server.hasArg("plain")) {
         Serial.println("Linking a remote");
-        DynamicJsonDocument doc(256);
+        DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
           switch (err.code()) {
@@ -1026,6 +1120,29 @@ void Web::begin() {
         }
       }
     });
+  server.on("/updateShadeConfig", HTTP_POST, []() {
+    webServer.sendCORSHeaders();
+    server.sendHeader("Connection", "close");
+    server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Shade Config: \"}");
+    }, []() {
+      HTTPUpload& upload = server.upload();
+      if (upload.status == UPLOAD_FILE_START) {
+        Serial.printf("Update: shades.cfg\n");
+        File fup = LittleFS.open("/shades.tmp", "w");
+        fup.close();
+      }
+      else if (upload.status == UPLOAD_FILE_WRITE) {
+        /* flashing littlefs to ESP*/
+        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+          File fup = LittleFS.open("/shades.tmp", "a");
+          fup.write(upload.buf, upload.currentSize);
+          fup.close();
+        }
+      }
+      else if (upload.status == UPLOAD_FILE_END) {
+        somfy.loadShadesFile("/shades.tmp");
+      }
+    });
   server.on("/updateApplication", HTTP_POST, []() {
     webServer.sendCORSHeaders();
     server.sendHeader("Connection", "close");
@@ -1041,7 +1158,7 @@ void Web::begin() {
         }
       }
       else if (upload.status == UPLOAD_FILE_WRITE) {
-        /* flashing firmware to ESP*/
+        /* flashing littlefs to ESP*/
         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
           Update.printError(Serial);
         }
@@ -1049,6 +1166,7 @@ void Web::begin() {
       else if (upload.status == UPLOAD_FILE_END) {
         if (Update.end(true)) { //true to set the size to the current progress
           Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+          somfy.commit();
         }
         else {
           Update.printError(Serial);

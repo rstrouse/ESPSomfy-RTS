@@ -123,10 +123,10 @@ void Network::setConnected(conn_types connType) {
       Serial.print(" ");
       Serial.print(ETH.linkSpeed());
       Serial.println("Mbps");
+      char buf[128];
+      snprintf(buf, sizeof(buf), "{\"connected\":true,\"speed\":%d,\"fullduplex\":%s}", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
+      sockEmit.sendToClients("ethernet", buf);
     }
-    char buf[128];
-    snprintf(buf, sizeof(buf), "{\"connected\":true,\"speed\":%d,\"fullduplex\":%s}", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
-    sockEmit.sendToClients("ethernet", buf);
   }
   else {
     Serial.println();

@@ -193,6 +193,20 @@ function getJSON(url, cb) {
     }
     xhr.send();
 }
+function getText(url, cb) {
+    let xhr = new XMLHttpRequest();
+    console.log({ get: url });
+    xhr.open('GET', url, true);
+    xhr.responseType = 'text';
+    xhr.onload = () => {
+        let status = xhr.status;
+        cb(status === 200 ? null : status, xhr.responseText);
+    }
+    xhr.onerror = (evt) => {
+        cb(xhr.status || 500, xhr.statusText);
+    }
+    xhr.send();
+}
 function putJSON(url, data, cb) {
     let xhr = new XMLHttpRequest();
     console.log({ put: url, data: data });
@@ -355,7 +369,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.3.2';
+    appVersion = 'v1.4.0';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -1419,12 +1433,12 @@ class Somfy {
             errorMessage(document.getElementById('fsSomfySettings'), 'You must provide a name for the shade between 1 and 20 characters.');
             valid = false;
         }
-        if (valid && (isNaN(obj.upTime) || obj.upTime < 1 || obj.upTime > 65355)) {
-            errorMessage(document.getElementById('fsSomfySettings'), 'Up Time must be a value between 0 and 65,355 milliseconds.  This is the travel time to go from full closed to full open.');
+        if (valid && (isNaN(obj.upTime) || obj.upTime < 1 || obj.upTime > 4294967295)) {
+            errorMessage(document.getElementById('fsSomfySettings'), 'Up Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full closed to full open.');
             valid = false;
         }
-        if (valid && (isNaN(obj.downTime) || obj.downTime < 1 || obj.downTime > 65355)) {
-            errorMessage(document.getElementById('fsSomfySettings'), 'Down Time must be a value between 0 and 65,355 milliseconds.  This is the travel time to go from full open to full closed.');
+        if (valid && (isNaN(obj.downTime) || obj.downTime < 1 || obj.downTime > 4294967295)) {
+            errorMessage(document.getElementById('fsSomfySettings'), 'Down Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full open to full closed.');
             valid = false;
         }
         if (valid) {
@@ -1814,6 +1828,20 @@ class MQTT {
 var mqtt = new MQTT();
 class Firmware {
     async init() { }
+    backup() {
+        var link = document.createElement('a');
+        link.href = '/backup';
+        link.setAttribute('download', 'backup');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+    restore() {
+        let div = this.createFileUploader('/restore');
+        let inst = div.querySelector('div[id=divInstText]');
+        inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a backup file that you would like to restore then press the Upload File button.</div>';
+        document.getElementById('fsUpdates').appendChild(div);
+    };
     createFileUploader(service) {
         let div = document.createElement('div');
         div.setAttribute('id', 'divUploadFile');
@@ -1823,7 +1851,7 @@ class Firmware {
         html += `<div id="divInstText"></div>`;
         html += `<input id="fileName" type="file" name="updateFS" style="display:none;" onchange="document.getElementById('span-selected-file').innerText = this.files[0].name;"/>`;
         html += `<label for="fileName">`;
-        html += `<span id="span-selected-file" style="display:inline-block;min-width:257px;border-bottom:solid 2px white;font-size:17px"></span>`;
+        html += `<span id="span-selected-file" style="display:inline-block;min-width:257px;border-bottom:solid 2px white;font-size:14px;white-space:nowrap;overflow:hidden;max-width:320px;text-overflow:ellipsis;"></span>`;
         html += `<div id="btn-select-file" class="button-outline" style="font-size:.8em;padding:10px;"><i class="icss-upload" style="margin:0px;"></i></div>`;
         html += `</label>`;
         html += `<div class="progress-bar" id="progFileUpload" style="--progress:0%;margin-top:10px;display:none;"></div>`
@@ -1837,14 +1865,15 @@ class Firmware {
     updateFirmware() {
         let div = this.createFileUploader('/updateFirmware');
         let inst = div.querySelector('div[id=divInstText]');
-        inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file containing the device firmware then press the Upload File button.</div>';
+        inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file [SomfyController.ino.esp32.bin] containing the device firmware then press the Upload File button.</div>';
         document.getElementById('fsUpdates').appendChild(div);
     };
     updateApplication() {
         let div = this.createFileUploader('/updateApplication');
         general.reloadApp = true;
         let inst = div.querySelector('div[id=divInstText]');
-        inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file containing the littlefs data for the application then press the Upload File button.</div>';
+        inst.innerHTML = '<div style="font-size:14px;">Select a binary file [SomfyController.littlefs.bin] containing the littlefs data for the application then press the Upload File button.</div>';
+        inst.innerHTML += '<hr/><div style="font-size:14px;margin-bottom:10px;">A backup file for your configuration will be downloaded to your browser.  If the application update process fails please restore this file using the restore button</div>';
         document.getElementById('fsUpdates').appendChild(div);
     };
     async uploadFile(service, el) {
@@ -1857,6 +1886,28 @@ class Firmware {
                     errorMessage(el, 'This file is not a valid littleFS file system.');
                     return;
                 }
+                // The first thing we need to do is backup the configuration. So lets do this
+                // in a promise.
+                await new Promise((resolve, reject) => {
+                    firmware.backup();
+                    try {
+                        // Next we need to download the current configuration data.
+                        getText('/shades.cfg', (err, cfg) => {
+                            if (err)
+                                reject(err);
+                            else {
+                                resolve();
+                                console.log(cfg);
+                            }
+                        });
+                    } catch (err) {
+                        reject(err);
+                        serviceError(el, err);
+                        return;
+                    }
+                }).catch((err) => {
+                    serviceError(el, err);
+                });
                 break;
             case '/updateFirmware':
                 if (filename.indexOf('.ino.') === -1 || !filename.endsWith('.bin')) {
@@ -1864,6 +1915,12 @@ class Firmware {
                     return;
                 }
                 break;
+            case '/restore':
+                if (!filename.endsWith('.backup') || filename.indexOf('ESPSomfyRTS') === -1) {
+                    errorMessage(el, 'This file is not a valid backup file')
+                    return;
+                }
+
         }
         let formData = new FormData();
         let btnUpload = el.querySelector('button[id="btnUploadFile"]');
@@ -1884,9 +1941,23 @@ class Firmware {
             console.log(evt);
             
         };
+        xhr.onerror = function (err) {
+            console.log(err);
+        };
         xhr.onload = function () {
             console.log('File upload load called');
             btnCancel.innerText = 'Close';
+            switch (service) {
+                case '/restore':
+                    (async () => {
+                        await somfy.init();
+                        if (document.getElementById('divUploadFile')) document.getElementById('divUploadFile').remove();
+                    })();
+                    break;
+                case '/updateApplication':
+
+                    break;
+            }
         };
         xhr.send(formData);
     };

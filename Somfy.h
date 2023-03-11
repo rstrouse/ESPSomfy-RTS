@@ -4,6 +4,12 @@
 #define SOMFY_MAX_SHADES 32
 #define SOMFY_MAX_LINKED_REMOTES 5
 
+typedef struct appver_t {
+  uint8_t major;
+  uint8_t minor;
+  uint8_t build;
+};
+
 enum class somfy_commands : byte {
     My = 0x1,
     Up = 0x2,
@@ -99,9 +105,9 @@ class SomfyShade : public SomfyRemote {
     char name[21] = "";
     void setShadeId(uint8_t id) { shadeId = id; }
     uint8_t getShadeId() { return shadeId; }
-    uint16_t upTime = 10000;
-    uint16_t downTime = 10000;
-    uint16_t tiltTime = 5000;
+    uint32_t upTime = 10000;
+    uint32_t downTime = 10000;
+    uint32_t tiltTime = 7000;
     bool save();
     bool isIdle();
     void checkMovement();
@@ -121,6 +127,10 @@ class SomfyShade : public SomfyRemote {
     void moveToMyPosition();
     void processWaitingFrame();
     void publish();
+    void commit();
+    void commitShadePosition();
+    void commitTiltPosition();
+    void commitMyPosition();
 };
 
 typedef struct transceiver_config_t {
@@ -134,15 +144,16 @@ typedef struct transceiver_config_t {
     uint8_t MISOPin = 19;
     uint8_t CSNPin = 5;
     bool radioInit = false;
-    bool internalCCMode = false;      // Use internal transmission mode FIFO buffers.
-    byte modulationMode = 2;          // Modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
     float frequency = 433.42;         // Basic frequency
     float deviation = 47.60;          // Set the Frequency deviation in kHz. Value from 1.58 to 380.85. Default is 47.60 kHz.
+    float rxBandwidth = 812.5;        // Receive bandwidth in kHz.  Value from 58.03 to 812.50.  Default is 99.97kHz.
+    int8_t txPower = 10;              // Transmission power {-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12}.  Default is 12.
+/*    
+    bool internalCCMode = false;      // Use internal transmission mode FIFO buffers.
+    byte modulationMode = 2;          // Modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
     uint8_t channel = 0;              // The channel number from 0 to 255
     float channelSpacing = 199.95;    // Channel spacing in multiplied by the channel number and added to the base frequency in kHz. 25.39 to 405.45.  Default 199.95
-    float rxBandwidth = 812.5;        // Receive bandwidth in kHz.  Value from 58.03 to 812.50.  Default is 99.97kHz.
     float dataRate = 99.97;           // The data rate in kBaud.  0.02 to 1621.83 Default is 99.97.
-    int8_t txPower = 10;              // Transmission power {-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12}.  Default is 12.
     uint8_t syncMode = 0;             // 0=No preamble/sync, 
     // 1=16 sync word bits detected, 
     // 2=16/16 sync words bits detected. 
@@ -186,11 +197,13 @@ typedef struct transceiver_config_t {
     // decreases the bounter by 8 each time a bit is received that is the same as the lats bit.  A threshold of 4 PQT for this counter is used to gate sync word detection.  
     // When PQT = 0 a sync word is always accepted.
     bool appendStatus = false;        // Appends the RSSI and LQI values to the TX packed as well as the CRC.
+ */
     void fromJSON(JsonObject& obj);
     void toJSON(JsonObject& obj);
     void save();
     void load();
     void apply();
+    void removeNVSKey(const char *key);
 };
 class Transceiver {
   private:
@@ -218,7 +231,11 @@ class Transceiver {
 class SomfyShadeController {
   protected:
     uint8_t m_shadeIds[SOMFY_MAX_SHADES];
+    uint32_t lastCommit = 0;
   public:
+    appver_t appVersion;
+    bool useNVS() { return !(this->appVersion.major > 1 || this->appVersion.minor >= 4); }
+    bool isDirty = false;
     uint32_t startingAddress;
     uint8_t getNextShadeId();
     uint32_t getNextRemoteAddress(uint8_t shadeId);
@@ -242,6 +259,9 @@ class SomfyShadeController {
     void emitState(uint8_t num = 255);
     void publish();
     void processWaitingFrame();
+    void commit();
+    bool loadShadesFile(const char *filename);
+    bool loadLegacy();
 };
 
 #endif

@@ -311,7 +311,7 @@ div.wifiSignal {
     padding-left: 10px;
     padding-right: 10px;
 }
-    div.wifiSignal:hover {
+    #divAps div.wifiSignal:hover {
         background: #00bcd4;
         color: white;
     }
@@ -588,6 +588,7 @@ div.waitoverlay > .lds-roller {
         font-size: 12px;
     }
 .somfyShadeCtl .shadectl-buttons {
+    margin-top:3px;
     float:right;
     white-space:nowrap;
 }
@@ -596,6 +597,16 @@ div.waitoverlay > .lds-roller {
         padding: 7px;
         cursor: pointer;
     }
+#divSomfyButtons div.button-outline {
+    margin-top: -10px;
+    margin-left: 0px;
+    margin-right: 0px;
+    margin-bottom: 0px;
+    display: inline-block;
+    padding: 7px;
+    cursor: pointer;
+    vertical-align: middle;
+}
 
 .shade-positioner {
     position: absolute;

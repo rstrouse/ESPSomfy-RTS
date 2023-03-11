@@ -47,8 +47,6 @@ bool BaseSettings::parseIPAddress(JsonObject &obj, const char *prop, IPAddress *
   }
   return true;
 }
-
-
 int BaseSettings::parseValueInt(JsonObject &obj, const char *prop, int defVal) {
   if(obj.containsKey(prop)) return obj[prop]; 
   return defVal;
