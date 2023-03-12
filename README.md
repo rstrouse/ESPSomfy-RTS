@@ -13,7 +13,7 @@ This software uses a couple of readily available hardware components.  These inc
 # Functionality
 After you get this up and running you will have the ability to interact with your shades using the built-in web interface, socket interface, and MQTT.  There is also a full [Home Assistant integration](https://github.com/rstrouse/ESPSomfy-RTS-HA) that can be installed through HACS that can control your shades remotely and provide automations.
 
-![image](https://user-images.githubusercontent.com/47839015/219909983-275b4e8b-ab89-44d0-8e3e-ae9713ae34c0.png)
+![image](https://user-images.githubusercontent.com/47839015/224559426-c81422c0-cdfe-45f9-a9c2-0c727619cdf9.png)
 
 * Move the shade using up, down, and my buttons
 * Set and remove my button favorite
@@ -28,7 +28,7 @@ If you would like to move the shade to a favorite position.  Press the my button
 
 To move a shade to a target percentage of closed, click or tap on the shade icon.  An interface will open that will allow you to select the position using a slider control.  Move the slider to the desired position.  When you release the slider the shade will begin to open or close to reach the desired position.  You can change this position even when the shade is moving.
 
-![image](https://user-images.githubusercontent.com/47839015/219912949-ab90d33e-4ef7-4294-b137-e8c2925a6fde.png)
+![image](https://user-images.githubusercontent.com/47839015/224559596-aa98d015-ee74-41f1-a852-3018f861e354.png)
 
 
 ## Setting a Favorite
@@ -36,12 +36,11 @@ To set your favorite my position you can either use the ESPSomfy RTS interface o
 
 To set or unset a favorite long press the my button.  After a few seconds a screen like below will appear.  ESPSomfy RTS allows you to set a favorite by position, so you can drag the slider to 37% and press the `SET MY POSITION` button.  After pressing the button the shade will move to that position and jog briefly indicating that the favorite has been saved.
 
-![image](https://user-images.githubusercontent.com/47839015/219910353-d256a3a3-8a76-45cb-9dcc-e98fd4fd0b43.png)
+![image](https://user-images.githubusercontent.com/47839015/224559730-859d3f9c-177c-46c3-9fb4-1a7df2cac505.png)
 
 To unset a favorite perform the long press on the my button to open the favorites interface.  Then move the slider to the current my position and the button will turn red and the text will change to `CLEAR MY POSITION`.  Once you press the button the shade will jog indicating that the favorite has been cleared.
 
-![image](https://user-images.githubusercontent.com/47839015/219911658-b0ea72c8-d571-4405-9d27-20cad3d6549f.png)
-
+![image](https://user-images.githubusercontent.com/47839015/224559837-ad28b843-49ab-468c-8b8c-1ad470775750.png)
 
 # Getting Started
 To get started you must create a radio device.  The wiki contains full instructions on how to get this up and running.  You don't need a soldering iron to make this project work. Dupont connections between the radio and the ESP32 will suffice.  However, I have also included some instructions on how to make an inconspicuous radio enclosure for a few bucks.  Here is the [Simple Hardware Guide](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Simple-ESPSomfy-RTS-device)
