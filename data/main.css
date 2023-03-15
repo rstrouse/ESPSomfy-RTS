@@ -663,5 +663,83 @@ div.eth-setting-line label {
     width: 90px;
     text-align:right;
     color:mediumspringgreen;
-
+}
+div.frame-log {
+    position:absolute;
+    top:0px;
+    left:0px;
+    width:100%;
+    height:100%;
+    border-radius:27px;
+    border:solid 2px gray;
+    background:gainsboro;
+}
+div.frame-list {
+    position:relative;
+    width: calc(100% - 14px);
+    height: calc(100% - 147px);
+    left: 7px;
+    background:white;
+    overflow-y:auto;
+    border:solid 1px silver;
+}
+div.frame-header {
+    position: relative;
+    font-size: 12px;
+    background: #00bcd4;
+    width: calc(100% - 14px);
+    left: 7px;
+    color:white;
+    padding-top:4px;
+}
+div.frame-row > span,
+div.frame-header > span {
+    overflow:hidden;
+    display:inline-block;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+    div.frame-header > span {
+        text-align:center;
+    }
+    div.frame-row > span {
+        text-align:right;
+    }
+    div.frame-row > span:nth-child(1),
+    div.frame-header > span:nth-child(1) {
+        width:30px;
+    }
+    div.frame-row > span:nth-child(2),
+    div.frame-header > span:nth-child(2) {
+        width: 67px;
+    }
+    div.frame-row > span:nth-child(3),
+    div.frame-header > span:nth-child(3) {
+        width: 77px;
+        text-align:center;
+    }
+    div.frame-row > span:nth-child(4),
+    div.frame-header > span:nth-child(4) {
+        width: 50px;
+    }
+    div.frame-row > span:nth-child(5),
+    div.frame-header > span:nth-child(5) {
+        width: 57px;
+    }
+div.frame-list > div:nth-child(2n+1) {
+    background: beige;
+}
+div.frame-row {
+    font-size:12px;
+    width:100%;
+    background:white;
+}
+div.frame-pulses {
+    width:100%;
+    padding-left:7px;
+    padding-right:7px;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+    display:none;
 }

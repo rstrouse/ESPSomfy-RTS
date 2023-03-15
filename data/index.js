@@ -279,6 +279,9 @@ async function initSockets() {
                         case 'wifiStrength':
                             wifi.procWifiStrength(msg);
                             break;
+                        case 'packetPulses':
+                            console.log(msg);
+                            break;
 
                     }
                 } catch (err) {
@@ -369,12 +372,13 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.4.0';
+    appVersion = 'v1.4.1';
     reloadApp = false;
     async init() {
         this.setAppVersion();
         this.setTimeZones();
         this.loadGeneral();
+        if (sockIsOpen && this.isConfigOpen()) socket.send('join:0');
     };
     reload() {
         let addMetaTag = (name, content) => {
@@ -573,6 +577,10 @@ class General {
             clearErrors();
         });
     };
+    isConfigOpen() {
+        let divCfg = document.getElementById('divConfigPnl');
+        return (window.getComputedStyle(divCfg).display !== 'none');
+    };
     toggleConfig() {
         let divCfg = document.getElementById('divConfigPnl');
         let divHome = document.getElementById('divHomePnl');
@@ -580,15 +588,16 @@ class General {
             divHome.style.display = 'none';
             divCfg.style.display = '';
             document.getElementById('icoConfig').className = 'icss-home';
+            if (sockIsOpen) socket.send('join:0');
         }
         else {
             divHome.style.display = '';
             divCfg.style.display = 'none';
             document.getElementById('icoConfig').className = 'icss-gear';
-        }
+            if (sockIsOpen) socket.send('leave:0');
+       }
         somfy.closeEditShade();
         somfy.closeConfigTransceiver();
-
     };
 };
 var general = new General();
@@ -881,6 +890,7 @@ class Wifi {
 };
 var wifi = new Wifi();
 class Somfy {
+    frames = [];
     async init() {
         this.loadPins('inout', document.getElementById('selTransSCKPin'));
         this.loadPins('inout', document.getElementById('selTransCSNPin'));
@@ -1287,7 +1297,54 @@ class Somfy {
                 this.setLinkedRemotesList(shade);
             });
         }
+        let frames = document.getElementById('divFrames');
+        let row = document.createElement('div');
+        row.classList.add('frame-row');
+        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><div class="frame-pulses">`;
+        for (let i = 0; i < frame.pulses.length; i++) {
+            if (i !== 0) html += ',';
+            html += `${frame.pulses[i]}`;
+        }
+        row.innerHTML = html;
+        frames.prepend(row);
+        this.frames.push(frame);
     };
+    JSONPretty(obj, indent = 2) {
+        if (Array.isArray(obj)) {
+            let output = '[';
+            for (let i = 0; i < obj.length; i++) {
+                if (i != 0) output += ',\n';
+                output += this.JSONPretty(obj[i], indent);
+            }
+            output += ']'
+            return output;
+        }
+        else {
+            let output = JSON.stringify(obj, function (k, v) {
+                if (Array.isArray(v)) return JSON.stringify(v);
+                return v;
+            }, indent).replace(/\\/g, '')
+                .replace(/\"\[/g, '[')
+                .replace(/\]\"/g, ']')
+                .replace(/\"\{/g, '{')
+                .replace(/\}\"/g, '}')
+                .replace(/\{\n\s+/g, '{');
+            return output;
+        }
+    }
+    framesToClipboard() {
+        if (typeof navigator.clipboard !== 'undefined')
+            navigator.clipboard.writeText(this.JSONPretty(this.frames, 2));
+        else {
+            let dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = this.JSONPretty(this.frames, 2);
+            dummy.focus();
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+        }
+    }
     openConfigTransceiver() {
         document.getElementById('somfyMain').style.display = 'none';
         document.getElementById('somfyTransceiver').style.display = '';

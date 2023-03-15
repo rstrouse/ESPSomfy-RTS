@@ -10,10 +10,40 @@
 extern ConfigSettings settings;
 extern Network net;
 extern SomfyShadeController somfy;
+extern SocketEmitter sockEmit;
 
 WebSocketsServer sockServer = WebSocketsServer(8080);
-char g_buffer[1024];
 
+bool room_t::isJoined(uint8_t num) {
+  for(uint8_t i = 0; i < sizeof(this->clients); i++) { 
+    if(this->clients[i] == num) return true; 
+  } 
+  return false; 
+}
+bool room_t::join(uint8_t num) {
+  if(this->isJoined(num)) return true; 
+  for(uint8_t i = 0; i < sizeof(this->clients); i++) { 
+    if(this->clients[i] == 255) { 
+      this->clients[i] = num; 
+      return true; 
+    } 
+  }
+  return false;  
+}
+bool room_t::leave(uint8_t num) { 
+  if(!this->isJoined(num)) return false; 
+  for(uint8_t i = 0; i < sizeof(this->clients); i++) { 
+    if(this->clients[i] == num) this->clients[i] = 255; 
+  } 
+  return true;
+}
+uint8_t room_t::activeClients() {
+  uint8_t n = 0;
+  for(uint8_t i = 0; i < sizeof(this->clients); i++) {
+    if(this->clients[i] != 255) n++;
+  }
+  return n;
+}
 /*********************************************************************
  * ClientSocketEvent class members
  ********************************************************************/
@@ -46,6 +76,31 @@ bool SocketEmitter::sendToClient(uint8_t num, const char *evt, JsonObject &obj) 
   return this->sendToClient(num, evt, g_buffer);
 }
 */
+ClientSocketEvent::ClientSocketEvent() {}
+ClientSocketEvent::ClientSocketEvent(const char *evt) { snprintf(this->msg, sizeof(this->msg), "42[%s,]", evt); }
+ClientSocketEvent::ClientSocketEvent(const char *evt, const char *payload) { snprintf(this->msg, sizeof(this->msg), "42[%s,%s]", evt, payload); }
+void ClientSocketEvent::appendMessage(const char *text) {
+  uint16_t len = strlen(this->msg);
+  this->msg[len - 1] = '\0';
+  strcat(this->msg, text);
+  strcat(this->msg, "]");
+}
+uint8_t SocketEmitter::activeClients(uint8_t room) {
+  if(room < SOCK_MAX_ROOMS) return this->rooms[room].activeClients();
+  return 0;
+}
+bool SocketEmitter::sendToRoom(uint8_t room, ClientSocketEvent *evt) {
+  if(room < SOCK_MAX_ROOMS) {
+    room_t *r = &this->rooms[room];
+    for(uint8_t i = 0; i < sizeof(r->clients); i++) {
+      if(r->clients[i] != 255) this->sendToClient(r->clients[i], evt);
+    }
+    return true;
+  }
+  return false;
+}
+bool SocketEmitter::sendToClients(ClientSocketEvent *evt) { return sockServer.broadcastTXT(evt->msg); }
+bool SocketEmitter::sendToClient(uint8_t num, ClientSocketEvent *evt) { return sockServer.sendTXT(num, evt->msg); }
 bool SocketEmitter::sendToClients(const char *evt, const char *payload) {
     if(settings.status == DS_FWUPDATE) return true;
     this->evt.prepareMessage(evt, payload);
@@ -71,6 +126,9 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
               Serial.printf("Socket [%u] Disconnected!\n [%s]", num, payload);
             else
               Serial.printf("Socket [%u] Disconnected!\n", num);
+            for(uint8_t i = 0; i < SOCK_MAX_ROOMS; i++) {
+              sockEmit.rooms[i].leave(num);
+            }
             break;
         case WStype_CONNECTED:
             {
@@ -84,8 +142,21 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
             }
             break;
         case WStype_TEXT:
-            Serial.printf("Socket [%u] get Text: %s\n", num, payload);
-
+            if(strncmp((char *)payload, "join:", 5) == 0) {
+              // In this instance the client wants to join a room.  Let's do some
+              // work to get the ordinal of the room that the client wants to join.
+              uint8_t roomNum = atoi((char *)&payload[5]);
+              Serial.printf("Client %u joining room %u\n", num, roomNum);
+              if(roomNum < SOCK_MAX_ROOMS) sockEmit.rooms[roomNum].join(num);
+            }
+            else if(strncmp((char *)payload, "leave:", 6) == 0) {
+              uint8_t roomNum = atoi((char *)&payload[6]);
+              Serial.printf("Client %u leaving room %u\n", num, roomNum);
+              if(roomNum < SOCK_MAX_ROOMS) sockEmit.rooms[roomNum].leave(num);
+            }
+            else {
+              Serial.printf("Socket [%u] text: %s\n", num, payload);
+            }
             // send message to client
             // webSocket.sendTXT(num, "message here");
 

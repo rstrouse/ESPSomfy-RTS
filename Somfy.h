@@ -11,15 +11,22 @@ typedef struct appver_t {
 };
 
 enum class somfy_commands : byte {
+    Unknown0 = 0x0,
     My = 0x1,
     Up = 0x2,
     MyUp = 0x3,
     Down = 0x4,
     MyDown = 0x5,
     UpDown = 0x6,
+    Unknown7 = 0x7,
     Prog = 0x8,
     SunFlag = 0x9,
-    Flag = 0xA
+    Flag = 0xA,
+    StepUp = 0xB,
+    StepDown = 0xC,
+    UnknownD = 0xD,
+    UnknownE = 0xE,
+    UnknownF = 0xF,
 };
 enum class shade_types : byte {
   roller = 0x00,
@@ -227,6 +234,7 @@ class Transceiver {
     void sendFrame(byte *frame, uint8_t sync);
     void beginTransmit();
     void endTransmit();
+    void emitFrame(somfy_frame_t *frame);
 };
 class SomfyShadeController {
   protected:

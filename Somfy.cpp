@@ -47,10 +47,14 @@ somfy_commands translateSomfyCommand(const String& string) {
     else if (string.equalsIgnoreCase("UpDown")) return somfy_commands::UpDown;
     else if (string.equalsIgnoreCase("Prog")) return somfy_commands::Prog;
     else if (string.equalsIgnoreCase("SunFlag")) return somfy_commands::SunFlag;
+    else if (string.equalsIgnoreCase("StepUp")) return somfy_commands::StepUp;
+    else if (string.equalsIgnoreCase("StepDown")) return somfy_commands::StepDown;
     else if (string.equalsIgnoreCase("Flag")) return somfy_commands::Flag;
     else if (string.startsWith("md") || string.startsWith("MD")) return somfy_commands::MyDown;
     else if (string.startsWith("ud") || string.startsWith("UD")) return somfy_commands::UpDown;
     else if (string.startsWith("mu") || string.startsWith("MU")) return somfy_commands::MyUp;
+    else if (string.startsWith("su") || string.startsWith("SU")) return somfy_commands::StepUp;
+    else if (string.startsWith("sd") || string.startsWith("SD")) return somfy_commands::StepDown;
     else if (string.startsWith("p") || string.startsWith("P")) return somfy_commands::Prog;
     else if (string.startsWith("u") || string.startsWith("U")) return somfy_commands::Up;
     else if (string.startsWith("d") || string.startsWith("D")) return somfy_commands::Down;
@@ -80,9 +84,12 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Sun Flag";
     case somfy_commands::Flag:
         return "Flag";
+    case somfy_commands::StepUp:
+        return "Step Up";
+    case somfy_commands::StepDown:
+        return "Step Down";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
-        return "";
     }
 }
 void somfy_frame_t::decodeFrame(byte* frame) {
@@ -108,6 +115,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     if (this->valid) {
         // Check for valid command.
         switch (this->cmd) {
+        case somfy_commands::Unknown0:
         case somfy_commands::My:
         case somfy_commands::Up:
         case somfy_commands::MyUp:
@@ -117,6 +125,12 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::Prog:
         case somfy_commands::SunFlag:
         case somfy_commands::Flag:
+        case somfy_commands::StepUp:
+        case somfy_commands::StepDown:
+        case somfy_commands::Unknown7:
+        case somfy_commands::UnknownD:
+        case somfy_commands::UnknownE:
+        case somfy_commands::UnknownF:
             break;
         default:
             this->valid = false;
@@ -1452,17 +1466,17 @@ SomfyLinkedRemote::SomfyLinkedRemote() {}
 #define TOLERANCE_MIN 0.7
 #define TOLERANCE_MAX 1.3
 
-static const  uint32_t tempo_wakeup_pulse = 9415;
-static const  uint32_t tempo_wakeup_silence = 89565;
-static const  uint32_t tempo_synchro_hw_min = SYMBOL * 4 * TOLERANCE_MIN;
-static const  uint32_t tempo_synchro_hw_max = SYMBOL * 4 * TOLERANCE_MAX;
-static const  uint32_t tempo_synchro_sw_min = 4550 * TOLERANCE_MIN;
-static const  uint32_t tempo_synchro_sw_max = 4550 * TOLERANCE_MAX;
-static const  uint32_t tempo_half_symbol_min = SYMBOL * TOLERANCE_MIN;
-static const  uint32_t tempo_half_symbol_max = SYMBOL * TOLERANCE_MAX;
-static const  uint32_t tempo_symbol_min = SYMBOL * 2 * TOLERANCE_MIN;
-static const  uint32_t tempo_symbol_max = SYMBOL * 2 * TOLERANCE_MAX;
-static const  uint32_t tempo_inter_frame_gap = 30415;
+static const uint32_t tempo_wakeup_pulse = 9415;
+static const uint32_t tempo_wakeup_silence = 89565;
+static const uint32_t tempo_synchro_hw_min = SYMBOL * 4 * TOLERANCE_MIN;
+static const uint32_t tempo_synchro_hw_max = SYMBOL * 4 * TOLERANCE_MAX;
+static const uint32_t tempo_synchro_sw_min = 4550 * TOLERANCE_MIN;
+static const uint32_t tempo_synchro_sw_max = 4550 * TOLERANCE_MAX;
+static const uint32_t tempo_half_symbol_min = SYMBOL * TOLERANCE_MIN;
+static const uint32_t tempo_half_symbol_max = SYMBOL * TOLERANCE_MAX;
+static const uint32_t tempo_symbol_min = SYMBOL * 2 * TOLERANCE_MIN;
+static const uint32_t tempo_symbol_max = SYMBOL * 2 * TOLERANCE_MAX;
+static const uint32_t tempo_inter_frame_gap = 30415;
 
 static int16_t  bitMin = SYMBOL * TOLERANCE_MIN;
 typedef enum {
@@ -1470,7 +1484,9 @@ typedef enum {
     receiving_data = 1,
     complete = 2
 } t_status;
-
+#define MAX_TIMINGS 500
+static uint16_t timing_index = 0;
+static uint32_t timings[MAX_TIMINGS];
 static struct somfy_rx_t
 {
     t_status status;
@@ -1479,6 +1495,8 @@ static struct somfy_rx_t
     uint8_t previous_bit;
     bool waiting_half_symbol;
     uint8_t payload[10];
+    unsigned int pulses[MAX_TIMINGS];
+    uint16_t pulseCount;
 } somfy_rx;
 uint8_t receive_buffer[10]; // 80 bits
 bool packet_received = false;
@@ -1529,6 +1547,7 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync) {
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
   delayMicroseconds(30415);
 }
+
 void RECEIVE_ATTR Transceiver::handleReceive() {
     static unsigned long last_time = 0;
     const long time = micros();
@@ -1541,6 +1560,7 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
     last_time = time;
     switch (somfy_rx.status) {
     case waiting_synchro:
+        somfy_rx.pulses[somfy_rx.pulseCount++] = duration;
         if (duration > tempo_synchro_hw_min && duration < tempo_synchro_hw_max) {
             // We have found a hardware sync bit.  There should be at least 4 of these.
             ++somfy_rx.cpt_synchro_hw;
@@ -1554,14 +1574,15 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
             somfy_rx.waiting_half_symbol = false;
             somfy_rx.cpt_bits = 0;
             somfy_rx.status = receiving_data;
-
         }
         else {
             // Reset and start looking for hardware sync again.
             somfy_rx.cpt_synchro_hw = 0;
+            somfy_rx.pulseCount = 0;
         }
         break;
     case receiving_data:
+        somfy_rx.pulses[somfy_rx.pulseCount++] = duration;
         // We should be receiving data at this point.
         if (duration > tempo_symbol_min && duration < tempo_symbol_max && !somfy_rx.waiting_half_symbol) {
             somfy_rx.previous_bit = 1 - somfy_rx.previous_bit;
@@ -1582,6 +1603,7 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         else {
             // Start over we are not within our parameters for bit timing.
             memset(&somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
+            somfy_rx.pulseCount = 0;
             somfy_rx.cpt_synchro_hw = 0;
             somfy_rx.previous_bit = 0x00;
             somfy_rx.waiting_half_symbol = false;
@@ -1593,6 +1615,8 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         break;
     }
     if (somfy_rx.status == receiving_data && somfy_rx.cpt_bits == bit_length) {
+        timing_index = somfy_rx.pulseCount;
+        memcpy(timings, somfy_rx.pulses, somfy_rx.pulseCount * sizeof(uint32_t));
         memcpy(receive_buffer, somfy_rx.payload, sizeof(receive_buffer));
         packet_received = true;
         m_hwsync = somfy_rx.cpt_synchro_hw;
@@ -1612,9 +1636,34 @@ bool Transceiver::receive() {
         this->frame.decodeFrame(receive_buffer);
         //this->frame.lqi = ELECHOUSE_cc1101.getLqi();
         if (!this->frame.valid) this->clearReceived();
+        this->emitFrame(&this->frame);
         return this->frame.valid;
     }
     return false;
+}
+void Transceiver::emitFrame(somfy_frame_t *frame) {
+  if(sockEmit.activeClients(ROOM_EMIT_FRAME) > 0) {
+    ClientSocketEvent evt("remoteFrame");
+    char buf[30];
+    snprintf(buf, sizeof(buf), "{\"encKey\":%d,", frame->encKey);
+    evt.appendMessage(buf);
+    snprintf(buf, sizeof(buf), "\"address\":%d,", frame->remoteAddress);
+    evt.appendMessage(buf);
+    snprintf(buf, sizeof(buf), "\"rcode\":%d,", frame->rollingCode);
+    evt.appendMessage(buf);
+    snprintf(buf, sizeof(buf), "\"command\":\"%s\",", translateSomfyCommand(frame->cmd));
+    evt.appendMessage(buf);
+    snprintf(buf, sizeof(buf), "\"rssi\":%d,", frame->rssi);
+    evt.appendMessage(buf);
+    snprintf(buf, sizeof(buf), "\"sync\":%d,\"pulses\":[", frame->hwsync);
+    evt.appendMessage(buf);
+    for(uint16_t i = 0; i < timing_index; i++) {
+      snprintf(buf, sizeof(buf), "%s%d", i != 0 ? "," : "", timings[i]);
+      evt.appendMessage(buf);
+    }
+    evt.appendMessage("]}");
+    sockEmit.sendToRoom(ROOM_EMIT_FRAME, &evt);
+  }
 }
 void Transceiver::clearReceived(void) {
     packet_received = false;
@@ -1854,16 +1903,19 @@ void transceiver_config_t::apply() {
       if(!radioInit) return;
       Serial.print("Applying radio settings ");
       Serial.printf("Setting Data Pins RX:%u TX:%u\n", this->RXPin, this->TXPin);
-      ELECHOUSE_cc1101.setGDO(this->TXPin, this->RXPin);
+      if(this->TXPin == this->RXPin)
+        ELECHOUSE_cc1101.setGDO0(this->TXPin); // This pin may be shared.
+      else
+        ELECHOUSE_cc1101.setGDO(this->TXPin, this->RXPin); // GDO0, GDO2
       Serial.printf("Setting SPI Pins SCK:%u MISO:%u MOSI:%u CSN:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin);
       ELECHOUSE_cc1101.setSpiPin(this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin);
       Serial.println("Radio Pins Configured!");
       ELECHOUSE_cc1101.Init();
+      ELECHOUSE_cc1101.setCCMode(0);                            // set config for internal transmission mode.
       ELECHOUSE_cc1101.setMHZ(this->frequency);                 // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
       ELECHOUSE_cc1101.setRxBW(this->rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
       ELECHOUSE_cc1101.setDeviation(this->deviation);
       ELECHOUSE_cc1101.setPA(this->txPower);                    // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
-      //ELECHOUSE_cc1101.setCCMode(this->internalCCMode);         // set config for internal transmission mode.
       //ELECHOUSE_cc1101.setModulation(this->modulationMode);     // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
       if (!ELECHOUSE_cc1101.getCC1101()) {
           Serial.println("Error setting up the radio");
@@ -1885,7 +1937,6 @@ void transceiver_config_t::apply() {
       this->radioInit = false;
     }
     /*
-    ELECHOUSE_cc1101.setDeviation(this->deviation);           // Set the Frequency deviation in kHz. Value from 1.58 to 380.85. Default is 47.60 kHz.
     ELECHOUSE_cc1101.setChannel(this->channel);               // Set the Channelnumber from 0 to 255. Default is cahnnel 0.
     ELECHOUSE_cc1101.setChsp(this->channelSpacing);           // The channel spacing is multiplied by the channel number CHAN and added to the base frequency in kHz. Value from 25.39 to 405.45. Default is 199.95 kHz.
     ELECHOUSE_cc1101.setDRate(this->dataRate);                // Set the Data Rate in kBaud. Value from 0.02 to 1621.83. Default is 99.97 kBaud!
@@ -1917,9 +1968,11 @@ void Transceiver::loop() {
     if (this->receive()) {
         this->clearReceived();
         somfy.processFrame(this->frame, false);
+        /*
         char buf[177];
         snprintf(buf, sizeof(buf), "{\"encKey\":%d,\"address\":%d,\"rcode\":%d,\"command\":\"%s\",\"rssi\":%d}", this->frame.encKey, this->frame.remoteAddress, this->frame.rollingCode, translateSomfyCommand(this->frame.cmd), this->frame.rssi);
         sockEmit.sendToClients("remoteFrame", buf);
+        */
     }
     else {
       somfy.processWaitingFrame();

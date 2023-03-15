@@ -664,3 +664,29 @@ i.icss-file {
         transform: rotate(-45deg);
         top: .02em;
     }
+
+i.icss-x {
+    width: 1em;
+    height: 1em;
+    background-color: transparent;
+    margin: 0;
+}
+
+    i.icss-x:before,
+    i.icss-x:after {
+        width: 1em;
+        height: .18em;
+        top: 50%;
+        left: 50%;
+        border-radius: .06em;
+        background-color: currentColor;
+    }
+
+    i.icss-x:before {
+        transform: translate(-50%, -50%) rotate(-225deg)
+    }
+
+    i.icss-x:after {
+        transform: translate(-50%, -50%) rotate(225deg)
+    }
+
