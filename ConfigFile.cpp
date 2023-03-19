@@ -6,9 +6,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 1
+#define SHADE_HDR_VER 2
 #define SHADE_HDR_SIZE 16
-#define SHADE_REC_SIZE 176
+#define SHADE_REC_SIZE 180
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -228,7 +228,7 @@ bool ShadeConfigFile::validate() {
   }
   // We should know the file size based upon the record information in the header
   if(this->file.size() != this->header.length + (this->header.recordSize * this->header.records)) {
-    Serial.printf("File size is not correct should be %d and got %d", this->header.length + (this->header.recordSize * this->header.records), this->file.size());
+    Serial.printf("File size is not correct should be %d and got %d\n", this->header.length + (this->header.recordSize * this->header.records), this->file.size());
   }
   // Next check to see if the records match the header length.
   uint8_t recs = 0;
@@ -282,6 +282,9 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     shade->setRemoteAddress(this->readUInt32(0));
     this->readString(shade->name, sizeof(shade->name));
     shade->hasTilt = this->readBool(false);
+    if(this->header.version > 1) {
+      shade->bitLength = this->readUInt8(56);
+    }
     shade->upTime = this->readUInt32(shade->upTime);
     shade->downTime = this->readUInt32(shade->downTime);
     shade->tiltTime = this->readUInt32(shade->tiltTime);
@@ -314,6 +317,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   this->writeUInt32(shade->getRemoteAddress());
   this->writeString(shade->name, sizeof(shade->name));
   this->writeBool(shade->hasTilt);
+  this->writeUInt8(shade->bitLength);
   this->writeUInt32(shade->upTime);
   this->writeUInt32(shade->downTime);
   this->writeUInt32(shade->tiltTime);

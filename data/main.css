@@ -726,6 +726,12 @@ div.frame-header > span {
     div.frame-header > span:nth-child(5) {
         width: 57px;
     }
+    div.frame-row > span:nth-child(6),
+    div.frame-header > span:nth-child(6) {
+        width: 47px;
+        text-align:center;
+    }
+
 div.frame-list > div:nth-child(2n+1) {
     background: beige;
 }

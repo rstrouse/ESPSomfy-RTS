@@ -348,7 +348,7 @@ void Web::begin() {
         // TODO: Do some validation of the file.
         Serial.println("Validating restore");
         // Go through the uploaded file to determine if it is valid.
-        somfy.loadShadesFile("/shades.tmp");
+        if(somfy.loadShadesFile("/shades.tmp")) somfy.commit();
       }
     });
   server.on("/index.js", []() {
@@ -471,6 +471,7 @@ void Web::begin() {
     JsonObject obj = doc.to<JsonObject>();
     obj["shadeId"] = shadeId;
     obj["remoteAddress"] = somfy.getNextRemoteAddress(shadeId);
+    obj["bitLength"] = somfy.transceiver.config.type;
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     });

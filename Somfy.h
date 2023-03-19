@@ -18,15 +18,17 @@ enum class somfy_commands : byte {
     Down = 0x4,
     MyDown = 0x5,
     UpDown = 0x6,
-    Unknown7 = 0x7,
+    MyUpDown = 0x7,
     Prog = 0x8,
     SunFlag = 0x9,
     Flag = 0xA,
     StepUp = 0xB,
-    StepDown = 0xC,
+    UnknownC = 0xC,
     UnknownD = 0xD,
     UnknownE = 0xE,
     UnknownF = 0xF,
+    // Command extensions for 80 bit frames
+    StepDown = 0x8B
 };
 enum class shade_types : byte {
   roller = 0x00,
@@ -37,6 +39,36 @@ enum class shade_types : byte {
 String translateSomfyCommand(const somfy_commands cmd);
 somfy_commands translateSomfyCommand(const String& string);
 
+#define MAX_TIMINGS 300
+#define MAX_RX_BUFFER 3
+
+typedef enum {
+    waiting_synchro = 0,
+    receiving_data = 1,
+    complete = 2
+} t_status;
+typedef struct somfy_rx_t {
+    t_status status;
+    uint8_t bit_length = 56;
+    uint8_t cpt_synchro_hw = 0;
+    uint8_t cpt_bits = 0;
+    uint8_t previous_bit = 0;
+    bool waiting_half_symbol;
+    uint8_t payload[10];
+    unsigned int pulses[MAX_TIMINGS];
+    uint16_t pulseCount = 0;
+};
+// A simple FIFO queue to hold rx buffers.  We are using
+// a byte index to make it so we don't have to reorganize
+// the storage each time we push or pop.
+typedef struct somfy_rx_queue_t {
+  void init();
+  uint8_t length = 0;
+  uint8_t index[MAX_RX_BUFFER];
+  somfy_rx_t items[MAX_RX_BUFFER];
+  //void push(somfy_rx_t *rx);
+  bool pop(somfy_rx_t *rx);
+};
 typedef struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
@@ -50,9 +82,12 @@ typedef struct somfy_frame_t {
     uint8_t hwsync = 0;
     uint8_t repeats = 0;
     uint32_t await = 0;
+    uint8_t bitLength = 56;
+    uint16_t pulseCount = 0;
     void print();
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
+    void decodeFrame(somfy_rx_t *rx);
     bool isRepeat(somfy_frame_t &f);
     void copy(somfy_frame_t &f);
 };
@@ -65,6 +100,7 @@ class SomfyRemote {
     char m_remotePrefId[10] = "";
     uint32_t m_remoteAddress = 0;
   public:
+    uint8_t bitLength = 0;
     char *getRemotePrefId() {return m_remotePrefId;}
     virtual bool toJSON(JsonObject &obj);
     virtual void setRemoteAddress(uint32_t address);
@@ -87,7 +123,7 @@ class SomfyShade : public SomfyRemote {
     float startTiltPos = 0.00;
     bool seekingPos = false;
     bool seekingTiltPos = false;
-    bool seekingMyPos = false;
+    bool seekingFixedPos = false;
     bool settingMyPos = false;
     uint32_t awaitMy = 0;
   public:
@@ -153,7 +189,7 @@ typedef struct transceiver_config_t {
     bool radioInit = false;
     float frequency = 433.42;         // Basic frequency
     float deviation = 47.60;          // Set the Frequency deviation in kHz. Value from 1.58 to 380.85. Default is 47.60 kHz.
-    float rxBandwidth = 812.5;        // Receive bandwidth in kHz.  Value from 58.03 to 812.50.  Default is 99.97kHz.
+    float rxBandwidth = 99.97;        // Receive bandwidth in kHz.  Value from 58.03 to 812.50.  Default is 99.97kHz.
     int8_t txPower = 10;              // Transmission power {-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12}.  Default is 12.
 /*    
     bool internalCCMode = false;      // Use internal transmission mode FIFO buffers.
@@ -234,7 +270,7 @@ class Transceiver {
     void sendFrame(byte *frame, uint8_t sync);
     void beginTransmit();
     void endTransmit();
-    void emitFrame(somfy_frame_t *frame);
+    void emitFrame(somfy_frame_t *frame, somfy_rx_t *rx = nullptr);
 };
 class SomfyShadeController {
   protected:

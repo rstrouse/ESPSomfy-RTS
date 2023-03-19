@@ -372,7 +372,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.4.1';
+    appVersion = 'v1.4.2';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -1300,7 +1300,7 @@ class Somfy {
         let frames = document.getElementById('divFrames');
         let row = document.createElement('div');
         row.classList.add('frame-row');
-        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><div class="frame-pulses">`;
+        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><span>${frame.bits}</span><div class="frame-pulses">`;
         for (let i = 0; i < frame.pulses.length; i++) {
             if (i !== 0) html += ',';
             html += `${frame.pulses[i]}`;
@@ -1398,6 +1398,7 @@ class Somfy {
                     document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
                     document.getElementById('divLinkedRemoteList').innerHTML = '';
                     document.getElementById('btnSetRollingCode').style.display = 'none';
+                    document.getElementById('selShadeBitLength').value = shade.bitLength || 56;
                 }
             });
         }
@@ -1475,7 +1476,8 @@ class Somfy {
             upTime: parseInt(document.getElementsByName('shadeUpTime')[0].value, 10),
             downTime: parseInt(document.getElementsByName('shadeDownTime')[0].value, 10),
             shadeType: parseInt(document.getElementById('selShadeType').value, 10),
-            tiltTime: parseInt(document.getElementById('fldTiltTime').value, 10)
+            tiltTime: parseInt(document.getElementById('fldTiltTime').value, 10),
+            bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56
         };
         if (obj.shadeType == 1) {
             obj.hasTilt = document.getElementById('cbHasTilt').checked;
