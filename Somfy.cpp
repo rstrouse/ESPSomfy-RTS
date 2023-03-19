@@ -1468,7 +1468,7 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
   
   byte frm[10];
   frame.encodeFrame(frm);
-  this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 2 : 12);
+  this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 2 : 12, frame.bitLength);
   // Transform the repeat bytes
   switch(frame.cmd) {
     case somfy_commands::StepUp:
@@ -1483,7 +1483,7 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
       break;
   }
   for(uint8_t i = 0; i < repeat; i++) {
-    this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 7 : 6);
+    this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 7 : 6, frame.bitLength);
   }
   this->transceiver.endTransmit();
 }
@@ -1622,7 +1622,7 @@ bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
   }
   return false;
 }
-void Transceiver::sendFrame(byte *frame, uint8_t sync) {
+void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   if(!this->config.enabled) return;
   uint32_t pin = 1 << this->config.TXPin;
   if (sync == 2 || sync == 12) {  // Only with the first frame.
@@ -1647,7 +1647,7 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync) {
   delayMicroseconds(SYMBOL);
   // Data: bits are sent one by one, starting with the MSB.
   // TODO: Handle the 80-bit send protocol
-  for (byte i = 0; i < bit_length; i++) {
+  for (byte i = 0; i < bitLength; i++) {
     if (((frame[i / 8] >> (7 - (i % 8))) & 1) == 1) {
       REG_WRITE(GPIO_OUT_W1TC_REG, pin);
       delayMicroseconds(SYMBOL);

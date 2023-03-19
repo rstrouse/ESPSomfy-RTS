@@ -118,12 +118,14 @@ void Web::begin() {
     HTTPMethod method = apiServer.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
+    uint8_t repeat = 1;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (apiServer.hasArg("shadeId")) {
         shadeId = atoi(apiServer.arg("shadeId").c_str());
         if (apiServer.hasArg("command")) command = translateSomfyCommand(apiServer.arg("command"));
         else if(apiServer.hasArg("target")) target = atoi(apiServer.arg("target").c_str());
+        if(apiServer.hasArg("repeat")) repeat = atoi(apiServer.arg("repeat").c_str());
       }
       else if (apiServer.hasArg("plain")) {
         Serial.println("Sending Shade Command");
@@ -154,6 +156,7 @@ void Web::begin() {
           else if(obj.containsKey("target")) {
             target = obj["target"].as<uint8_t>();
           }
+          if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
         }
       }
       else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
@@ -166,7 +169,7 @@ void Web::begin() {
       if(target >= 0 && target <= 100)
         shade->moveToTarget(target);
       else
-        shade->sendCommand(command);
+        shade->sendCommand(command, repeat);
       DynamicJsonDocument sdoc(256);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);
@@ -702,12 +705,14 @@ void Web::begin() {
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
+    uint8_t repeat = 1;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (server.hasArg("shadeId")) {
         shadeId = atoi(server.arg("shadeId").c_str());
         if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
         else if(server.hasArg("target")) target = atoi(server.arg("target").c_str());
+        if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
       }
       else if (server.hasArg("plain")) {
         Serial.println("Sending Shade Command");
@@ -738,6 +743,7 @@ void Web::begin() {
           else if(obj.containsKey("target")) {
             target = obj["target"].as<uint8_t>();
           }
+          if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
         }
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
@@ -750,7 +756,7 @@ void Web::begin() {
       if(target >= 0 && target <= 100)
         shade->moveToTarget(target);
       else
-        shade->sendCommand(command);
+        shade->sendCommand(command, repeat);
       DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);
