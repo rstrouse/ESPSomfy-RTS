@@ -22,13 +22,13 @@ enum class somfy_commands : byte {
     Prog = 0x8,
     SunFlag = 0x9,
     Flag = 0xA,
-    StepUp = 0xB,
+    StepDown = 0xB,
     UnknownC = 0xC,
     UnknownD = 0xD,
-    UnknownE = 0xE,
+    UnknownE = 0xE, // This command byte has been witnessed in the wild but cannot tell if it is from Somfy.  No rolling code is sent with this and it is 56-bits.
     UnknownF = 0xF,
     // Command extensions for 80 bit frames
-    StepDown = 0x8B
+    StepUp = 0x8B
 };
 enum class shade_types : byte {
   roller = 0x00,

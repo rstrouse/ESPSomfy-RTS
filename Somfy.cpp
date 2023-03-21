@@ -48,6 +48,7 @@ somfy_commands translateSomfyCommand(const String& string) {
     else if (string.equalsIgnoreCase("Prog")) return somfy_commands::Prog;
     else if (string.equalsIgnoreCase("SunFlag")) return somfy_commands::SunFlag;
     else if (string.equalsIgnoreCase("StepUp")) return somfy_commands::StepUp;
+    else if (string.equalsIgnoreCase("StepDown")) return somfy_commands::StepDown;
     else if (string.equalsIgnoreCase("Flag")) return somfy_commands::Flag;
     else if (string.startsWith("mud") || string.startsWith("MUD")) return somfy_commands::MyUpDown;
     else if (string.startsWith("md") || string.startsWith("MD")) return somfy_commands::MyDown;
@@ -115,10 +116,13 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     this->checksum = decoded[1] & 0b1111;
     this->encKey = decoded[0];
     // Pull in the 80-bit commands.  The upper nibble will be 0 even on 80 bit packets.
-    this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
+    this->cmd = (somfy_commands)((decoded[1] >> 4));
+    // Pull in the data for an 80-bit step command.
+    if(this->cmd == somfy_commands::StepDown)
+      this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
     this->rollingCode = decoded[3] + (decoded[2] << 8);
     this->remoteAddress = (decoded[6] + (decoded[5] << 8) + (decoded[4] << 16));
-    this->valid = this->checksum == checksum && this->remoteAddress < 16777215;
+    this->valid = this->checksum == checksum && this->remoteAddress < 16777215 && this->rollingCode > 0;
     if (this->valid) {
         // Check for valid command.
         switch (this->cmd) {
@@ -215,8 +219,8 @@ void somfy_frame_t::encodeFrame(byte *frame) {
   frame[9] = 29;
   switch(this->cmd) {
     case somfy_commands::StepUp:
-      frame[7] = 136;
-      frame[8] = 52;
+      frame[7] = 132;
+      frame[8] = 56;
       frame[9] = 22;
       break;
     case somfy_commands::StepDown:
@@ -1449,6 +1453,7 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   frame.cmd = cmd;
   frame.repeats = repeat;
   frame.bitLength = this->bitLength;
+  frame.encKey = 0xA0 | static_cast<uint8_t>(frame.rollingCode & 0x000F);
   if(frame.bitLength == 0) frame.bitLength = bit_length;
   this->lastRollingCode = frame.rollingCode;
   somfy.sendFrame(frame, repeat);
@@ -1646,7 +1651,6 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
   delayMicroseconds(SYMBOL);
   // Data: bits are sent one by one, starting with the MSB.
-  // TODO: Handle the 80-bit send protocol
   for (byte i = 0; i < bitLength; i++) {
     if (((frame[i / 8] >> (7 - (i % 8))) & 1) == 1) {
       REG_WRITE(GPIO_OUT_W1TC_REG, pin);
