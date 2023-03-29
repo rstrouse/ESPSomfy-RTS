@@ -5,7 +5,13 @@ document.oncontextmenu = (event) => {
         event.preventDefault(); event.stopPropagation(); return false;
     }
 }
-
+Date.prototype.toJSON = function () {
+    let tz = this.getTimezoneOffset();
+    let sign = tz > 0 ? '-' : '+';
+    let tzHrs = Math.floor(Math.abs(tz) / 60).fmt('00');
+    let tzMin = (Math.abs(tz) % 60).fmt('00');
+    return `${this.getFullYear()}-${(this.getMonth() + 1).fmt('00')}-${this.getDate().fmt('00')}T${this.getHours().fmt('00')}:${this.getMinutes().fmt('00')}:${this.getSeconds().fmt('00')}.${this.getMilliseconds().fmt('000')}${sign}${tzHrs}${tzMin}`;
+};
 Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
 Number.prototype.fmt = function (format, empty) {
     if (isNaN(this)) return empty || '';
@@ -81,7 +87,7 @@ Number.prototype.fmt = function (format, empty) {
         }
         if (fw.length > rw.length) {
             var pstart = fw.indexOf('0');
-            if (pstart > 0) {
+            if (pstart >= 0) {
                 var plen = fw.length - pstart;
                 var pos = fw.length - rw.length - 1;
                 while (rw.length < plen) {
@@ -372,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.4.3';
+    appVersion = 'v1.4.4';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -987,9 +993,14 @@ class Somfy {
                             return false;
                         }
                         if (sval === val) {
-                            errorMessage(document.getElementById('fsSomfySettings'), `The ${name.replace('Pin', '')} pin is duplicated by the ${s.replace('Pin', '')}.  All pin definitions must be unique`);
-                            valid = false;
-                            return false;
+                            if ((name === 'TXPin' && s === 'RXPin') ||
+                                (name === 'RXPin' && s === 'TXPin'))
+                                continue; // The RX and TX pins can share the same value.  In this instance the radio will only use GDO0.
+                            else {
+                                errorMessage(document.getElementById('fsSomfySettings'), `The ${name.replace('Pin', '')} pin is duplicated by the ${s.replace('Pin', '')}.  All pin definitions must be unique`);
+                                valid = false;
+                                return false;
+                            }
                         }
                     }
                 }
@@ -1300,11 +1311,22 @@ class Somfy {
         let frames = document.getElementById('divFrames');
         let row = document.createElement('div');
         row.classList.add('frame-row');
-        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><span>${frame.bits}</span><div class="frame-pulses">`;
+        row.setAttribute('data-valid', frame.valid);
+        // The socket is not sending the current date so we will snag the current receive date from
+        // the browser.
+        let fnFmtDate = (dt) => {
+            return `${(dt.getMonth() + 1).fmt('00')}/${dt.getDate().fmt('00')} ${dt.getHours().fmt('00')}:${dt.getMinutes().fmt('00')}:${dt.getSeconds().fmt('00')}.${dt.getMilliseconds().fmt('000')}`;
+        }
+        let fnFmtTime = (dt) => {
+            return `${dt.getHours().fmt('00')}:${dt.getMinutes().fmt('00')}:${dt.getSeconds().fmt('00')}.${dt.getMilliseconds().fmt('000')}`;
+        }
+        frame.time = new Date();
+        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><span>${frame.bits}</span><span>${fnFmtTime(frame.time)}</span><div class="frame-pulses">`;
         for (let i = 0; i < frame.pulses.length; i++) {
             if (i !== 0) html += ',';
             html += `${frame.pulses[i]}`;
         }
+        html += '</div>'
         row.innerHTML = html;
         frames.prepend(row);
         this.frames.push(frame);
@@ -1732,7 +1754,6 @@ class Somfy {
             putJSON('/tiltCommand', { shadeId: shadeId, target: parseInt(command, 10) }, (err, shade) => {
             });
     };
-
     linkRemote(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divLinking" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
@@ -1785,7 +1806,6 @@ class Somfy {
             somfy.sendTiltCommand(shadeId, el.value);
         }
     }
-
     openSetPosition(shadeId) {
         console.log('Opening Shade Positioner');
         if (typeof shadeId === 'undefined') {

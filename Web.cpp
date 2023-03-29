@@ -905,7 +905,10 @@ void Web::begin() {
         server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade not found to pair\"}"));
       }
       else {
-        shade->sendCommand(somfy_commands::Prog, 7);
+        if(shade->bitLength == 56)
+          shade->sendCommand(somfy_commands::Prog, 7);
+        else
+          shade->sendCommand(somfy_commands::Prog, 1);
         shade->paired = true;
         shade->save();
         DynamicJsonDocument doc(512);
@@ -951,7 +954,10 @@ void Web::begin() {
         server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade not found to unpair\"}"));
       }
       else {
-        shade->sendCommand(somfy_commands::Prog, 7);
+        if(shade->bitLength == 56)
+          shade->sendCommand(somfy_commands::Prog, 7);
+        else
+          shade->sendCommand(somfy_commands::Prog, 1);
         shade->paired = false;
         shade->save();
         DynamicJsonDocument doc(512);

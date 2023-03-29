@@ -704,6 +704,7 @@ div.frame-header > span {
     }
     div.frame-row > span {
         text-align:right;
+        text-decoration:inherit;
     }
     div.frame-row > span:nth-child(1),
     div.frame-header > span:nth-child(1) {
@@ -728,8 +729,13 @@ div.frame-header > span {
     }
     div.frame-row > span:nth-child(6),
     div.frame-header > span:nth-child(6) {
-        width: 47px;
+        width: 27px;
         text-align:center;
+    }
+    div.frame-row > span:nth-child(7),
+    div.frame-header > span:nth-child(7) {
+        text-align: right;
+        white-space:nowrap;
     }
 
 div.frame-list > div:nth-child(2n+1) {
@@ -739,6 +745,10 @@ div.frame-row {
     font-size:12px;
     width:100%;
     background:white;
+}
+div.frame-row[data-valid="false"] {
+    text-decoration:line-through;
+    color:red;
 }
 div.frame-pulses {
     width:100%;

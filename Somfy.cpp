@@ -25,7 +25,7 @@ uint8_t rxmode = 0;  // Indicates whether the radio is in receive mode.  Just to
 #endif
 
 #define SETMY_REPEATS 15
-#define TILT_REPEATS 7
+#define TILT_REPEATS 15
 
 int sort_asc(const void *cmp1, const void *cmp2) {
   int a = *((uint8_t *)cmp1);
@@ -137,12 +137,14 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::Prog:
         case somfy_commands::SunFlag:
         case somfy_commands::Flag:
-        case somfy_commands::StepUp:
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
         case somfy_commands::UnknownE:
         case somfy_commands::UnknownF:
+            break;
+        case somfy_commands::StepUp:
         case somfy_commands::StepDown:
+            // These must be 80 bit commands
             break;
         default:
             this->valid = false;
@@ -1812,8 +1814,11 @@ void Transceiver::emitFrame(somfy_frame_t *frame, somfy_rx_t *rx) {
     evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"bits\":%d,", rx->bit_length);
     evt.appendMessage(buf);
+    snprintf(buf, sizeof(buf), "\"valid\":%s,", frame->valid ? "true" : "false");
+    evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"sync\":%d,\"pulses\":[", frame->hwsync);
     evt.appendMessage(buf);
+    
     if(rx) {
       for(uint16_t i = 0; i < rx->pulseCount; i++) {
         snprintf(buf, sizeof(buf), "%s%d", i != 0 ? "," : "", rx->pulses[i]);
@@ -1969,6 +1974,7 @@ void transceiver_config_t::save() {
     pref.putFloat("rxBandwidth", this->rxBandwidth); // float
     pref.putBool("enabled", this->enabled);
     pref.putBool("radioInit", true);
+    pref.putChar("txPower", this->txPower);
     
     /*
     pref.putBool("internalCCMode", this->internalCCMode);
@@ -2061,6 +2067,10 @@ void transceiver_config_t::apply() {
       if(!radioInit) return;
       Serial.print("Applying radio settings ");
       Serial.printf("Setting Data Pins RX:%u TX:%u\n", this->RXPin, this->TXPin);
+      //if(this->TXPin != this->RXPin)
+      //  pinMode(this->TXPin, OUTPUT);
+      //pinMode(this->RXPin, INPUT);
+      // Essentially these call only preform the two functions above.
       if(this->TXPin == this->RXPin)
         ELECHOUSE_cc1101.setGDO0(this->TXPin); // This pin may be shared.
       else
