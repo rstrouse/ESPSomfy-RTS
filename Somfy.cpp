@@ -1633,14 +1633,17 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   if(!this->config.enabled) return;
   uint32_t pin = 1 << this->config.TXPin;
   if (sync == 2 || sync == 12) {  // Only with the first frame.
-    // Wake-up pulse & Silence
+    // Wake-up pulse
     REG_WRITE(GPIO_OUT_W1TS_REG, pin);
     delayMicroseconds(9415);
+    // Silence
     REG_WRITE(GPIO_OUT_W1TC_REG, pin);
     delayMicroseconds(9565);
     delay(80);
   }
-  // Hardware sync: two sync for the first frame, seven for the following ones.
+  // Depending on the bitness of the protocol we will be sending a different hwsync.
+  // 56-bit 2 pulses for the first frame and 7 for the repeats
+  // 80-bit 24 pulses for the first frame and 14 pulses for the repeats
   for (int i = 0; i < sync; i++) {
     REG_WRITE(GPIO_OUT_W1TS_REG, pin);
     delayMicroseconds(4 * SYMBOL);
@@ -1650,9 +1653,11 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   // Software sync
   REG_WRITE(GPIO_OUT_W1TS_REG, pin);
   delayMicroseconds(4450);
+  // Start 0
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
   delayMicroseconds(SYMBOL);
-  // Data: bits are sent one by one, starting with the MSB.
+  // Payload starting with the most significant bit.  The frame is always supplied in 80 bits
+  // but if the protocol is calling for 56 bits it will only send 56 bits of the frame.
   for (byte i = 0; i < bitLength; i++) {
     if (((frame[i / 8] >> (7 - (i % 8))) & 1) == 1) {
       REG_WRITE(GPIO_OUT_W1TC_REG, pin);
@@ -1666,9 +1671,13 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
       delayMicroseconds(SYMBOL);
     }
   }
-  // Inter-frame silence
+  // Inter-frame silence for 56-bit protocols are around 34ms.  However, an 80 bit protocol should
+  // reduce this by the transmission of SYMBOL * 24 or 15,360us
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
-  delayMicroseconds(30415);
+  if(bitLength == 80)
+    delayMicroseconds(15055);
+  else
+    delayMicroseconds(30415);
 }
 
 void RECEIVE_ATTR Transceiver::handleReceive() {
