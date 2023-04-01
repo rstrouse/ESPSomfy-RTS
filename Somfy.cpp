@@ -1603,7 +1603,6 @@ static const uint32_t tempo_inter_frame_gap = 30415;
 
 static int16_t  bitMin = SYMBOL * TOLERANCE_MIN;
 static uint16_t timing_index = 0;
-//static uint32_t timings[MAX_TIMINGS];
 static somfy_rx_t somfy_rx;
 static somfy_rx_queue_t rx_queue;
 

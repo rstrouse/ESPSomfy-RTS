@@ -141,6 +141,7 @@ bool MQTTSettings::fromJSON(JsonObject &obj) {
   this->parseValueString(obj, "username", this->username, sizeof(this->username));
   this->parseValueString(obj, "password", this->password, sizeof(this->password));
   this->parseValueString(obj, "rootTopic", this->rootTopic, sizeof(this->rootTopic));
+  if(obj.containsKey("port")) this->port = obj["port"];
   return true;
 }
 bool MQTTSettings::save() {
