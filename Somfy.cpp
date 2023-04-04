@@ -1710,7 +1710,7 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         // We need to ignore this bit.
         // REMOVE THIS AFTER WE DETERMINE THAT THE out-of-bounds stuff isn't a problem.  If there are bits
         // from the previous frame then we will capture this data here.
-        if(somfy_rx.pulseCount < MAX_TIMINGS) somfy_rx.pulses[somfy_rx.pulseCount++] = duration;
+        if(somfy_rx.pulseCount < MAX_TIMINGS && somfy_rx.cpt_synchro_hw > 0) somfy_rx.pulses[somfy_rx.pulseCount++] = duration;
         return;
     }
     last_time = time;
@@ -1740,24 +1740,18 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         else {
             // Reset and start looking for hardware sync again.
             somfy_rx.cpt_synchro_hw = 0;
-            //somfy_rx.pulseCount = 0;
             // Try to capture the wakeup pulse.
             if(duration > tempo_wakeup_min && duration < tempo_wakeup_max)
             {
                 memset(&somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
-                //somfy_rx.pulseCount = 1;
-                somfy_rx.cpt_synchro_hw = 0;
                 somfy_rx.previous_bit = 0x00;
                 somfy_rx.waiting_half_symbol = false;
                 somfy_rx.cpt_bits = 0;
                 somfy_rx.bit_length = 56;
             }
-            else if(duration > tempo_wakeup_silence_max) {
+            else if((somfy_rx.pulseCount > 10 && somfy_rx.cpt_synchro_hw == 0) || duration > 150000) {
               somfy_rx.pulseCount = 0;
             }
-            //else {
-            //  somfy_rx.pulseCount = 0;
-            //}
         }
         break;
     case receiving_data:

@@ -880,7 +880,7 @@ class Wifi {
         document.getElementById('spanNetworkChannel').innerHTML = isNaN(strength.channel) || strength.channel < 0 ? '--' : strength.channel;
         let cssClass = 'waveStrength-' + ((isNaN(strength.strength) || strength > 0) ? -100 : this.calcWaveStrength(strength.strength));
         let elWave = document.getElementById('divNetworkStrength').children[0];
-        if (!elWave.classList.contains(cssClass)) {
+        if (typeof elWave !== 'undefined' && !elWave.classList.contains(cssClass)) {
             elWave.classList.remove('waveStrength-0', 'waveStrength-1', 'waveStrength-2', 'waveStrength-3', 'waveStrength-4');
             elWave.classList.add(cssClass);
         }

@@ -40,7 +40,7 @@ class WifiSettings: BaseSettings {
     WifiSettings();
 //    char hostname[32] = "ESPSomfyRTS";
     char ssid[64] = "";
-    char passphrase[32] = "";
+    char passphrase[64] = "";
     //bool ssdpBroadcast = true;
     bool begin();
     bool fromJSON(JsonObject &obj);
