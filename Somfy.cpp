@@ -1590,7 +1590,11 @@ SomfyLinkedRemote::SomfyLinkedRemote() {}
 #define TOLERANCE_MAX 1.3
 
 static const uint32_t tempo_wakeup_pulse = 9415;
+static const uint32_t tempo_wakeup_min = 9415 * TOLERANCE_MIN;
+static const uint32_t tempo_wakeup_max = 9415 * TOLERANCE_MAX;
 static const uint32_t tempo_wakeup_silence = 89565;
+static const uint32_t tempo_wakeup_silence_min = 89565 * TOLERANCE_MIN;
+static const uint32_t tempo_wakeup_silence_max = 89565 * TOLERANCE_MAX;
 static const uint32_t tempo_synchro_hw_min = SYMBOL * 4 * TOLERANCE_MIN;
 static const uint32_t tempo_synchro_hw_max = SYMBOL * 4 * TOLERANCE_MAX;
 static const uint32_t tempo_synchro_sw_min = 4550 * TOLERANCE_MIN;
@@ -1599,7 +1603,8 @@ static const uint32_t tempo_half_symbol_min = SYMBOL * TOLERANCE_MIN;
 static const uint32_t tempo_half_symbol_max = SYMBOL * TOLERANCE_MAX;
 static const uint32_t tempo_symbol_min = SYMBOL * 2 * TOLERANCE_MIN;
 static const uint32_t tempo_symbol_max = SYMBOL * 2 * TOLERANCE_MAX;
-static const uint32_t tempo_inter_frame_gap = 30415;
+static const uint32_t tempo_if_gap = 30415;  // Gap between frames
+
 
 static int16_t  bitMin = SYMBOL * TOLERANCE_MIN;
 static uint16_t timing_index = 0;
@@ -1631,14 +1636,23 @@ bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
 void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   if(!this->config.enabled) return;
   uint32_t pin = 1 << this->config.TXPin;
-  if (sync == 2 || sync == 12) {  // Only with the first frame.
+  if (sync == 2 || sync == 12) {  // Only with the first frame.  Repeats do not get a wakeup pulse.
+    // All information online for the wakeup pulse appears to be incorrect.  While there is a wakeup
+    // pulse it only sends an initial pulse.  There is no further delay after this.
+    
     // Wake-up pulse
+    //Serial.printf("Sending wakeup pulse: %d\n", sync);
     REG_WRITE(GPIO_OUT_W1TS_REG, pin);
-    delayMicroseconds(9415);
-    // Silence
+    delayMicroseconds(10920);
+    //delayMicroseconds(9415);
+    
+    // There is no silence after the wakeup pulse.  I tested this with Telis and no silence
+    // was detected.  I suspect that for some battery powered shades the shade would go back
+    // to sleep from the time of the initial pulse while the silence was occurring.
     REG_WRITE(GPIO_OUT_W1TC_REG, pin);
-    delayMicroseconds(9565);
-    delay(80);
+    delayMicroseconds(7357);
+    //delayMicroseconds(9565);
+    //delay(80);
   }
   // Depending on the bitness of the protocol we will be sending a different hwsync.
   // 56-bit 2 pulses for the first frame and 7 for the repeats
@@ -1673,10 +1687,18 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   // Inter-frame silence for 56-bit protocols are around 34ms.  However, an 80 bit protocol should
   // reduce this by the transmission of SYMBOL * 24 or 15,360us
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
+  // Below are the original calculations for inter-frame silence.  However, when actually inspecting this from
+  // the remote it appears to be closer to 27500us.  The delayMicoseconds call is also cannot be called with
+  // values larger than 16383.
+  /*
   if(bitLength == 80)
     delayMicroseconds(15055);
   else
     delayMicroseconds(30415);
+  */
+  delayMicroseconds(13750);
+  if(bitLength != 80)  // Part of the inter-frame silence is used to transport data.
+    delayMicroseconds(13750);
 }
 
 void RECEIVE_ATTR Transceiver::handleReceive() {
@@ -1686,6 +1708,9 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
     if (duration < bitMin) {
         // The incoming bit is < 448us so it is probably a glitch so blow it off.
         // We need to ignore this bit.
+        // REMOVE THIS AFTER WE DETERMINE THAT THE out-of-bounds stuff isn't a problem.  If there are bits
+        // from the previous frame then we will capture this data here.
+        if(somfy_rx.pulseCount < MAX_TIMINGS) somfy_rx.pulses[somfy_rx.pulseCount++] = duration;
         return;
     }
     last_time = time;
@@ -1715,7 +1740,24 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         else {
             // Reset and start looking for hardware sync again.
             somfy_rx.cpt_synchro_hw = 0;
-            somfy_rx.pulseCount = 0;
+            //somfy_rx.pulseCount = 0;
+            // Try to capture the wakeup pulse.
+            if(duration > tempo_wakeup_min && duration < tempo_wakeup_max)
+            {
+                memset(&somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
+                //somfy_rx.pulseCount = 1;
+                somfy_rx.cpt_synchro_hw = 0;
+                somfy_rx.previous_bit = 0x00;
+                somfy_rx.waiting_half_symbol = false;
+                somfy_rx.cpt_bits = 0;
+                somfy_rx.bit_length = 56;
+            }
+            else if(duration > tempo_wakeup_silence_max) {
+              somfy_rx.pulseCount = 0;
+            }
+            //else {
+            //  somfy_rx.pulseCount = 0;
+            //}
         }
         break;
     case receiving_data:
@@ -1738,6 +1780,10 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
             }
         }
         else {
+            
+            ++somfy_rx.cpt_bits;
+            
+            /*
             // Start over we are not within our parameters for bit timing.
             memset(&somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
             somfy_rx.pulseCount = 0;
@@ -1747,12 +1793,13 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
             somfy_rx.cpt_bits = 0;
             somfy_rx.bit_length = 56;
             somfy_rx.status = waiting_synchro;
+            */
         }
         break;
     default:
         break;
     }
-    if (somfy_rx.status == receiving_data && somfy_rx.cpt_bits == somfy_rx.bit_length) {
+    if (somfy_rx.status == receiving_data && somfy_rx.cpt_bits >= somfy_rx.bit_length) {
         // Since we are operating within the interrupt all data really needs to be static
         // for the handoff to the frame decoder.  For this reason we are buffering up to
         // 3 total frames.  Althought it may not matter considering the lenght of a packet
@@ -2155,6 +2202,7 @@ void Transceiver::beginTransmit() {
     if(this->config.enabled) {
       this->disableReceive();
       pinMode(this->config.TXPin, OUTPUT);
+      digitalWrite(this->config.TXPin, 0);
       ELECHOUSE_cc1101.SetTx();
     }
 }
