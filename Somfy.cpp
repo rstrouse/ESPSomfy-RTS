@@ -1455,6 +1455,7 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   frame.cmd = cmd;
   frame.repeats = repeat;
   frame.bitLength = this->bitLength;
+  // Match the encKey to the rolling code.  These keys range from 160 to 175.
   frame.encKey = 0xA0 | static_cast<uint8_t>(frame.rollingCode & 0x000F);
   if(frame.bitLength == 0) frame.bitLength = bit_length;
   this->lastRollingCode = frame.rollingCode;
@@ -1684,11 +1685,16 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
       delayMicroseconds(SYMBOL);
     }
   }
+  // End with a 0 no matter what.  This accommodates the 56-bit protocol by telling the
+  // motor that there are no more follow on bits.
+  REG_WRITE(GPIO_OUT_W1TS_REG, pin);
+  //delayMicroseconds(SYMBOL/2);
+    
   // Inter-frame silence for 56-bit protocols are around 34ms.  However, an 80 bit protocol should
   // reduce this by the transmission of SYMBOL * 24 or 15,360us
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
   // Below are the original calculations for inter-frame silence.  However, when actually inspecting this from
-  // the remote it appears to be closer to 27500us.  The delayMicoseconds call is also cannot be called with
+  // the remote it appears to be closer to 27500us.  The delayMicoseconds call cannot be called with
   // values larger than 16383.
   /*
   if(bitLength == 80)
@@ -1696,9 +1702,10 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   else
     delayMicroseconds(30415);
   */
-  delayMicroseconds(13750);
-  if(bitLength != 80)  // Part of the inter-frame silence is used to transport data.
+  if(bitLength != 80) {
     delayMicroseconds(13750);
+    delayMicroseconds(13750);
+  }
 }
 
 void RECEIVE_ATTR Transceiver::handleReceive() {
@@ -1749,7 +1756,7 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
                 somfy_rx.cpt_bits = 0;
                 somfy_rx.bit_length = 56;
             }
-            else if((somfy_rx.pulseCount > 10 && somfy_rx.cpt_synchro_hw == 0) || duration > 150000) {
+            else if((somfy_rx.pulseCount > 20 && somfy_rx.cpt_synchro_hw == 0) || duration > 250000) {
               somfy_rx.pulseCount = 0;
             }
         }

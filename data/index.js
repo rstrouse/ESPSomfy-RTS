@@ -1696,6 +1696,42 @@ class Somfy {
             }
         });
     }
+    setPaired(shadeId, paired) {
+        let obj = { shadeId: shadeId, paired: paired || false };
+        let div = document.getElementById('divPairing');
+        let overlay = typeof div === 'undefined' ? undefined : waitMessage(div);
+        putJSON('/setPaired', obj, (err, shade) => {
+            if (overlay) overlay.remove();
+            if (err) {
+                console.log(err);
+                errorMessage(div, err.message);
+            }
+            else if (div) {
+                console.log(shade);
+                document.getElementById('somfyMain').style.display = 'none';
+                document.getElementById('somfyShade').style.display = '';
+                document.getElementById('btnSaveShade').style.display = 'inline-block';
+                document.getElementById('btnLinkRemote').style.display = '';
+                document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
+                document.getElementsByName('shadeName')[0].value = shade.name;
+                document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
+                document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
+                let ico = document.getElementById('icoShade');
+                ico.style.setProperty('--shade-position', `${shade.position}%`);
+                ico.setAttribute('data-shadeid', shade.shadeId);
+                if (shade.paired) {
+                    document.getElementById('btnUnpairShade').style.display = 'inline-block';
+                    document.getElementById('btnPairShade').style.display = 'none';
+                }
+                else {
+                    document.getElementById('btnPairShade').style.display = 'inline-block';
+                    document.getElementById('btnUnpairShade').style.display = 'none';
+                }
+                this.setLinkedRemotesList(shade);
+                div.remove();
+            }
+        });
+    }
     pairShade(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divPairing" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
@@ -1706,10 +1742,12 @@ class Somfy {
         html += '<li>Press the prog button on the back of the remote until the shade jogs</li>';
         html += '<li>After the shade jogs press the Prog button below</li>';
         html += '<li>The shade should jog again indicating that the shade is paired</li>';
-        html += '<li>You may now press the close button</li>'
+        html += '<li>If the shade jogs, you can press the shade paired button.</li>'
+        html += '<li>If the shade does not jog, press the prog button again.</li>'
         html += '</ul>'
         html += `<div class="button-container">`
-        html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendPairCommand(${shadeId});">Prog</button>`
+        html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`
+        html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, true);">Shade Paired</button>`
         html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`
         html += `</div>`;
         div.innerHTML = html;
@@ -1726,24 +1764,27 @@ class Somfy {
         html += '<li>Press the prog button on the back of the remote until the shade jogs</li>';
         html += '<li>After the shade jogs press the Prog button below</li>';
         html += '<li>The shade should jog again indicating that the shade is unpaired</li>';
-        html += '<li>You may now press the close button</li>'
+        html += '<li>If the shade jogs, you can press the shade unpaired button.</li>'
+        html += '<li>If the shade does not jog, press the prog button again until the shade jogs.</li>'
         html += '</ul>'
         html += `<div class="button-container">`
-        html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendUnpairCommand(${shadeId});">Prog</button>`
+        html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`
+        html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, false);">Shade Unpaired</button>`
         html += `<button id="btnStopUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`
         html += `</div>`;
         div.innerHTML = html;
         document.getElementById('somfyShade').appendChild(div);
         return div;
     };
-    sendCommand(shadeId, command) {
+    sendCommand(shadeId, command, repeat) {
         console.log(`Sending Shade command ${shadeId}-${command}`);
-        if (isNaN(parseInt(command, 10)))
-            putJSON('/shadeCommand', { shadeId: shadeId, command: command }, (err, shade) => {
-            });
-        else
-            putJSON('/shadeCommand', { shadeId: shadeId, target: parseInt(command, 10) }, (err, shade) => {
-            });
+        let obj = { shadeId: shadeId };
+        if (isNaN(parseInt(command, 10))) obj.command = command;
+        else obj.target = parseInt(command, 10);
+        if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        putJSON('/shadeCommand', obj, (err, shade) => {
+
+        });
     };
     sendTiltCommand(shadeId, command) {
         console.log(`Sending Tilt command ${shadeId}-${command}`);

@@ -8,7 +8,6 @@
 
 Preferences pref;
 bool BaseSettings::load() { return true; }
-bool BaseSettings::save() { return true; }
 bool BaseSettings::loadFile(const char *filename) { 
   size_t filesize = 10;
   String data = "";

@@ -38,7 +38,6 @@ class NTPSettings: BaseSettings {
 class WifiSettings: BaseSettings {
   public:
     WifiSettings();
-//    char hostname[32] = "ESPSomfyRTS";
     char ssid[64] = "";
     char passphrase[64] = "";
     //bool ssdpBroadcast = true;

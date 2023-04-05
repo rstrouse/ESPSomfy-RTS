@@ -51,7 +51,13 @@ typedef struct rebootDelay_t {
   int rebootTime = 0;
   bool closed = false;
 };
-
+static bool toBoolean(const char *str, bool def) {
+  if(!str) return def;
+  if(strlen(str) == 0) return def;
+  else if(str[0] == 't' || str[0] == 'T' || str[0] == '1') return true;
+  else if(str[0] == 'f' || str[0] == 'F' || str[0] == '0') return false;
+  return def;
+}
 
 class Timestamp {
   char _timeBuffer[44];
