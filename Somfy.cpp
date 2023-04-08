@@ -1672,23 +1672,28 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   delayMicroseconds(SYMBOL);
   // Payload starting with the most significant bit.  The frame is always supplied in 80 bits
   // but if the protocol is calling for 56 bits it will only send 56 bits of the frame.
+  uint8_t last_bit = 0;
   for (byte i = 0; i < bitLength; i++) {
     if (((frame[i / 8] >> (7 - (i % 8))) & 1) == 1) {
       REG_WRITE(GPIO_OUT_W1TC_REG, pin);
       delayMicroseconds(SYMBOL);
       REG_WRITE(GPIO_OUT_W1TS_REG, pin);
       delayMicroseconds(SYMBOL);
+      last_bit = 1;
     } else {
       REG_WRITE(GPIO_OUT_W1TS_REG, pin);
       delayMicroseconds(SYMBOL);
       REG_WRITE(GPIO_OUT_W1TC_REG, pin);
       delayMicroseconds(SYMBOL);
+      last_bit = 0;
     }
   }
   // End with a 0 no matter what.  This accommodates the 56-bit protocol by telling the
   // motor that there are no more follow on bits.
-  REG_WRITE(GPIO_OUT_W1TS_REG, pin);
-  //delayMicroseconds(SYMBOL/2);
+  if(last_bit == 0) {
+    REG_WRITE(GPIO_OUT_W1TS_REG, pin);
+    //delayMicroseconds(SYMBOL);
+  }
     
   // Inter-frame silence for 56-bit protocols are around 34ms.  However, an 80 bit protocol should
   // reduce this by the transmission of SYMBOL * 24 or 15,360us
@@ -1696,16 +1701,17 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   // Below are the original calculations for inter-frame silence.  However, when actually inspecting this from
   // the remote it appears to be closer to 27500us.  The delayMicoseconds call cannot be called with
   // values larger than 16383.
+  if(bitLength != 80) {
+    delayMicroseconds(13717);
+    delayMicroseconds(13717);
+  }
+  
   /*
   if(bitLength == 80)
     delayMicroseconds(15055);
   else
     delayMicroseconds(30415);
   */
-  if(bitLength != 80) {
-    delayMicroseconds(13750);
-    delayMicroseconds(13750);
-  }
 }
 
 void RECEIVE_ATTR Transceiver::handleReceive() {

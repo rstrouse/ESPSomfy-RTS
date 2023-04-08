@@ -1215,7 +1215,7 @@ class Somfy {
     sendShadeMyPosition(shadeId, pos) {
         console.log(`Sending My Position for shade id ${shadeId} to ${pos}`);
         let overlay = waitMessage(document.getElementById('divContainer'));
-        putJSON('/setMyPosition', { shadeId: shadeId, target: pos }, (err, response) => {
+        putJSON('/setMyPosition', { shadeId: shadeId, target: parseInt(pos, 10) }, (err, response) => {
             this.closeShadePositioners();
             overlay.remove();
             console.log(response);
