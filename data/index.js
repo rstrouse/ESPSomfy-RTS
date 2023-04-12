@@ -1444,6 +1444,7 @@ class Somfy {
                     document.getElementById('btnSaveShade').style.display = 'inline-block';
                     document.getElementById('btnLinkRemote').style.display = '';
                     document.getElementById('selShadeType').value = shade.shadeType;
+                    document.getElementById('selShadeBitLength').value = shade.bitLength;
                     document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
                     document.getElementsByName('shadeName')[0].value = shade.name;
                     document.getElementsByName('shadeUpTime')[0].value = shade.upTime;

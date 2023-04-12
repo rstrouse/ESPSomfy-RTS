@@ -1666,7 +1666,8 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   }
   // Software sync
   REG_WRITE(GPIO_OUT_W1TS_REG, pin);
-  delayMicroseconds(4450);
+  //delayMicroseconds(4450); -- Initial timing.
+  delayMicroseconds(4850);
   // Start 0
   REG_WRITE(GPIO_OUT_W1TC_REG, pin);
   delayMicroseconds(SYMBOL);
@@ -2144,9 +2145,36 @@ void transceiver_config_t::apply() {
       ELECHOUSE_cc1101.setCCMode(0);                            // set config for internal transmission mode.
       ELECHOUSE_cc1101.setMHZ(this->frequency);                 // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
       ELECHOUSE_cc1101.setRxBW(this->rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
-      ELECHOUSE_cc1101.setDeviation(this->deviation);
+      ELECHOUSE_cc1101.setDeviation(this->deviation);           // Set the Frequency deviation in kHz. Value from 1.58 to 380.85. Default is 47.60 kHz.
       ELECHOUSE_cc1101.setPA(this->txPower);                    // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
-      //ELECHOUSE_cc1101.setModulation(this->modulationMode);     // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
+      ELECHOUSE_cc1101.setModulation(2);                        // Set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
+      ELECHOUSE_cc1101.setManchester(1);                        // Enables Manchester encoding/decoding. 0 = Disable. 1 = Enable.
+      ELECHOUSE_cc1101.setPktFormat(3);                         // Format of RX and TX data. 
+                                                                // 0 = Normal mode, use FIFOs for RX and TX. 
+                                                                // 1 = Synchronous serial mode, Data in on GDO0 and data out on either of the GDOx pins. 
+                                                                // 2 = Random TX mode; sends random data using PN9 generator. Used for test. Works as normal mode, setting 0 (00), in RX. 
+                                                                // 3 = Asynchronous serial mode, Data in on GDO0 and data out on either of the GDOx pins.
+      ELECHOUSE_cc1101.setDcFilterOff(0);                       // Disable digital DC blocking filter before demodulator. Only for data rates â‰¤ 250 kBaud The recommended IF frequency changes when the DC blocking is disabled. 
+                                                                // 1 = Disable (current optimized). 
+                                                                // 0 = Enable (better sensitivity).
+      ELECHOUSE_cc1101.setCrc(0);                               // 1 = CRC calculation in TX and CRC check in RX enabled. 0 = CRC disabled for TX and RX.
+      ELECHOUSE_cc1101.setCRC_AF(0);                            // Enable automatic flush of RX FIFO when CRC is not OK. This requires that only one packet is in the RXIFIFO and that packet length is limited to the RX FIFO size.
+      ELECHOUSE_cc1101.setSyncMode(4);                          // Combined sync-word qualifier mode. 
+                                                                // 0 = No preamble/sync. 
+                                                                // 1 = 16 sync word bits detected. 
+                                                                // 2 = 16/16 sync word bits detected. 
+                                                                // 3 = 30/32 sync word bits detected. 
+                                                                // 4 = No preamble/sync, carrier-sense above threshold. 
+                                                                // 5 = 15/16 + carrier-sense above threshold. 
+                                                                // 6 = 16/16 + carrier-sense above threshold. 
+                                                                // 7 = 30/32 + carrier-sense above threshold.
+      ELECHOUSE_cc1101.setAdrChk(0);                            // Controls address check configuration of received packages. 
+                                                                // 0 = No address check. 
+                                                                // 1 = Address check, no broadcast. 
+                                                                // 2 = Address check and 0 (0x00) broadcast. 
+                                                                // 3 = Address check and 0 (0x00) and 255 (0xFF) broadcast.
+    
+      
       if (!ELECHOUSE_cc1101.getCC1101()) {
           Serial.println("Error setting up the radio");
           this->radioInit = false;
