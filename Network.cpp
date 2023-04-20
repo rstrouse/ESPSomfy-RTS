@@ -368,6 +368,7 @@ bool Network::openSoftAP() {
   Serial.println();
   Serial.println("Turning the HotSpot On");
   WiFi.disconnect(true);
+  WiFi.hostname("ESPSomfy RTS");
   WiFi.mode(WIFI_AP_STA);
   delay(100);
   WiFi.softAP("ESPSomfy RTS", "");
@@ -375,7 +376,7 @@ bool Network::openSoftAP() {
   Serial.println();
   Serial.print("SoftAP IP: ");
   Serial.println(WiFi.softAPIP());
-  pinMode(D0, INPUT_PULLUP);
+  //pinMode(D0, INPUT_PULLUP);
   long startTime = millis();
   int c = 0;
   

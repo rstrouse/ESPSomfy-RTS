@@ -488,6 +488,7 @@ div.waitoverlay > .lds-roller {
 }
 .somfyShade {
     text-align:center;
+    padding-bottom:4px;
 }
 .button-outline {
     background-color: #00bcd4;
@@ -501,12 +502,13 @@ div.waitoverlay > .lds-roller {
 }
 .shade-name {
     text-align:left;
-    width: 124px;
+    width: 170px;
     padding-left: 2px;
     padding-right: 2px;
     display: inline-block;
     text-overflow: ellipsis;
     overflow:hidden;
+    vertical-align:middle;
 }
 .shade-address {
     width:77px;
@@ -515,6 +517,7 @@ div.waitoverlay > .lds-roller {
     text-overflow:ellipsis;
     overflow:hidden;
     display:inline-block;
+    vertical-align:middle;
 }
 .progress-bar {
     display:block;

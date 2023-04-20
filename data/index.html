@@ -3,10 +3,10 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=1.4.7" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=1.4.7" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=1.5.0" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=1.5.0" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=1.4.7"></script>
+    <script type="text/javascript" src="index.js?v=1.5.0"></script>
 </head>
 <body>
     <div id="divContainer" class="container" style="user-select:none;position:relative;border-radius:27px;">
@@ -263,8 +263,12 @@
                         </div>
                         <div id="divTiltSettings" style="display:none;">
                             <div class="field-group" style="display:inline-block; margin-right:17px;width:127px;vertical-align:middle;">
-                                <input id="cbHasTilt" type="checkbox" onchange="somfy.onShadeTypeChanged(this);" />
-                                <label for="cbHasTilt" style="display:inline-block;cursor:pointer;">Has Tilt</label>
+                                <select id="selTiltType" name="tiltType" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
+                                    <option value="0">None</option>
+                                    <option value="1">Tilt Motor</option>
+                                    <option value="2">Integrated</option>
+                                </select>
+                                <label for="selTiltType" style="cursor:pointer;">Tilt Type</label>
                             </div>
                             <div class="field-group" style="display:inline-block;width:127px;vertical-align:middle;">
                                 <input id="fldTiltTime" name="shadeTiltTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
@@ -288,7 +292,7 @@
                             </button>
                         </div>
                         <hr />
-                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:77px;padding-top:2px;padding-bottom:2px;"></div>
+                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:177px;padding-top:2px;padding-bottom:2px;"></div>
                         <div class="button-container">
                             <button id="btnLinkRemote" type="button" onclick="somfy.linkRemote(parseInt(document.getElementById('spanShadeId').innerText, 10));">
                                 Link Remote

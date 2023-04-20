@@ -6,9 +6,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 2
+#define SHADE_HDR_VER 5
 #define SHADE_HDR_SIZE 16
-#define SHADE_REC_SIZE 180
+#define SHADE_REC_SIZE 222
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -281,7 +281,11 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     shade->shadeType = static_cast<shade_types>(this->readUInt8(0));
     shade->setRemoteAddress(this->readUInt32(0));
     this->readString(shade->name, sizeof(shade->name));
-    shade->hasTilt = this->readBool(false);
+    if(this->header.version < 3)
+      shade->tiltType = this->readBool(false) ? tilt_types::none : tilt_types::tiltmotor;
+    else
+      shade->tiltType = static_cast<tilt_types>(this->readUInt8(0));
+    
     if(this->header.version > 1) {
       shade->bitLength = this->readUInt8(56);
     }
@@ -292,16 +296,32 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
       SomfyLinkedRemote *rem = &shade->linkedRemotes[j];
       rem->setRemoteAddress(this->readUInt32(0));
       if(rem->getRemoteAddress() != 0) rem->lastRollingCode = pref.getUShort(rem->getRemotePrefId(), 0);
+      if(this->header.version < 5 && j == 4) break; // Prior to version 5 we only supported 5 linked remotes.
     }
     shade->lastRollingCode = this->readUInt16(0);
     if(shade->getRemoteAddress() != 0) shade->lastRollingCode = max(pref.getUShort(shade->getRemotePrefId(), shade->lastRollingCode), shade->lastRollingCode);
-    shade->myPos = this->readUInt8(255);
+    if(this->header.version < 4)
+      shade->myPos = static_cast<float>(this->readUInt8(255));
+    else {
+      shade->myPos = this->readFloat(-1);
+      shade->myTiltPos = this->readFloat(-1);
+    }
+    if(shade->myPos > 100 || shade->myPos < 0) shade->myPos = -1;
+    if(shade->myTiltPos > 100 || shade->myTiltPos < 0) shade->myTiltPos = -1;
     shade->currentPos = this->readFloat(0);
     shade->currentTiltPos = this->readFloat(0);
-    shade->tiltPosition = (uint8_t)floor(shade->currentTiltPos * 100);
-    shade->position = (uint8_t)floor(shade->currentPos * 100);
-    shade->target = shade->position;
-    shade->tiltTarget = shade->tiltPosition;
+    if(shade->tiltType == tilt_types::none || shade->shadeType != shade_types::blind) {
+      shade->myTiltPos = -1;
+      shade->currentTiltPos = 0;
+      shade->tiltType = tilt_types::none;
+    }
+    
+    if(this->header.version < 3) {
+      shade->currentPos = shade->currentPos * 100;
+      shade->currentTiltPos = shade->currentTiltPos * 100;
+    }
+    shade->target = floor(shade->currentPos);
+    shade->tiltTarget = floor(shade->currentTiltPos);
   }
   pref.end();
   if(opened) {
@@ -311,12 +331,17 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
   return true;
 }
 bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
+  if(shade->tiltType == tilt_types::none || shade->shadeType != shade_types::blind) {
+    shade->myTiltPos = -1;
+    shade->currentTiltPos = 0;
+    shade->tiltType = tilt_types::none;
+  }
   this->writeUInt8(shade->getShadeId());
   this->writeBool(shade->paired);
   this->writeUInt8(static_cast<uint8_t>(shade->shadeType));
   this->writeUInt32(shade->getRemoteAddress());
   this->writeString(shade->name, sizeof(shade->name));
-  this->writeBool(shade->hasTilt);
+  this->writeUInt8(static_cast<uint8_t>(shade->tiltType));
   this->writeUInt8(shade->bitLength);
   this->writeUInt32(shade->upTime);
   this->writeUInt32(shade->downTime);
@@ -326,7 +351,8 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeUInt32(rem->getRemoteAddress());
   }
   this->writeUInt16(shade->lastRollingCode);
-  this->writeUInt8(shade->myPos);
+  this->writeFloat(shade->myPos, 5);
+  this->writeFloat(shade->myTiltPos, 5);
   this->writeFloat(shade->currentPos, 5);
   this->writeFloat(shade->currentTiltPos, 5, CFG_REC_END);
   return true;  

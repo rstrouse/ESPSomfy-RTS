@@ -541,7 +541,7 @@ void Web::begin() {
         int shadeId = atoi(server.arg("shadeId").c_str());
         SomfyShade* shade = somfy.getShadeById(shadeId);
         if (shade) {
-          DynamicJsonDocument doc(512);
+          DynamicJsonDocument doc(2048);
           JsonObject obj = doc.to<JsonObject>();
           shade->toJSON(obj);
           serializeJson(doc, g_content);
@@ -579,7 +579,7 @@ void Web::begin() {
             if (shade) {
               shade->fromJSON(obj);
               shade->save();
-              DynamicJsonDocument sdoc(512);
+              DynamicJsonDocument sdoc(2048);
               JsonObject sobj = sdoc.to<JsonObject>();
               shade->toJSON(sobj);
               serializeJson(sdoc, g_content);
@@ -771,12 +771,13 @@ void Web::begin() {
     webServer.sendCORSHeaders();
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
-    uint8_t target = 255;
-    
+    int8_t pos = -1;
+    int8_t tilt = -1;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (server.hasArg("shadeId")) {
         shadeId = atoi(server.arg("shadeId").c_str());
-        if(server.hasArg("target")) target = atoi(server.arg("target").c_str());
+        if(server.hasArg("pos")) pos = atoi(server.arg("pos").c_str());
+        if(server.hasArg("tilt")) tilt = atoi(server.arg("tilt").c_str());
       }
       else if (server.hasArg("plain")) {
         DynamicJsonDocument doc(256);
@@ -799,9 +800,8 @@ void Web::begin() {
           JsonObject obj = doc.as<JsonObject>();
           if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
           else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
-          if(obj.containsKey("target")) {
-            target = obj["target"].as<uint8_t>();
-          }
+          if(obj.containsKey("pos")) pos = obj["pos"].as<int8_t>();
+          if(obj.containsKey("tilt")) tilt = obj["tilt"].as<int8_t>();
         }
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
@@ -809,9 +809,9 @@ void Web::begin() {
     SomfyShade* shade = somfy.getShadeById(shadeId);
     if (shade) {
       // Send the command to the shade.
-      if(target == 255) target = shade->myPos;
-      if(target >= 0 && target <= 100)
-        shade->setMyPosition(target);
+      if(tilt < 0) tilt = shade->myPos;
+      if(pos >= 0 && pos <= 100)
+        shade->setMyPosition(pos, tilt);
       DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);

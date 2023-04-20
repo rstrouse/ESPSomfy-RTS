@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.4.7';
+    appVersion = 'v1.5.0';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -1040,7 +1040,7 @@ class Somfy {
         let divCtl = '';
         for (let i = 0; i < shades.length; i++) {
             let shade = shades[i];
-            divCfg += `<div class="somfyShade" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.hasTilt}" data-shadetype="${shade.shadeType}">`;
+            divCfg += `<div class="somfyShade" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType}">`;
             divCfg += `<div class="button-outline" onclick="somfy.openEditShade(${shade.shadeId});"><i class="icss-edit"></i></div>`;
             //divCfg += `<i class="shade-icon" data-position="${shade.position || 0}%"></i>`;
             divCfg += `<span class="shade-name">${shade.name}</span>`;
@@ -1048,8 +1048,8 @@ class Somfy {
             divCfg += `<div class="button-outline" onclick="somfy.deleteShade(${shade.shadeId});"><i class="icss-trash"></i></div>`;
             divCfg += '</div>';
 
-            divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}" data-shadetype="${shade.shadeType}" data-tilt="${shade.hasTilt}"`;
-            if (shade.hasTilt) {
+            divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}" data-mytiltpos="${shade.myTiltPos} data-shadetype="${shade.shadeType}" data-tilt="${shade.tiltType}"`;
+            if (shade.tiltType !== 0) {
                 divCtl += ` data-tiltposition="${shade.tiltPosition}" data-tiltdirection="${shade.tiltDirection}" data-tilttarget="${shade.tiltTarget}"`
             }
             divCtl += `><div class="shade-icon" data-shadeid="${shade.shadeId}" onclick="event.stopPropagation(); console.log(event); somfy.openSetPosition(${shade.shadeId});">`;
@@ -1063,10 +1063,11 @@ class Somfy {
                     break;
             }
             divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.position}%;vertical-align: top;"></i>`;
-            divCtl += shade.hasTilt ? `<i class="icss-window-tilt" data-shadeid="${shade.shadeId}" data-tiltposition="${shade.tiltPosition}"></i></div>` : '</div>';
+            divCtl += shade.tiltType !== 0 ? `<i class="icss-window-tilt" data-shadeid="${shade.shadeId}" data-tiltposition="${shade.tiltPosition}"></i></div>` : '</div>';
             divCtl += `<div class="shade-name">`;
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
-            divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos !== 255 ? shade.myPos + '%' : '---'}</span>`
+            divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`
+            if (shade.myTiltPos > 0) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
             divCtl += '</div>'
 
             divCtl += `<div class="shadectl-buttons">`;
@@ -1163,29 +1164,33 @@ class Somfy {
         }
     }
     openSetMyPosition(shadeId) {
-        if (typeof shadeId === 'undefined') {
-            return;
-        }
+        if (typeof shadeId === 'undefined') return;
         else {
             let shade = document.querySelector(`div.somfyShadeCtl[data-shadeid="${shadeId}"]`);
             if (shade) {
                 this.closeShadePositioners();
                 let currPos = parseInt(shade.getAttribute('data-position'), 10);
+                let currTiltPos = parseInt(shade.getAttribute('data-tiltposition'), 10);
                 let myPos = parseInt(shade.getAttribute('data-mypos'), 10);
+                let tiltType = parseInt(shade.getAttribute('data-tilt'), 10);
+                let myTiltPos = parseInt(shade.getAttribute('data-mytiltpos'), 10);
                 let elname = shade.querySelector(`.shadectl-name`);
                 let shadeName = elname.innerHTML;
-                let html = `<div class="shade-name">${shadeName}`;
-                if (myPos !== 255)
-                    html += `<div style="float:right;vertical-align:top;cursor:pointer;font-size:14px;margin-top:4px;" onclick="document.getElementById('slidShadeTarget').value = ${myPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span>Current: </span><span>${myPos}</span><span>%</span></div>`
-                html += `</div >`;
+                let html = `<div class="shade-name"><span>${shadeName}</span><div style="float:right;vertical-align:top;cursor:pointer;font-size:12px;margin-top:4px;">`;
+                if (myPos >= 0)
+                    html += `<div onclick="document.getElementById('slidShadeTarget').value = ${myPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span style="display:inline-block;width:47px;">Current:</span><span>${myPos}</span><span>%</span></div>`;
+                if (myTiltPos >= 0 && tiltType > 0)
+                    html += `<div onclick="document.getElementById('slidShadeTiltTarget').value = ${myTiltPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span style="display:inline-block;width:47px;">Tilt:</span><span>${myTiltPos}</span><span>%</span></div>`;
+                html += `</div></div >`;
                 html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" value="${currPos}" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
                 html += `<label for="slidShadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
+                html += '<div id="divTiltTarget" style="display:none;">';
+                html += `<input id="slidShadeTiltTarget" name="shadeTiltTarget" type="range" min="0" max="100" step="1" value="${currTiltPos}" oninput="document.getElementById('spanShadeTiltTarget').innerHTML = this.value;" />`;
+                html += `<label for="slidShadeTiltTarget"><span>Target Tilt </span><span><span id="spanShadeTiltTarget" class="shade-target">${currTiltPos}</span><span>%</span></span></label>`;
+                html += '</div>'
                 html += `<hr></hr>`;
                 html += '<div style="text-align:right;width:100%;">'
-                if (myPos === currPos)
-                    html += `<button id="btnSetMyPosition" type="button" onclick="somfy.sendShadeMyPosition(${shadeId}, document.getElementById('slidShadeTarget').value);" style="background:orangered;width:auto;display:inline-block;padding-left:10px;padding-right:10px;margin-top:0px;margin-bottom:10px;margin-right:7px;">Clear My Position</button>`;
-                else
-                    html += `<button id="btnSetMyPosition" type="button" onclick="somfy.sendShadeMyPosition(${shadeId}, document.getElementById('slidShadeTarget').value);" style="width:auto;display:inline-block;padding-left:10px;padding-right:10px;margin-top:0px;margin-bottom:10px;margin-right:7px;">Set My Position</button>`;
+                html += `<button id="btnSetMyPosition" type="button" style="width:auto;display:inline-block;padding-left:10px;padding-right:10px;margin-top:0px;margin-bottom:10px;margin-right:7px;">Set My Position</button>`;
                 html += `<button id="btnCancel" type="button" onclick="somfy.closeShadePositioners();" style="width:auto;display:inline-block;padding-left:10px;padding-right:10px;margin-top:0px;margin-bottom:10px;">Cancel</button>`;
                 html += `</div></div>`;
                 let div = document.createElement('div');
@@ -1195,11 +1200,13 @@ class Somfy {
                 div.innerHTML = html;
                 shade.appendChild(div);
                 let elTarget = div.querySelector('input#slidShadeTarget');
+                let elTiltTarget = div.querySelector('input#slidShadeTiltTarget');
                 let elBtn = div.querySelector('button#btnSetMyPosition');
-                elTarget.addEventListener('change', (event) => {
-                    console.log(`Target: ${elTarget.value} myPos: ${myPos}`);
-                    div.querySelector('#spanShadeTarget').innerHTML = elTarget.value;
-                    if (parseInt(elTarget.value, 10) === myPos) {
+                if (tiltType > 0) div.querySelector('div#divTiltTarget').style.display = '';
+                let fnProcessChange = () => {
+                    let pos = parseInt(elTarget.value, 10);
+                    let tilt = parseInt(elTiltTarget.value, 10);
+                    if (pos === myPos && tilt === myTiltPos) {
                         elBtn.innerHTML = 'Clear My Position';
                         elBtn.style.background = 'orangered';
                     }
@@ -1207,15 +1214,26 @@ class Somfy {
                         elBtn.innerHTML = 'Set My Position';
                         elBtn.style.background = '';
                     }
-                });
+                    document.getElementById('spanShadeTiltTarget').innerHTML = tilt;
+                    document.getElementById('spanShadeTarget').innerHTML = pos;
+                };
+                let fnSetMyPosition = () => {
+                    let pos = parseInt(elTarget.value, 10);
+                    let tilt = parseInt(elTiltTarget.value, 10);
+                    somfy.sendShadeMyPosition(shadeId, pos, tilt);
+                };
+                fnProcessChange();
+                elTarget.addEventListener('change', (event) => { fnProcessChange(); });
+                elTiltTarget.addEventListener('change', (event) => { fnProcessChange(); });
+                elBtn.addEventListener('click', (event) => { fnSetMyPosition(); });
 
             }
         }
     }
-    sendShadeMyPosition(shadeId, pos) {
-        console.log(`Sending My Position for shade id ${shadeId} to ${pos}`);
+    sendShadeMyPosition(shadeId, pos, tilt) {
+        console.log(`Sending My Position for shade id ${shadeId} to ${pos} and ${tilt}`);
         let overlay = waitMessage(document.getElementById('divContainer'));
-        putJSON('/setMyPosition', { shadeId: shadeId, target: parseInt(pos, 10) }, (err, response) => {
+        putJSON('/setMyPosition', { shadeId: shadeId, pos: pos, tilt: tilt }, (err, response) => {
             this.closeShadePositioners();
             overlay.remove();
             console.log(response);
@@ -1243,7 +1261,7 @@ class Somfy {
                 case 9:
                 case 10:
                 case 11:
-                    continue;
+                    if(type !== 'inout') continue;
                     break;
                 case 37:
                 case 38:
@@ -1267,7 +1285,7 @@ class Somfy {
         for (let i = 0; i < icons.length; i++) {
             icons[i].style.setProperty('--shade-position', `${state.position}%`);
         }
-        if (state.hasTilt) {
+        if (state.tiltType !== 0) {
             let tilts = document.querySelectorAll(`.icss-window-tilt[data-shadeid="${state.shadeId}"]`);
             for (let i = 0; i < tilts.length; i++) {
                 tilts[i].setAttribute('data-tiltposition', `${state.tiltPosition}`);
@@ -1279,13 +1297,17 @@ class Somfy {
             divs[i].setAttribute('data-position', state.position);
             divs[i].setAttribute('data-target', state.target);
             divs[i].setAttribute('data-mypos', state.mypos);
-            if (state.hasTilt) {
+            if (typeof state.myTiltPos !== 'undefined') divs[i].setAttribute('data-mytiltpos', state.myTiltPos);
+            else divs[i].setAttribute('data-mytiltpos', -1);
+            if (state.tiltType !== 0) {
                 divs[i].setAttribute('data-tiltdirection', state.tiltDirection);
                 divs[i].setAttribute('data-tiltposition', state.tiltPosition);
                 divs[i].setAttribute('data-tilttarget', state.tiltTarget);
             }
             let span = divs[i].querySelector('#spanMyPos');
-            if (span) span.innerHTML = typeof state.mypos !== 'undefined' && state.mypos !== 255 ? `${state.mypos}%` : '---';
+            if (span) span.innerHTML = typeof state.mypos !== 'undefined' && state.mypos >= 0 ? `${state.mypos}%` : '---';
+            span = divs[i].querySelector('#spanMyTiltPos');
+            if (span) span.innerHTML = typeof state.myTiltPos !== 'undefined' && state.myTiltPos >= 0 ? `${state.myTiltPos}%` : '---';
         }
 
     };
@@ -1377,7 +1399,7 @@ class Somfy {
     };
     onShadeTypeChanged(el) {
         let sel = document.getElementById('selShadeType');
-        let tilt = document.getElementById('cbHasTilt').checked;
+        let tilt = parseInt(document.getElementById('selTiltType').value, 10);
         let ico = document.getElementById('icoShade');
         switch (parseInt(sel.value, 10)) {
             case 1:
@@ -1450,7 +1472,7 @@ class Somfy {
                     document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
                     document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
                     document.getElementById('fldTiltTime').value = shade.tiltTime;
-                    document.getElementById('cbHasTilt').checked = shade.hasTilt;
+                    document.getElementById('selTiltType').value = shade.tiltType;
                     this.onShadeTypeChanged(document.getElementById('selShadeType'));
                     let ico = document.getElementById('icoShade');
                     switch (shade.shadeType) {
@@ -1460,7 +1482,7 @@ class Somfy {
                             break;
                     }
                     let tilt = ico.parentElement.querySelector('i.icss-window-tilt');
-                    tilt.style.display = shade.hasTilt ? '' : 'none';
+                    tilt.style.display = shade.tiltType !== 0 ? '' : 'none';
                     tilt.setAttribute('data-tiltposition', shade.tiltPosition);
                     ico.style.setProperty('--shade-position', `${shade.position}%`);
                     ico.style.setProperty('--tilt-position', `${shade.tiltPosition}%`);
@@ -1503,9 +1525,9 @@ class Somfy {
             bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56
         };
         if (obj.shadeType == 1) {
-            obj.hasTilt = document.getElementById('cbHasTilt').checked;
+            obj.tiltType = parseInt(document.getElementById('selTiltType').value, 10);
         }
-        else obj.hasTilt = false;
+        else obj.tiltType = 0;
         let valid = true;
         if (valid && (isNaN(obj.remoteAddress) || obj.remoteAddress < 1 || obj.remoteAddress > 16777215)) {
             errorMessage(document.getElementById('fsSomfySettings'), 'The remote address must be a number between 1 and 16777215.  This number must be unique for all shades.');

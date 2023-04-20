@@ -1,15 +1,6 @@
 #ifndef utils_h
 #define utils_h
 
-#ifndef LED_BUILTIN
-  #define LED_BUILTIN 2
-#endif
-#ifndef D3
-  #define D3 3
-#endif
-#ifndef D0
-  #define D0 0
-#endif
 
 #define DEBUG_SOMFY Serial
 

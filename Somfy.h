@@ -2,7 +2,7 @@
 #define SOMFY_H
 
 #define SOMFY_MAX_SHADES 32
-#define SOMFY_MAX_LINKED_REMOTES 5
+#define SOMFY_MAX_LINKED_REMOTES 7
 
 typedef struct appver_t {
   uint8_t major;
@@ -35,7 +35,12 @@ enum class shade_types : byte {
   blind = 0x01,
   drapery = 0x02
 };
-
+enum class tilt_types : byte {
+  none = 0x00,
+  tiltmotor = 0x01,
+  integrated = 0x02,
+  tiltonly = 0x03,
+};
 String translateSomfyCommand(const somfy_commands cmd);
 somfy_commands translateSomfyCommand(const String& string);
 
@@ -97,7 +102,7 @@ class SomfyRemote {
   // confirmed.  The address is actually 24bits
   // and the rolling code is 16 bits.
   protected:
-    char m_remotePrefId[10] = "";
+    char m_remotePrefId[11] = "";
     uint32_t m_remoteAddress = 0;
   public:
     uint8_t bitLength = 0;
@@ -119,28 +124,26 @@ class SomfyShade : public SomfyRemote {
     uint8_t shadeId = 255;
     uint64_t moveStart = 0;
     uint64_t tiltStart = 0;
-    float startPos = 0.0;
-    float startTiltPos = 0.00;
-    bool seekingPos = false;
-    bool seekingTiltPos = false;
-    bool seekingFixedPos = false;
+    float startPos = 0.0f;
+    float startTiltPos = 0.0f;
     bool settingMyPos = false;
+    bool settingPos = false;
+    bool settingTiltPos = false;
     uint32_t awaitMy = 0;
   public:
     shade_types shadeType = shade_types::roller;
-    bool hasTilt = false;
+    tilt_types tiltType = tilt_types::none;
     void load();
     somfy_frame_t lastFrame;
-    float currentPos = 0.0;
-    float currentTiltPos = 0.0;
+    float currentPos = 0.0f;
+    float currentTiltPos = 0.0f;
     //uint16_t movement = 0;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
     int8_t tiltDirection = 0; // 0=stopped, 1=clockwise, -1=counter clockwise
-    uint8_t tiltPosition = 0;
-    uint8_t position = 0;
-    uint8_t target = 0;
-    uint8_t tiltTarget = 0;
-    uint8_t myPos = 255;
+    float target = 0.0;
+    float tiltTarget = 0.0;
+    float myPos = -1.0;
+    float myTiltPos = -1.0;
     SomfyLinkedRemote linkedRemotes[SOMFY_MAX_LINKED_REMOTES];
     bool paired = false;
     bool fromJSON(JsonObject &obj);
@@ -157,16 +160,17 @@ class SomfyShade : public SomfyRemote {
     void processFrame(somfy_frame_t &frame, bool internal = false);
     void setTiltMovement(int8_t dir);
     void setMovement(int8_t dir);
-    void setTarget(uint8_t target);
-    void moveToTarget(uint8_t target);
-    void moveToTiltTarget(uint8_t target);
+    void setTarget(float target);
+    bool isAtTarget();
+    void moveToTarget(float pos, float tilt = -1.0f);
+    void moveToTiltTarget(float target);
     void sendTiltCommand(somfy_commands cmd);
     void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
     bool linkRemote(uint32_t remoteAddress, uint16_t rollingCode = 0);
     bool unlinkRemote(uint32_t remoteAddress);
     void emitState(const char *evt = "shadeState");
     void emitState(uint8_t num, const char *evt = "shadeState");
-    void setMyPosition(uint8_t target);
+    void setMyPosition(int8_t pos, int8_t tilt = -1);
     void moveToMyPosition();
     void processWaitingFrame();
     void publish();
