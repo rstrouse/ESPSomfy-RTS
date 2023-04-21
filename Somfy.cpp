@@ -1022,6 +1022,19 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       break;
     case somfy_commands::StepUp:
+      // With the step commands and integrated shades
+      // the motor must tilt in the direction first then move
+      // so we have to calculate the target with this in mind.
+      if(this->tiltType == tilt_types::integrated) {
+        // First check to see if the tilt is 0.  If it is not then we need to tilt.
+        if(this->currentTiltPos != 0.0f) {
+          this->tiltTarget = max(0.0f, this->currentTiltPos - 0.5f);
+        }
+        else {
+          
+        }
+      }
+      
       if(!internal) {
         this->lastFrame.await = millis() + 200;
       }
@@ -1177,6 +1190,9 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
       this->target = this->currentPos;
       this->tiltTarget = this->currentTiltPos;
     }
+  }
+  else {
+    SomfyRemote::sendCommand(cmd, repeat);
   }
 }
 void SomfyShade::sendTiltCommand(somfy_commands cmd) {

@@ -1484,6 +1484,7 @@ class Somfy {
                     let tilt = ico.parentElement.querySelector('i.icss-window-tilt');
                     tilt.style.display = shade.tiltType !== 0 ? '' : 'none';
                     tilt.setAttribute('data-tiltposition', shade.tiltPosition);
+                    tilt.setAttribute('data-shadeid', shade.shadeId);
                     ico.style.setProperty('--shade-position', `${shade.position}%`);
                     ico.style.setProperty('--tilt-position', `${shade.tiltPosition}%`);
                     ico.setAttribute('data-shadeid', shade.shadeId);
