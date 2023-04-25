@@ -1021,39 +1021,33 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         }
       }
       break;
+    case somfy_commands::MyUp:
     case somfy_commands::StepUp:
       dir = 0;
       this->lastFrame.processed = true;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
-      if(this->tiltType == tilt_types::integrated) {
-        // First check to see if the tilt is 0.  If it is not then we need to tilt.
-        if(this->currentTiltPos > 0.0f) {
-          this->tiltTarget = max(0.0f, this->currentTiltPos - 1.0f);
-        }
-        else if(this->currentPos > 0.0f) {
-          this->target = max(0.0f, this->currentPos - 1.0f);
-        }
+      if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
+        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/100.0f))));
       }
-      else if(this->currentPos > 0.0f) this->target = max(0.0f, this->currentPos - 1.0f);
+      else if(this->currentPos > 0.0f) {
+        this->target = max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/100.0f))));
+      }
       break;
+    case somfy_commands::MyDown:
     case somfy_commands::StepDown:
       dir = 1;
       this->lastFrame.processed = true;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
-      if(this->tiltType == tilt_types::integrated) {
-        // First check to see if the tilt is 0.  If it is not then we need to tilt.
-        if(this->currentTiltPos < 100.0f) {
-          this->tiltTarget = min(100.0f, this->currentTiltPos + 1.0f);
-        }
-        else if(this->currentPos > 100.0f) {
-          this->target = min(100.0f, this->currentPos + 1.0f);
-        }
+      if(this->tiltType == tilt_types::integrated && this->currentTiltPos < 100.0f) {
+        this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/100.0f))));
       }
-      else if(this->currentPos < 100.0f) this->target = min(100.0f, this->currentPos + 1.0f);
+      else if(this->currentPos < 100.0f) {
+        this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/100.0f))));
+      }
       break;
     default:
       dir = 0;
