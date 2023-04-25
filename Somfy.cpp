@@ -1023,6 +1023,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;
     case somfy_commands::MyUp:
     case somfy_commands::StepUp:
+      if(this->lastFrame.repeats != 0) return;
       dir = 0;
       this->lastFrame.processed = true;
       // With the step commands and integrated shades
@@ -1037,6 +1038,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;
     case somfy_commands::MyDown:
     case somfy_commands::StepDown:
+      if(this->lastFrame.repeats != 0) return;
       dir = 1;
       this->lastFrame.processed = true;
       // With the step commands and integrated shades
