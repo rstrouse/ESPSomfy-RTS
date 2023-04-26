@@ -574,12 +574,11 @@ void SomfyShade::checkMovement() {
       // If we need to stop the shade do this before we indicate that we are
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
+        SomfyRemote::sendCommand(somfy_commands::My);
         if(!isAtTarget()) {
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
-        else
-          SomfyRemote::sendCommand(somfy_commands::My);
       }
       this->direction = 0;
       this->tiltStart = millis();
@@ -617,12 +616,11 @@ void SomfyShade::checkMovement() {
       // If we need to stop the shade do this before we indicate that we are
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
+        SomfyRemote::sendCommand(somfy_commands::My);
         if(!isAtTarget()) {
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
-        else
-          SomfyRemote::sendCommand(somfy_commands::My);
       }
       this->direction = 0;
       this->tiltStart = millis();
@@ -1023,9 +1021,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;
     case somfy_commands::MyUp:
     case somfy_commands::StepUp:
+      this->lastFrame.processed = true;
       if(this->lastFrame.repeats != 0) return;
       dir = 0;
-      this->lastFrame.processed = true;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
@@ -1038,9 +1036,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;
     case somfy_commands::MyDown:
     case somfy_commands::StepDown:
+      this->lastFrame.processed = true;
       if(this->lastFrame.repeats != 0) return;
       dir = 1;
-      this->lastFrame.processed = true;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
@@ -1207,7 +1205,7 @@ void SomfyShade::moveToTiltTarget(float target) {
     cmd = somfy_commands::Up;
   else if(target > this->currentTiltPos)
     cmd = somfy_commands::Down;
-  if(target > 0.0f && target < 100.0f) {
+  if(target >= 0.0f && target <= 100.0f) {
     if(cmd != somfy_commands::My) {
       Serial.print("Moving Tilt to ");
       Serial.print(target);
