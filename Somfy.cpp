@@ -576,6 +576,7 @@ void SomfyShade::checkMovement() {
       if(this->settingPos) {
         SomfyRemote::sendCommand(somfy_commands::My);
         if(!isAtTarget()) {
+          delay(300);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
@@ -618,6 +619,7 @@ void SomfyShade::checkMovement() {
       if(this->settingPos) {
         SomfyRemote::sendCommand(somfy_commands::My);
         if(!isAtTarget()) {
+          delay(300);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
