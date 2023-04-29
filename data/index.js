@@ -4,7 +4,7 @@ document.oncontextmenu = (event) => {
     else {
         event.preventDefault(); event.stopPropagation(); return false;
     }
-}
+};
 Date.prototype.toJSON = function () {
     let tz = this.getTimezoneOffset();
     let sign = tz > 0 ? '-' : '+';
@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.5.1';
+    appVersion = 'v1.5.2beta';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -1266,7 +1266,6 @@ class Somfy {
                 case 37:
                 case 38:
                     continue;
-                    break;
                 case 32: // We cannot use this pin with the mask for TX.
                 case 33:
                 case 34: // Input only
@@ -1309,7 +1308,6 @@ class Somfy {
             span = divs[i].querySelector('#spanMyTiltPos');
             if (span) span.innerHTML = typeof state.myTiltPos !== 'undefined' && state.myTiltPos >= 0 ? `${state.myTiltPos}%` : '---';
         }
-
     };
     procRemoteFrame(frame) {
         console.log(frame);
@@ -1348,7 +1346,7 @@ class Somfy {
             if (i !== 0) html += ',';
             html += `${frame.pulses[i]}`;
         }
-        html += '</div>'
+        html += '</div>';
         row.innerHTML = html;
         frames.prepend(row);
         this.frames.push(frame);
@@ -1357,7 +1355,7 @@ class Somfy {
         if (Array.isArray(obj)) {
             let output = '[';
             for (let i = 0; i < obj.length; i++) {
-                if (i != 0) output += ',\n';
+                if (i !== 0) output += ',\n';
                 output += this.JSONPretty(obj[i], indent);
             }
             output += ']'
@@ -1417,6 +1415,9 @@ class Somfy {
         document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
         document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
     };
+    onShadeBitLengthChanged(el) {
+        document.getElementById('divStepSettings').style.display = parseInt(el.value, 10) === 80 ? '' : 'none';
+    }
     openEditShade(shadeId) {
         console.log('Opening Edit Shade');
         if (typeof shadeId === 'undefined') {
@@ -1443,6 +1444,8 @@ class Somfy {
                     document.getElementById('divLinkedRemoteList').innerHTML = '';
                     document.getElementById('btnSetRollingCode').style.display = 'none';
                     document.getElementById('selShadeBitLength').value = shade.bitLength || 56;
+                    document.getElementById('slidStepSize').value = shade.stepSize || 100;
+                    document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
                 }
             });
         }
@@ -1471,6 +1474,8 @@ class Somfy {
                     document.getElementsByName('shadeName')[0].value = shade.name;
                     document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
                     document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
+                    document.getElementById('slidStepSize').value = shade.stepSize;
+                    document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
                     document.getElementById('fldTiltTime').value = shade.tiltTime;
                     document.getElementById('selTiltType').value = shade.tiltType;
                     this.onShadeTypeChanged(document.getElementById('selShadeType'));
@@ -1488,6 +1493,7 @@ class Somfy {
                     ico.style.setProperty('--shade-position', `${shade.position}%`);
                     ico.style.setProperty('--tilt-position', `${shade.tiltPosition}%`);
                     ico.setAttribute('data-shadeid', shade.shadeId);
+                    somfy.onShadeBitLengthChanged(document.getElementById('selShadeBitLength'));
                     document.getElementById('btnSetRollingCode').style.display = 'inline-block';
                     if (shade.paired) {
                         document.getElementById('btnUnpairShade').style.display = 'inline-block';
@@ -1523,9 +1529,10 @@ class Somfy {
             downTime: parseInt(document.getElementsByName('shadeDownTime')[0].value, 10),
             shadeType: parseInt(document.getElementById('selShadeType').value, 10),
             tiltTime: parseInt(document.getElementById('fldTiltTime').value, 10),
-            bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56
+            bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56,
+            stepSize: parseInt(document.getElementById('slidStepSize').value, 10) || 100
         };
-        if (obj.shadeType == 1) {
+        if (obj.shadeType === 1) {
             obj.tiltType = parseInt(document.getElementById('selTiltType').value, 10);
         }
         else obj.tiltType = 0;
@@ -1857,6 +1864,10 @@ class Somfy {
         let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];
         document.getElementById('spanTxPower').innerText = lvls[el.value];
     };
+    stepSizeChanged(el) {
+        document.getElementById('spanStepSize').innerText = parseInt(el.value, 10).fmt('#,##0');
+    };
+
     processShadeTarget(el, shadeId) {
         let positioner = document.querySelector(`.shade-positioner[data-shadeid="${shadeId}"]`);
         if (positioner) {

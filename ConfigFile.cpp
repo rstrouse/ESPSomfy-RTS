@@ -6,9 +6,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 5
+#define SHADE_HDR_VER 6
 #define SHADE_HDR_SIZE 16
-#define SHADE_REC_SIZE 222
+#define SHADE_REC_SIZE 228
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -292,6 +292,9 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     shade->upTime = this->readUInt32(shade->upTime);
     shade->downTime = this->readUInt32(shade->downTime);
     shade->tiltTime = this->readUInt32(shade->tiltTime);
+    if(this->header.version > 5) {
+      shade->stepSize = this->readUInt16(100);
+    }
     for(uint8_t j = 0; j < SOMFY_MAX_LINKED_REMOTES; j++) {
       SomfyLinkedRemote *rem = &shade->linkedRemotes[j];
       rem->setRemoteAddress(this->readUInt32(0));
@@ -346,6 +349,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   this->writeUInt32(shade->upTime);
   this->writeUInt32(shade->downTime);
   this->writeUInt32(shade->tiltTime);
+  this->writeUInt16(shade->stepSize);
   for(uint8_t j = 0; j < SOMFY_MAX_LINKED_REMOTES; j++) {
     SomfyLinkedRemote *rem = &shade->linkedRemotes[j];
     this->writeUInt32(rem->getRemoteAddress());

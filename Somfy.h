@@ -154,6 +154,7 @@ class SomfyShade : public SomfyRemote {
     uint32_t upTime = 10000;
     uint32_t downTime = 10000;
     uint32_t tiltTime = 7000;
+    uint16_t stepSize = 100;
     bool save();
     bool isIdle();
     void checkMovement();

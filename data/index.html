@@ -3,10 +3,10 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=1.5.1" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=1.5.1" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=1.5.2b" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=1.5.2b" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=1.5.1"></script>
+    <script type="text/javascript" src="index.js?v=1.5.2b"></script>
 </head>
 <body>
     <div id="divContainer" class="container" style="user-select:none;position:relative;border-radius:27px;">
@@ -220,13 +220,13 @@
                             <div class="field-group" style="width:127px;display:inline-block;margin-top:-20px;float:left;">
                                 <div class="field-group">
                                     <div class="field-group">
-                                        <select id="selShadeBitLength" name="bitLength" style="width:100%;">
+                                        <select id="selShadeBitLength" name="bitLength" style="width:100%;" onchange="somfy.onShadeBitLengthChanged(this);">
                                             <option value="56">56-BIT</option>
                                             <option value="80">80-BIT</option>
                                         </select>
                                         <label for="selShadeBitLength">Bit Length</label>
                                     </div>
-                                    <div class="field-group">
+                                    <div class="field-group" style="margin-top:-10px;">
                                         <select id="selShadeType" name="shadeType" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
                                             <option value="0">Roller Shade</option>
                                             <option value="1">Blind</option>
@@ -234,25 +234,25 @@
                                         </select>
                                         <label for="selShadeType">Type</label>
                                     </div>
-                                    <div class="field-group">
+                                    <div class="field-group" style="margin-top:-15px;">
                                         <input id="fldShadeAddress" name="shadeAddress" type="number" length=5 placeholder="Address" style="width:100%;text-align:right;">
                                         <label for="fldShadeAddress">Remote Address</label>
                                     </div>
                                 </div>
                             </div>
-                            <div id="divSomfyButtons" style="float:right;margin-top:27px;position:relative">
+                            <div id="divSomfyButtons" style="float:right;margin-top:10px;position:relative">
                                 <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
                                 <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
                                 <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
                                 <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
                             </div>
                         </div>
-                        <div class="field-group">
+                        <div class="field-group" style="padding:0px;">
                             <input id="fldShadeName" name="shadeName" type="text" length=20 placeholder="Name">
                             <label for="fldShadeName">Name</label>
                         </div>
-                        <div>
-                            <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;">
+                        <div style="margin-top:-10px;">
+                            <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;margin-top:-10px;">
                                 <input id="fldShadeUpTime" name="shadeUpTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
                                 <label for="fldShadeUpTime">Up Time (ms)</label>
                             </div>
@@ -261,7 +261,7 @@
                                 <label for="fldShadeDownTime">Down Time (ms)</label>
                             </div>
                         </div>
-                        <div id="divTiltSettings" style="display:none;">
+                        <div id="divTiltSettings" style="display:none;margin-top:-10px;">
                             <div class="field-group" style="display:inline-block; margin-right:17px;width:127px;vertical-align:middle;">
                                 <select id="selTiltType" name="tiltType" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
                                     <option value="0">None</option>
@@ -274,6 +274,18 @@
                                 <input id="fldTiltTime" name="shadeTiltTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
                                 <label for="fldTiltTime">Tilt Time (ms)</label>
                             </div>
+                        </div>
+                        <div id="divStepSettings" style="display:none;">
+                            <div class="field-group">
+                                <input id="slidStepSize" name="stepSize" type="range" min="1" max="1000" step="1" style="width:100%;" oninput="somfy.stepSizeChanged(this);" />
+                                <label for="slidStepSize" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
+                                    <span>Step Size (smaller)</span>
+                                    <span style="float:right;display:inline-block;margin-right:7px;">
+                                        <span id="spanStepSize" style="color:black;"></span><span>(larger)</span>
+                                    </span>
+                                </label>
+                            </div>
+
                         </div>
                         <div class="button-container" style="text-align:center;">
                             <button id="btnPairShade" type="button" onclick="somfy.pairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">

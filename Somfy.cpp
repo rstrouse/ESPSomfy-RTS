@@ -1030,10 +1030,12 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
       if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
-        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/100.0f))));
+        if(this->tiltTime == 0 || this->stepSize == 0) return;
+        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
       }
       else if(this->currentPos > 0.0f) {
-        this->target = max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/100.0f))));
+        if(this->downTime == 0 || this->stepSize == 0) return;
+        this->target = max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize)))));
       }
       break;
     case somfy_commands::MyDown:
@@ -1045,10 +1047,12 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
       if(this->tiltType == tilt_types::integrated && this->currentTiltPos < 100.0f) {
-        this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/100.0f))));
+        if(this->tiltTime == 0 || this->stepSize == 0) return;
+        this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
       }
       else if(this->currentPos < 100.0f) {
-        this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/100.0f))));
+        if(this->downTime == 0 || this->stepSize == 0) return;
+        this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize)))));
       }
       break;
     default:
@@ -1297,6 +1301,7 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
   if(obj.containsKey("downTime")) this->downTime = obj["downTime"];
   if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
   if(obj.containsKey("tiltTime")) this->tiltTime = obj["tiltTime"];
+  if(obj.containsKey("stepSize")) this->stepSize = obj["stepSize"];
   if(obj.containsKey("hasTilt")) this->tiltType = static_cast<bool>(obj["hasTilt"]) ? tilt_types::none : tilt_types::tiltmotor;
   if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
   if(obj.containsKey("shadeType")) {
@@ -1358,6 +1363,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["tiltPosition"] = static_cast<uint8_t>(floor(this->currentTiltPos));
   obj["tiltDirection"] = this->tiltDirection;
   obj["tiltTime"] = this->tiltTime;
+  obj["stepSize"] = this->stepSize;
   obj["tiltTarget"] = static_cast<uint8_t>(floor(this->tiltTarget));
   obj["target"] = this->target;
   obj["myPos"] = static_cast<int8_t>(floor(this->myPos));
