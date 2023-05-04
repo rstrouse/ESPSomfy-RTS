@@ -126,7 +126,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     if (this->valid) {
         // Check for valid command.
         switch (this->cmd) {
-        case somfy_commands::Unknown0:
+        //case somfy_commands::Unknown0:
         case somfy_commands::My:
         case somfy_commands::Up:
         case somfy_commands::MyUp:
@@ -137,10 +137,12 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::Prog:
         case somfy_commands::SunFlag:
         case somfy_commands::Flag:
+            break;
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
         case somfy_commands::UnknownE:
         case somfy_commands::UnknownF:
+            this->valid = false;
             break;
         case somfy_commands::StepUp:
         case somfy_commands::StepDown:
@@ -151,8 +153,9 @@ void somfy_frame_t::decodeFrame(byte* frame) {
             break;
         }
     }
-
+    if(this->valid && this->encKey == 0) this->valid = false; 
     if (this->valid) {
+      /*
         Serial.print("KEY:");
         Serial.print(this->encKey);
         Serial.print(" ADDR:");
@@ -165,6 +168,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         Serial.print(this->bitLength);
         Serial.print(" HWSYNC:");
         Serial.println(this->hwsync);
+        */
     }
     else {
         Serial.print("INVALID FRAME ");
@@ -691,7 +695,7 @@ void SomfyShade::checkMovement() {
         this->moveStart = millis();
         this->startPos = this->currentPos;
         this->tiltDirection = 0;
-        Serial.println("Processed tilt first UP");
+        //Serial.println("Processed tilt first UP");
       }
     }
     else if(this->currentTiltPos <= this->tiltTarget) {
@@ -1870,20 +1874,17 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
             }
         }
         else {
-            
-            ++somfy_rx.cpt_bits;
-            
-            /*
+            //++somfy_rx.cpt_bits;
             // Start over we are not within our parameters for bit timing.
             memset(&somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
-            somfy_rx.pulseCount = 0;
+            somfy_rx.pulseCount = 1;
             somfy_rx.cpt_synchro_hw = 0;
             somfy_rx.previous_bit = 0x00;
             somfy_rx.waiting_half_symbol = false;
             somfy_rx.cpt_bits = 0;
             somfy_rx.bit_length = 56;
             somfy_rx.status = waiting_synchro;
-            */
+            somfy_rx.pulses[0] = duration;
         }
         break;
     default:
