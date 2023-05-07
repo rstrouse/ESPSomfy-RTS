@@ -100,6 +100,7 @@ bool MQTTClass::connect() {
       return true;
   }
   if(settings.MQTT.enabled) {
+    if(this->lastConnect + 10000 > millis()) return false;    
     uint64_t mac = ESP.getEfuseMac();
     snprintf(this->clientId, sizeof(this->clientId), "client-%08lx%08lx", (uint32_t)((mac >> 32) & 0xFFFFFFFF), (uint32_t)(mac & 0xFFFFFFFF));
     if(strlen(settings.MQTT.protocol) > 0 && strlen(settings.MQTT.hostname) > 0) {
@@ -112,11 +113,14 @@ bool MQTTClass::connect() {
         this->subscribe("shades/+/direction/set");
         this->subscribe("shades/+/mypos/set");
         mqttClient.setCallback(MQTTClass::receive);
+        this->lastConnect = millis();
         return true;
       }
       else {
-        Serial.print("MQTT Connection failed for ");
+        Serial.print("MQTT Connection failed for: ");
         Serial.println(mqttClient.state());
+        this->lastConnect = millis();
+        return false;
       }
     }
     else

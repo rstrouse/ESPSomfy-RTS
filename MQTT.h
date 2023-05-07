@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 class MQTTClass {
   public:
+    uint64_t lastConnect = 0;
     char clientId[32] = {'\0'};
     bool begin();
     bool loop();
