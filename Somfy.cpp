@@ -578,12 +578,14 @@ void SomfyShade::checkMovement() {
       // If we need to stop the shade do this before we indicate that we are
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
-        SomfyRemote::sendCommand(somfy_commands::My);
         if(!isAtTarget()) {
+          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
           delay(100);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
+        else
+          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
       }
       this->direction = 0;
       this->tiltStart = millis();
@@ -621,12 +623,14 @@ void SomfyShade::checkMovement() {
       // If we need to stop the shade do this before we indicate that we are
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
-        SomfyRemote::sendCommand(somfy_commands::My);
         if(!isAtTarget()) {
+          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
           delay(100);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
+        else
+          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
       }
       this->direction = 0;
       this->tiltStart = millis();
@@ -662,7 +666,16 @@ void SomfyShade::checkMovement() {
       this->currentTiltPos = this->tiltTarget;
       // If we need to stop the shade do this before we indicate that we are
       // not moving otherwise the my function will kick in.
-      if(this->settingTiltPos) SomfyRemote::sendCommand(somfy_commands::My);
+      if(this->settingTiltPos) {
+        if(this->tiltType == tilt_types::integrated) {
+          // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
+          if(this->tiltTarget != 100.0 || this->currentPos != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
+        }
+        else {
+          // This is a tilt motor so let it complete if it is going to 0.
+          if(this->tiltTarget != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
+        }
+      }
       this->tiltDirection = 0;
       this->settingTiltPos = false;
       if(this->isAtTarget()) this->commitShadePosition();
@@ -695,14 +708,22 @@ void SomfyShade::checkMovement() {
         this->moveStart = millis();
         this->startPos = this->currentPos;
         this->tiltDirection = 0;
-        //Serial.println("Processed tilt first UP");
       }
     }
     else if(this->currentTiltPos <= this->tiltTarget) {
       this->currentTiltPos = this->tiltTarget;
       // If we need to stop the shade do this before we indicate that we are
       // not moving otherwise the my function will kick in.
-      if(this->settingTiltPos) SomfyRemote::sendCommand(somfy_commands::My);
+      if(this->settingTiltPos) {
+        if(this->tiltType == tilt_types::integrated) {
+          // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
+          if(this->tiltTarget != 0.0 || this->currentPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
+        }
+        else {
+          // This is a tilt motor so let it complete if it is going to 0.
+          if(this->tiltTarget != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
+        }
+      }
       this->tiltDirection = 0;
       this->settingTiltPos = false;
       Serial.println("Stopping at tilt position");
