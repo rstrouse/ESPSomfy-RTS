@@ -46,12 +46,14 @@ somfy_commands translateSomfyCommand(const String& string);
 
 #define MAX_TIMINGS 300
 #define MAX_RX_BUFFER 3
+#define MAX_TX_BUFFER 3
 
 typedef enum {
     waiting_synchro = 0,
     receiving_data = 1,
     complete = 2
 } t_status;
+
 typedef struct somfy_rx_t {
     t_status status;
     uint8_t bit_length = 56;
@@ -73,6 +75,20 @@ typedef struct somfy_rx_queue_t {
   somfy_rx_t items[MAX_RX_BUFFER];
   //void push(somfy_rx_t *rx);
   bool pop(somfy_rx_t *rx);
+};
+typedef struct somfy_tx_t {
+  uint32_t await = 0;
+  somfy_commands cmd;
+  uint8_t repeats;
+};
+typedef struct somfy_tx_queue_t {
+  somfy_tx_queue_t() { memset(this->index, 255, MAX_TX_BUFFER); memset(&this->items[0], 0x00, sizeof(somfy_tx_queue_t) * MAX_TX_BUFFER); }
+  void clear() { memset(&this->index[0], 255, MAX_TX_BUFFER); memset(&this->items[0], 0x00, sizeof(somfy_tx_queue_t) * MAX_TX_BUFFER); }
+  uint8_t length = 0;
+  uint8_t index[MAX_TX_BUFFER];
+  somfy_tx_t items[MAX_TX_BUFFER];
+  bool pop(somfy_tx_t *tx);
+  bool push(uint32_t await, somfy_commands cmd, uint8_t repeats);
 };
 typedef struct somfy_frame_t {
     bool valid = false;
@@ -134,6 +150,7 @@ class SomfyShade : public SomfyRemote {
     shade_types shadeType = shade_types::roller;
     tilt_types tiltType = tilt_types::none;
     void load();
+    somfy_tx_queue_t txQueue;
     somfy_frame_t lastFrame;
     float currentPos = 0.0f;
     float currentTiltPos = 0.0f;

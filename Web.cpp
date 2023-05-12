@@ -810,6 +810,7 @@ void Web::begin() {
     if (shade) {
       // Send the command to the shade.
       if(tilt < 0) tilt = shade->myPos;
+      if(shade->tiltType == tilt_types::none) tilt = -1;
       if(pos >= 0 && pos <= 100)
         shade->setMyPosition(pos, tilt);
       DynamicJsonDocument sdoc(512);

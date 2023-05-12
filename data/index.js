@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.5.3';
+    appVersion = 'v1.5.4';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -1182,10 +1182,10 @@ class Somfy {
                 if (myTiltPos >= 0 && tiltType > 0)
                     html += `<div onclick="document.getElementById('slidShadeTiltTarget').value = ${myTiltPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span style="display:inline-block;width:47px;">Tilt:</span><span>${myTiltPos}</span><span>%</span></div>`;
                 html += `</div></div >`;
-                html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" value="${currPos}" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
+                html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
                 html += `<label for="slidShadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
                 html += '<div id="divTiltTarget" style="display:none;">';
-                html += `<input id="slidShadeTiltTarget" name="shadeTiltTarget" type="range" min="0" max="100" step="1" value="${currTiltPos}" oninput="document.getElementById('spanShadeTiltTarget').innerHTML = this.value;" />`;
+                html += `<input id="slidShadeTiltTarget" name="shadeTiltTarget" type="range" min="0" max="100" step="1" oninput="document.getElementById('spanShadeTiltTarget').innerHTML = this.value;" />`;
                 html += `<label for="slidShadeTiltTarget"><span>Target Tilt </span><span><span id="spanShadeTiltTarget" class="shade-target">${currTiltPos}</span><span>%</span></span></label>`;
                 html += '</div>'
                 html += `<hr></hr>`;
@@ -1201,12 +1201,14 @@ class Somfy {
                 shade.appendChild(div);
                 let elTarget = div.querySelector('input#slidShadeTarget');
                 let elTiltTarget = div.querySelector('input#slidShadeTiltTarget');
+                elTarget.value = currPos;
+                elTiltTarget.value = currTiltPos;
                 let elBtn = div.querySelector('button#btnSetMyPosition');
                 if (tiltType > 0) div.querySelector('div#divTiltTarget').style.display = '';
                 let fnProcessChange = () => {
                     let pos = parseInt(elTarget.value, 10);
                     let tilt = parseInt(elTiltTarget.value, 10);
-                    if (pos === myPos && tilt === myTiltPos) {
+                    if (pos === myPos && (tiltType === 0 || tilt === myTiltPos)) {
                         elBtn.innerHTML = 'Clear My Position';
                         elBtn.style.background = 'orangered';
                     }

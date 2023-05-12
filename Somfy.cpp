@@ -24,7 +24,7 @@ uint8_t rxmode = 0;  // Indicates whether the radio is in receive mode.  Just to
     #define RECEIVE_ATTR
 #endif
 
-#define SETMY_REPEATS 15
+#define SETMY_REPEATS 35
 #define TILT_REPEATS 15
 
 int sort_asc(const void *cmp1, const void *cmp2) {
@@ -1123,7 +1123,7 @@ void SomfyShade::setMovement(int8_t dir) {
   }
 }
 void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
-  if(this->direction != 0) return; // Don't do this if it is moving.
+  if(!this->isIdle()) return; // Don't do this if it is moving.
   if(this->tiltType != tilt_types::none) {
       if(tilt < 0) tilt = 0;
       if(pos != floor(this->currentPos) || tilt != floor(currentTiltPos)) {
@@ -1134,12 +1134,21 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
           this->moveToTarget(pos, tilt);
       }
       else if(pos == floor(this->myPos) && tilt == floor(this->myTiltPos)) {
-        SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
-        this->myPos = this->myTiltPos = -1;
-        this->commitMyPosition();
-        this->emitState();
+        // Of so we need to clear the my position. These motors are finicky so send
+        // a my command to ensure we are actually at the my position then send the clear
+        // command.  There really is no other way to do this.
+        if(this->currentPos != this->myPos || this->currentTiltPos != this->myTiltPos) {
+          this->settingMyPos = true;
+          this->moveToMyPosition();      
+        }
+        else {
+          SomfyRemote::sendCommand(somfy_commands::My, 1);
+          this->settingPos = false;
+          this->settingMyPos = true;
+        }
       }
       else {
+        SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
         this->myPos = this->currentPos;
         this->myTiltPos = this->currentTiltPos;
       }
@@ -1155,12 +1164,21 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
         this->moveToTarget(pos);
     }
     else if(pos == floor(this->myPos)) {
-      SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
-      this->myPos = this->myTiltPos = -1;
-      this->commitMyPosition();
-      this->emitState();
+      // Of so we need to clear the my position. These motors are finicky so send
+      // a my command to ensure we are actually at the my position then send the clear
+      // command.  There really is no other way to do this.
+      if(this->myPos != this->currentPos) {
+        this->settingMyPos = true;
+        this->moveToMyPosition();      
+      }
+      else {
+        SomfyRemote::sendCommand(somfy_commands::My, 1);
+        this->settingPos = false;
+        this->settingMyPos = true;
+      }
     }
     else {
+      SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
       this->myPos = currentPos;
       this->myTiltPos = -1;
       this->commitMyPosition();
@@ -1190,6 +1208,7 @@ void SomfyShade::moveToMyPosition() {
   Serial.println(this->direction);
   if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
   if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->tiltTarget = this->myTiltPos;
+  this->settingPos = false;
   SomfyRemote::sendCommand(somfy_commands::My);
 }
 void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
@@ -1719,13 +1738,53 @@ static uint16_t timing_index = 0;
 static somfy_rx_t somfy_rx;
 static somfy_rx_queue_t rx_queue;
 
-
+bool somfy_tx_queue_t::pop(somfy_tx_t *tx) {
+  // Read the oldest index.
+  for(uint8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
+    if(this->index[i] < MAX_TX_BUFFER) {
+      uint8_t ndx = this->index[i];
+      memcpy(tx, &this->items[ndx], sizeof(somfy_tx_t));
+      memset(&this->items[ndx], 0x00, sizeof(somfy_tx_t));
+      this->length--;
+      this->index[i] = 255;
+      return true;
+    }
+  }
+  return false;
+}
+bool somfy_tx_queue_t::push(uint32_t await, somfy_commands cmd, uint8_t repeats) {
+  if(this->length >= MAX_TX_BUFFER) {
+    uint8_t ndx = this->index[MAX_TX_BUFFER - 1];
+    this->index[MAX_TX_BUFFER - 1] = 255;
+    this->length = MAX_TX_BUFFER - 1;
+    if(ndx < MAX_TX_BUFFER) memset(&this->items[ndx], 0x00, sizeof(somfy_tx_t));
+  }
+  // Place the command in the first empty slot.  Empty slots are those
+  // with a millis of 0.  We will shift the indexes right so that this
+  // is indexed int slot 0.
+  for(uint8_t i = 0; i < MAX_TX_BUFFER; i++) {
+    if(this->items[i].await == 0) {
+      this->items[i].await = await;
+      this->items[i].cmd = cmd;
+      this->items[i].repeats = repeats;
+      // Move the index so that it is the at position 0.  The oldest item will fall off.
+      for(uint8_t j = MAX_TX_BUFFER - 1; j > 0; j--) {
+        this->index[j] = this->index[j - 1];
+      }
+      this->length++;
+      this->index[0] = i;
+      return true;
+    }
+  }
+  return false;
+}
 void somfy_rx_queue_t::init() { 
   Serial.println("Initializing RX Queue");
   memset(&this->items[0], 0x00, sizeof(somfy_rx_t) * MAX_RX_BUFFER);
   memset(&this->index[0], 0xFF, MAX_RX_BUFFER);
   this->length = 0;
 }
+
 bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
   // Read off the data from the oldest index.
   //Serial.println("Popping RX Queue");
