@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.5.4';
+    appVersion = 'v1.6.0beta';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -924,6 +924,7 @@ class Somfy {
                 document.getElementById('selTransTXPin').value = somfy.transceiver.config.TXPin.toString();
                 document.getElementById('selTransRXPin').value = somfy.transceiver.config.RXPin.toString();
                 document.getElementById('selRadioType').value = somfy.transceiver.config.type;
+                document.getElementById('selRadioProto').value = somfy.transceiver.config.proto;
                 document.getElementById('spanMaxShades').innerText = somfy.maxShades;
                 document.getElementById('spanRxBandwidth').innerText = (Math.round(somfy.transceiver.config.rxBandwidth * 100) / 100).fmt('#,##0.00');
                 document.getElementById('slidRxBandwidth').value = Math.round(somfy.transceiver.config.rxBandwidth * 100);
@@ -961,6 +962,7 @@ class Somfy {
         let obj = {
             enabled: document.getElementsByName('enableRadio')[0].checked,
             type: parseInt(document.getElementById('selRadioType').value, 10),
+            proto: parseInt(document.getElementById('selRadioProto').value, 10),
             SCKPin: getIntValue('selTransSCKPin'),
             CSNPin: getIntValue('selTransCSNPin'),
             MOSIPin: getIntValue('selTransMOSIPin'),
@@ -1446,6 +1448,7 @@ class Somfy {
                     document.getElementById('divLinkedRemoteList').innerHTML = '';
                     document.getElementById('btnSetRollingCode').style.display = 'none';
                     document.getElementById('selShadeBitLength').value = shade.bitLength || 56;
+                    document.getElementById('selShadeProto').value = shade.proto || 0;
                     document.getElementById('slidStepSize').value = shade.stepSize || 100;
                     document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
                 }
@@ -1472,6 +1475,7 @@ class Somfy {
                     document.getElementById('btnLinkRemote').style.display = '';
                     document.getElementById('selShadeType').value = shade.shadeType;
                     document.getElementById('selShadeBitLength').value = shade.bitLength;
+                    document.getElementById('selShadeProto').value = shade.proto;
                     document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
                     document.getElementsByName('shadeName')[0].value = shade.name;
                     document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
@@ -1532,6 +1536,7 @@ class Somfy {
             shadeType: parseInt(document.getElementById('selShadeType').value, 10),
             tiltTime: parseInt(document.getElementById('fldTiltTime').value, 10),
             bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56,
+            proto: parseInt(document.getElementById('selShadeProto').value, 10) || 0,
             stepSize: parseInt(document.getElementById('slidStepSize').value, 10) || 100
         };
         if (obj.shadeType === 1) {

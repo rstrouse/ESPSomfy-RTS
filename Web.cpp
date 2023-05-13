@@ -469,12 +469,14 @@ void Web::begin() {
     });
   server.on("/getNextShade", []() {
     webServer.sendCORSHeaders();
-    StaticJsonDocument<128> doc;
+    StaticJsonDocument<256> doc;
     uint8_t shadeId = somfy.getNextShadeId();
     JsonObject obj = doc.to<JsonObject>();
     obj["shadeId"] = shadeId;
     obj["remoteAddress"] = somfy.getNextRemoteAddress(shadeId);
     obj["bitLength"] = somfy.transceiver.config.type;
+    obj["stepSize"] = 100;
+    obj["proto"] = static_cast<uint8_t>(somfy.transceiver.config.proto);
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     });

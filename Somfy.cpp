@@ -120,6 +120,23 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     // Pull in the data for an 80-bit step command.
     if(this->cmd == somfy_commands::StepDown)
       this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
+    if(this->cmd == somfy_commands::RTWProto) {
+      this->proto = radio_proto::RTW;
+      switch(this->encKey) {
+        case 140:
+          this->cmd = somfy_commands::Prog;
+          break;
+        case 134:
+          this->cmd = somfy_commands::Up;
+          break;
+        case 133:
+          this->cmd = somfy_commands::My;
+          break;
+        case 136:
+          this->cmd = somfy_commands::Down;
+          break;
+      }
+    }
     this->rollingCode = decoded[3] + (decoded[2] << 8);
     this->remoteAddress = (decoded[6] + (decoded[5] << 8) + (decoded[4] << 16));
     this->valid = this->checksum == checksum && this->remoteAddress > 0 && this->remoteAddress < 16777215 && this->rollingCode > 0;
@@ -141,7 +158,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
         case somfy_commands::UnknownE:
-        case somfy_commands::UnknownF:
+        case somfy_commands::RTWProto:
             this->valid = false;
             break;
         case somfy_commands::StepUp:
@@ -223,22 +240,42 @@ void somfy_frame_t::encodeFrame(byte *frame) {
   frame[7] = 132;
   frame[8] = 0;
   frame[9] = 29;
-  switch(this->cmd) {
-    case somfy_commands::StepUp:
-      frame[7] = 132;
-      frame[8] = 56;
-      frame[9] = 22;
-      break;
-    case somfy_commands::StepDown:
-      frame[7] = 132;
-      frame[8] = 48;
-      frame[9] = 30;
-      break;
-    case somfy_commands::Prog:
-      frame[7] = 196;
-      frame[8] = 0;
-      frame[9] = 25;
-      break;
+  // Ok so if this is an RTW things are a bit different.
+  if(this->proto == radio_proto::RTW) {
+    frame[1] = 0xF0;
+    switch(this->cmd) {
+      case somfy_commands::Prog:
+        frame[0] = 140;
+        break;
+      case somfy_commands::Up:
+        frame[0] = 134;
+        break;
+      case somfy_commands::Down:
+        frame[0] = 136;
+        break;
+      case somfy_commands::My:
+        frame[0] = 133;
+        break;
+    }
+  }
+  else {
+    switch(this->cmd) {
+      case somfy_commands::StepUp:
+        frame[7] = 132;
+        frame[8] = 56;
+        frame[9] = 22;
+        break;
+      case somfy_commands::StepDown:
+        frame[7] = 132;
+        frame[8] = 48;
+        frame[9] = 30;
+        break;
+      case somfy_commands::Prog:
+        frame[7] = 196;
+        frame[8] = 0;
+        frame[9] = 25;
+        break;
+    }
   }
   byte checksum = 0;
  
@@ -1348,6 +1385,7 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
   if(obj.containsKey("stepSize")) this->stepSize = obj["stepSize"];
   if(obj.containsKey("hasTilt")) this->tiltType = static_cast<bool>(obj["hasTilt"]) ? tilt_types::none : tilt_types::tiltmotor;
   if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
+  if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
   if(obj.containsKey("shadeType")) {
     if(obj["shadeType"].is<const char *>()) {
       if(strncmp(obj["shadeType"].as<const char *>(), "roller", 7) == 0)
@@ -1417,6 +1455,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["tiltTime"] = this->tiltTime;
   obj["shadeType"] = static_cast<uint8_t>(this->shadeType);
   obj["bitLength"] = this->bitLength;
+  obj["proto"] = static_cast<uint8_t>(this->proto);
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -1583,6 +1622,7 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   frame.bitLength = this->bitLength;
   // Match the encKey to the rolling code.  These keys range from 160 to 175.
   frame.encKey = 0xA0 | static_cast<uint8_t>(frame.rollingCode & 0x000F);
+  frame.proto = this->proto;
   if(frame.bitLength == 0) frame.bitLength = bit_length;
   this->lastRollingCode = frame.rollingCode;
   somfy.sendFrame(frame, repeat);
@@ -2115,7 +2155,7 @@ void transceiver_config_t::fromJSON(JsonObject& obj) {
     if(obj.containsKey("deviation")) this->deviation = obj["deviation"];  // float
     if(obj.containsKey("enabled")) this->enabled = obj["enabled"];
     if(obj.containsKey("txPower")) this->txPower = obj["txPower"];
-
+    if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
     /*
     if (obj.containsKey("internalCCMode")) this->internalCCMode = obj["internalCCMode"];
     if (obj.containsKey("modulationMode")) this->modulationMode = obj["modulationMode"];
@@ -2155,6 +2195,7 @@ void transceiver_config_t::toJSON(JsonObject& obj) {
     obj["frequency"] = this->frequency;  // float
     obj["deviation"] = this->deviation;  // float
     obj["txPower"] = this->txPower;
+    obj["proto"] = static_cast<uint8_t>(this->proto);
     /*
     obj["internalCCMode"] = this->internalCCMode;
     obj["modulationMode"] = this->modulationMode;
@@ -2201,6 +2242,7 @@ void transceiver_config_t::save() {
     pref.putBool("enabled", this->enabled);
     pref.putBool("radioInit", true);
     pref.putChar("txPower", this->txPower);
+    pref.putChar("proto", static_cast<uint8_t>(this->proto));
     
     /*
     pref.putBool("internalCCMode", this->internalCCMode);
@@ -2253,7 +2295,7 @@ void transceiver_config_t::load() {
     this->enabled = pref.getBool("enabled", this->enabled);
     this->txPower = pref.getChar("txPower", this->txPower);
     this->rxBandwidth = pref.getFloat("rxBandwidth", this->rxBandwidth);
-    
+    this->proto = static_cast<radio_proto>(pref.getChar("proto", static_cast<uint8_t>(this->proto)));
     this->removeNVSKey("internalCCMode");
     this->removeNVSKey("modulationMode");
     this->removeNVSKey("channel");

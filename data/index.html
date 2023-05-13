@@ -3,10 +3,10 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=1.5.4" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=1.5.4" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=1.6.0b" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=1.6.0b" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=1.5.4"></script>
+    <script type="text/javascript" src="index.js?v=1.6.0b"></script>
 </head>
 <body>
     <div id="divContainer" class="container" style="user-select:none;position:relative;border-radius:27px;">
@@ -219,8 +219,15 @@
                         <div>
                             <div class="field-group" style="width:127px;display:inline-block;margin-top:-20px;float:left;">
                                 <div class="field-group">
-                                    <div class="field-group">
-                                        <select id="selShadeBitLength" name="bitLength" style="width:100%;" onchange="somfy.onShadeBitLengthChanged(this);">
+                                    <div class="field-group" style="margin-top:-10px;">
+                                        <select id="selShadeProto" name="proto" style="width:50%;">
+                                            <option value="0">RTS</option>
+                                            <option value="1">RTW</option>
+                                        </select>
+                                        <label for="selShadeBitLength">Protocol</label>
+                                    </div>
+                                    <div class="field-group" style="margin-top:-10px;">
+                                        <select id="selShadeBitLength" name="bitLength" style="width:50%;" onchange="somfy.onShadeBitLengthChanged(this);">
                                             <option value="56">56-BIT</option>
                                             <option value="80">80-BIT</option>
                                         </select>
@@ -318,7 +325,14 @@
                 <div id="somfyTransceiver" style="display:none;position:relative;">
                     <form>
                         <div id="divRadioSettings" name="divRadioSettings" class="field-group1" style="display:block;position:relative">
-                            <div class="field-group" style="">
+                            <div class="field-group" style="display:inline-block;margin-right:7px;">
+                                <label for="selRadioProto">Protocol</label>
+                                <select id="selRadioProto" name="radioType" style="width:77px;">
+                                    <option value="0">RTS</option>
+                                    <option value="1">RTW</option>
+                                </select>
+                            </div>
+                            <div class="field-group" style="display:inline-block;">
                                 <label for="selRadioType">Radio</label>
                                 <select id="selRadioType" name="radioType" style="width:77px;">
                                     <option value="none" selected>None</option>

@@ -6,9 +6,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 6
+#define SHADE_HDR_VER 7
 #define SHADE_HDR_SIZE 16
-#define SHADE_REC_SIZE 228
+#define SHADE_REC_SIZE 232
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -285,7 +285,9 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
       shade->tiltType = this->readBool(false) ? tilt_types::none : tilt_types::tiltmotor;
     else
       shade->tiltType = static_cast<tilt_types>(this->readUInt8(0));
-    
+    if(this->header.version > 6) {
+      shade->proto = static_cast<radio_proto>(this->readUInt8(0));
+    }
     if(this->header.version > 1) {
       shade->bitLength = this->readUInt8(56);
     }
@@ -345,6 +347,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   this->writeUInt32(shade->getRemoteAddress());
   this->writeString(shade->name, sizeof(shade->name));
   this->writeUInt8(static_cast<uint8_t>(shade->tiltType));
+  this->writeUInt8(static_cast<uint8_t>(shade->proto));
   this->writeUInt8(shade->bitLength);
   this->writeUInt32(shade->upTime);
   this->writeUInt32(shade->downTime);

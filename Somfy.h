@@ -9,7 +9,10 @@ typedef struct appver_t {
   uint8_t minor;
   uint8_t build;
 };
-
+enum class radio_proto : byte {
+  RTS = 0x00,
+  RTW = 0x01
+};
 enum class somfy_commands : byte {
     Unknown0 = 0x0,
     My = 0x1,
@@ -26,7 +29,7 @@ enum class somfy_commands : byte {
     UnknownC = 0xC,
     UnknownD = 0xD,
     UnknownE = 0xE, // This command byte has been witnessed in the wild but cannot tell if it is from Somfy.  No rolling code is sent with this and it is 56-bits.
-    UnknownF = 0xF,
+    RTWProto = 0xF, // RTW Protocol
     // Command extensions for 80 bit frames
     StepUp = 0x8B
 };
@@ -93,6 +96,7 @@ typedef struct somfy_tx_queue_t {
 typedef struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
+    radio_proto proto = radio_proto::RTS;
     int rssi = 0;
     byte lqi = 0x0;
     somfy_commands cmd;
@@ -121,6 +125,7 @@ class SomfyRemote {
     char m_remotePrefId[11] = "";
     uint32_t m_remoteAddress = 0;
   public:
+    radio_proto proto = radio_proto::RTS;
     uint8_t bitLength = 0;
     char *getRemotePrefId() {return m_remotePrefId;}
     virtual bool toJSON(JsonObject &obj);
@@ -202,6 +207,7 @@ typedef struct transceiver_config_t {
     bool printBuffer = false;
     bool enabled = false;
     uint8_t type = 56;                // 56 or 80 bit protocol.
+    radio_proto proto = radio_proto::RTS;
     uint8_t SCKPin = 18;
     uint8_t TXPin = 12;
     uint8_t RXPin = 13;
