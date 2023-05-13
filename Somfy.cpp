@@ -123,17 +123,29 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     if(this->cmd == somfy_commands::RTWProto) {
       this->proto = radio_proto::RTW;
       switch(this->encKey) {
-        case 140:
-          this->cmd = somfy_commands::Prog;
+        case 133:
+          this->cmd = somfy_commands::My;
           break;
         case 134:
           this->cmd = somfy_commands::Up;
           break;
-        case 133:
-          this->cmd = somfy_commands::My;
+        case 135:
+          this->cmd = somfy_commands::MyUp;
           break;
         case 136:
           this->cmd = somfy_commands::Down;
+          break;
+        case 137:
+          this->cmd = somfy_commands::MyDown;
+          break;
+        case 138:
+          this->cmd = somfy_commands::UpDown;
+          break;
+        case 139:
+          this->cmd = somfy_commands::MyUpDown;
+          break;
+        case 140:
+          this->cmd = somfy_commands::Prog;
           break;
       }
     }
@@ -244,17 +256,29 @@ void somfy_frame_t::encodeFrame(byte *frame) {
   if(this->proto == radio_proto::RTW) {
     frame[1] = 0xF0;
     switch(this->cmd) {
-      case somfy_commands::Prog:
-        frame[0] = 140;
+      case somfy_commands::My:
+        frame[0] = 133;
         break;
       case somfy_commands::Up:
         frame[0] = 134;
         break;
+      case somfy_commands::MyUp:
+        frame[0] = 135;
+        break;
       case somfy_commands::Down:
         frame[0] = 136;
         break;
-      case somfy_commands::My:
-        frame[0] = 133;
+      case somfy_commands::MyDown:
+        frame[0] = 137;
+        break;
+      case somfy_commands::UpDown:
+        frame[0] = 138;
+        break;
+      case somfy_commands::MyUpDown:
+        frame[0] = 139;
+        break;
+      case somfy_commands::Prog:
+        frame[0] = 140;
         break;
     }
   }
