@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <LittleFS.h>
@@ -918,57 +917,6 @@ void Web::begin() {
       server.send(200, _encoding_json, g_content);
     }
   });
-  /*
-  server.on("/pairShade", []() {
-    webServer.sendCORSHeaders();
-    HTTPMethod method = server.method();
-    if (method == HTTP_PUT || method == HTTP_POST) {
-      uint8_t shadeId = 255;
-      if (server.hasArg("plain")) {
-        // Its coming in the body.
-        DynamicJsonDocument doc(512);
-        DeserializationError err = deserializeJson(doc, server.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
-        }
-      }
-      else if (server.hasArg("shadeId"))
-        shadeId = atoi(server.arg("shadeId").c_str());
-      SomfyShade* shade = nullptr;
-      if (shadeId != 255) shade = somfy.getShadeById(shadeId);
-      if (!shade) {
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade not found to pair\"}"));
-      }
-      else {
-        //if(shade->bitLength == 56)
-          shade->sendCommand(somfy_commands::Prog, 4);
-        //else
-        //  shade->sendCommand(somfy_commands::Prog, 1);
-        shade->paired = true;
-        shade->save();
-        DynamicJsonDocument doc(512);
-        JsonObject obj = doc.to<JsonObject>();
-        shade->toJSON(obj);
-        serializeJson(doc, g_content);
-        server.send(200, _encoding_json, g_content);
-      }
-    }
-    });
-  */
   server.on("/unpairShade", []() {
     webServer.sendCORSHeaders();
     HTTPMethod method = server.method();

@@ -3,10 +3,10 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=1.6.0b" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=1.6.0b" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=1.6.0" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=1.6.0" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=1.6.0b"></script>
+    <script type="text/javascript" src="index.js?v=1.6.0"></script>
 </head>
 <body>
     <div id="divContainer" class="container" style="user-select:none;position:relative;border-radius:27px;">
@@ -216,23 +216,25 @@
                 <div id="somfyShade" style="width:100%;display:none;">
                     <form method="post" action="/shadesettings">
                         <div style="display:inline-block;float:right;position:relative;margin-top:-14px;"><span id="spanShadeId">*</span>/<span id="spanMaxShades">5</span></div>
+                        <div class="field-group" style="padding:0px;">
+                            <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
+                                <select id="selShadeProto" name="proto" style="width:100%;">
+                                    <option value="0">RTS</option>
+                                    <option value="1">RTW</option>
+                                </select>
+                                <label for="selShadeBitLength">Protocol</label>
+                            </div>
+                            <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
+                                <select id="selShadeBitLength" name="bitLength" style="width:100%;" onchange="somfy.onShadeBitLengthChanged(this);">
+                                    <option value="56">56-BIT</option>
+                                    <option value="80">80-BIT</option>
+                                </select>
+                                <label for="selShadeBitLength">Bit Length</label>
+                            </div>
+                        </div>
                         <div>
-                            <div class="field-group" style="width:127px;display:inline-block;margin-top:-20px;float:left;">
+                            <div class="field-group" style="width:127px;display:inline-block;margin-top:-10px;float:left;">
                                 <div class="field-group">
-                                    <div class="field-group" style="margin-top:-10px;">
-                                        <select id="selShadeProto" name="proto" style="width:50%;">
-                                            <option value="0">RTS</option>
-                                            <option value="1">RTW</option>
-                                        </select>
-                                        <label for="selShadeBitLength">Protocol</label>
-                                    </div>
-                                    <div class="field-group" style="margin-top:-10px;">
-                                        <select id="selShadeBitLength" name="bitLength" style="width:50%;" onchange="somfy.onShadeBitLengthChanged(this);">
-                                            <option value="56">56-BIT</option>
-                                            <option value="80">80-BIT</option>
-                                        </select>
-                                        <label for="selShadeBitLength">Bit Length</label>
-                                    </div>
                                     <div class="field-group" style="margin-top:-10px;">
                                         <select id="selShadeType" name="shadeType" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
                                             <option value="0">Roller Shade</option>

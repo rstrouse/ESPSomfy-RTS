@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.6.0beta';
+    appVersion = 'v1.6.0';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -485,6 +485,7 @@ class General {
         { city: "Etc/GMT-14", code: "<+14>-14" },
         { city: "Etc/GMT-2", code: "<+02>-2" },
         { city: "Etc/Universal Coorinated Time", code: "UTC0" },
+        { city: "Europe/Berlin", code: "CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00" },
         { city: "Europe/Chisinau", code: "EET-2EEST,M3.5.0,M10.5.0/3" },
         { city: "Europe/Dublin", code: "IST-1GMT0,M10.5.0,M3.5.0/1" },
         { city: "Europe/Guernsey", code: "GMT0BST,M3.5.0/1,M10.5.0" },
