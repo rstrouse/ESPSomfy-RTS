@@ -1349,24 +1349,26 @@ void SomfyShade::moveToTarget(float pos, float tilt) {
     cmd = somfy_commands::Up;
   else if(tilt >= 0 && tilt > this->currentTiltPos)
     cmd = somfy_commands::Down;
-  Serial.print("Moving to ");
-  Serial.print(pos);
-  Serial.print("% from ");
-  Serial.print(this->currentPos);
-  if(tilt >= 0) {
-    Serial.print(" tilt ");
-    Serial.print(tilt);
+  if(cmd != somfy_commands::My) {
+    Serial.print("Moving to ");
+    Serial.print(pos);
     Serial.print("% from ");
-    Serial.print(this->currentTiltPos);
-  }
-  Serial.print("% using ");
-  Serial.println(translateSomfyCommand(cmd));
-  SomfyRemote::sendCommand(cmd);
-  this->target = pos;
-  this->settingPos = true;
-  if(tilt >= 0) {
-    this->tiltTarget = tilt;
-    this->settingTiltPos = true;
+    Serial.print(this->currentPos);
+    if(tilt >= 0) {
+      Serial.print(" tilt ");
+      Serial.print(tilt);
+      Serial.print("% from ");
+      Serial.print(this->currentTiltPos);
+    }
+    Serial.print("% using ");
+    Serial.println(translateSomfyCommand(cmd));
+    SomfyRemote::sendCommand(cmd);
+    this->settingPos = true;
+    this->target = pos;
+    if(tilt >= 0) {
+      this->tiltTarget = tilt;
+      this->settingTiltPos = true;
+    }
   }
 }
 bool SomfyShade::save() {

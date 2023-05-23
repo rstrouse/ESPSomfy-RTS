@@ -430,6 +430,7 @@ class General {
         { city: "America/Miquelon", code: "<-03>3<-02>,M3.2.0,M11.1.0" },
         { city: "America/Noronha", code: "<-02>2" },
         { city: "America/Santiago", code: "<-04>4<-03>,M9.1.6/24,M4.1.6/24" },
+        { city: "America/Sao_Paulo", code: "<-03>3" },
         { city: "America/Scoresbysund", code: "<-01>1<+00>,M3.5.0/0,M10.5.0/1" },
         { city: "America/St_Johns", code: "NST3:30NDT,M3.2.0,M11.1.0" },
         { city: "Antarctica/Casey", code: "<+11>-11" },
