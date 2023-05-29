@@ -36,7 +36,8 @@ enum class somfy_commands : byte {
 enum class shade_types : byte {
   roller = 0x00,
   blind = 0x01,
-  drapery = 0x02
+  drapery = 0x02,
+  awning = 0x03,
 };
 enum class tilt_types : byte {
   none = 0x00,
