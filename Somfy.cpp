@@ -91,6 +91,8 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Step Up";
     case somfy_commands::StepDown:
         return "Step Down";
+    case somfy_commands::Status:
+        return "Status";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
     }
@@ -173,9 +175,12 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::SunFlag:
         case somfy_commands::Flag:
             break;
+        case somfy_commands::Status:
+            this->rollingCode = 0;
+            this->sun = !!(decoded[3] & STATUS_SUN);
+            break;
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
-        case somfy_commands::UnknownE:
         case somfy_commands::RTWProto:
             this->valid = false;
             break;

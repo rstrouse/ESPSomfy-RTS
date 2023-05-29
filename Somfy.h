@@ -28,7 +28,7 @@ enum class somfy_commands : byte {
     StepDown = 0xB,
     UnknownC = 0xC,
     UnknownD = 0xD,
-    UnknownE = 0xE, // This command byte has been witnessed in the wild but cannot tell if it is from Somfy.  No rolling code is sent with this and it is 56-bits.
+    Status = 0xE,
     RTWProto = 0xF, // RTW Protocol
     // Command extensions for 80 bit frames
     StepUp = 0x8B
@@ -51,6 +51,12 @@ somfy_commands translateSomfyCommand(const String& string);
 #define MAX_TIMINGS 300
 #define MAX_RX_BUFFER 3
 #define MAX_TX_BUFFER 3
+
+#if !defined(BIT)
+#define BIT(x) (1 << (x))
+#endif /* BIT */
+
+#define STATUS_SUN BIT(1)
 
 typedef enum {
     waiting_synchro = 0,
@@ -110,6 +116,7 @@ typedef struct somfy_frame_t {
     uint32_t await = 0;
     uint8_t bitLength = 56;
     uint16_t pulseCount = 0;
+    bool sun = false;
     void print();
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
