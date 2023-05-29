@@ -52,12 +52,6 @@ somfy_commands translateSomfyCommand(const String& string);
 #define MAX_RX_BUFFER 3
 #define MAX_TX_BUFFER 3
 
-#if !defined(BIT)
-#define BIT(x) (1 << (x))
-#endif /* BIT */
-
-#define STATUS_SUN BIT(1)
-
 typedef enum {
     waiting_synchro = 0,
     receiving_data = 1,
@@ -100,6 +94,11 @@ typedef struct somfy_tx_queue_t {
   bool pop(somfy_tx_t *tx);
   bool push(uint32_t await, somfy_commands cmd, uint8_t repeats);
 };
+
+typedef enum {
+    no_sun = 0,
+    sun = 2
+} somfy_status_t;
 typedef struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
@@ -116,7 +115,7 @@ typedef struct somfy_frame_t {
     uint32_t await = 0;
     uint8_t bitLength = 56;
     uint16_t pulseCount = 0;
-    bool sun = false;
+    somfy_status_t status = no_sun;
     void print();
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
