@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.6.1';
+    appVersion = 'v1.6.2';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -1062,8 +1062,11 @@ class Somfy {
                 case 1:
                     divCtl += ' icss-window-blind';
                     break;
+                case 3:
+                    divCtl += ' icss-awning';
+                    break;
                 default:
-                    divCtl += ' icss-window-shade'
+                    divCtl += ' icss-window-shade';
                     break;
             }
             divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.position}%;vertical-align: top;"></i>`;
@@ -1492,6 +1495,10 @@ class Somfy {
                         case 1:
                             ico.classList.remove('icss-window-shade');
                             ico.classList.add('icss-window-blind');
+                            break;
+                        case 3:
+                            ico.classList.remove('icss-window-shade');
+                            ico.classList.add('icss-awning');
                             break;
                     }
                     let tilt = ico.parentElement.querySelector('i.icss-window-tilt');

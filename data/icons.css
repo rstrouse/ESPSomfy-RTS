@@ -690,3 +690,29 @@ i.icss-x {
         transform: translate(-50%, -50%) rotate(225deg)
     }
 
+i.icss-awning {
+    width: 1.1em;
+    height: .75em;
+    background-color: transparent;
+    border-width: 0 0;
+    margin: .2em 0 .07em;
+}
+
+    i.icss-awning:before {
+        width: 1.1em;
+        height: .2em;
+        border-bottom: .1em solid transparent;
+        box-shadow: inset 0 1em, 0 0em 0 -.1em;
+        top: -.1em;
+        left: -.09em;
+    }
+
+    i.icss-awning:after {
+        width: calc(100% - 0.1em);
+        height: var(--shade-position, 0%);
+        left: -.04em;
+        top: 0.025em;
+        border-bottom: solid 0.045em gray;
+        background-image: repeating-linear-gradient(90deg, var(--shade-color, currentColor), var(--shade-color, currentColor) calc(25% - 4px), black calc(25% - 2px), var(--shade-color, currentColor) calc(25% - 2px)); 
+        background-color: rgba(71, 212, 255, 0);
+    }
