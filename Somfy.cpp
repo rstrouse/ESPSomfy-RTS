@@ -177,7 +177,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
             break;
         case somfy_commands::Status:
             this->rollingCode = 0;
-            this->status = decoded[3];
+            this->status = static_cast<somfy_status_t>(decoded[3]);
             break;
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
