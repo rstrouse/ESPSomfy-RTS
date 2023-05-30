@@ -28,7 +28,7 @@ enum class somfy_commands : byte {
     StepDown = 0xB,
     UnknownC = 0xC,
     UnknownD = 0xD,
-    UnknownE = 0xE, // This command byte has been witnessed in the wild but cannot tell if it is from Somfy.  No rolling code is sent with this and it is 56-bits.
+    Status = 0xE,
     RTWProto = 0xF, // RTW Protocol
     // Command extensions for 80 bit frames
     StepUp = 0x8B
@@ -36,7 +36,8 @@ enum class somfy_commands : byte {
 enum class shade_types : byte {
   roller = 0x00,
   blind = 0x01,
-  drapery = 0x02
+  drapery = 0x02,
+  awning = 0x03,
 };
 enum class tilt_types : byte {
   none = 0x00,
@@ -93,6 +94,11 @@ typedef struct somfy_tx_queue_t {
   bool pop(somfy_tx_t *tx);
   bool push(uint32_t await, somfy_commands cmd, uint8_t repeats);
 };
+
+typedef enum {
+    no_sun = 0,
+    sun = 2
+} somfy_status_t;
 typedef struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
@@ -109,6 +115,7 @@ typedef struct somfy_frame_t {
     uint32_t await = 0;
     uint8_t bitLength = 56;
     uint16_t pulseCount = 0;
+    somfy_status_t status = no_sun;
     void print();
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);

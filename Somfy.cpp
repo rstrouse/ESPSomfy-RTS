@@ -91,6 +91,8 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Step Up";
     case somfy_commands::StepDown:
         return "Step Down";
+    case somfy_commands::Status:
+        return "Status";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
     }
@@ -147,6 +149,12 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case 140:
           this->cmd = somfy_commands::Prog;
           break;
+        case 141:
+          this->cmd = somfy_commands::SunFlag;
+          break;
+        case 142:
+          this->cmd = somfy_commands::Flag;
+          break;
       }
     }
     this->rollingCode = decoded[3] + (decoded[2] << 8);
@@ -167,9 +175,12 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::SunFlag:
         case somfy_commands::Flag:
             break;
+        case somfy_commands::Status:
+            this->rollingCode = 0;
+            this->status = decoded[3];
+            break;
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
-        case somfy_commands::UnknownE:
         case somfy_commands::RTWProto:
             this->valid = false;
             break;
@@ -279,6 +290,12 @@ void somfy_frame_t::encodeFrame(byte *frame) {
         break;
       case somfy_commands::Prog:
         frame[0] = 140;
+        break;
+      case somfy_commands::SunFlag:
+        frame[0] = 141;
+        break;
+      case somfy_commands::Flag:
+        frame[0] = 142;
         break;
     }
   }
@@ -1420,6 +1437,8 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
         this->shadeType = shade_types::drapery;
       else if(strncmp(obj["shadeType"].as<const char *>(), "blind", 5) == 0)
         this->shadeType = shade_types::blind;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "awning", 7) == 0)
+        this->shadeType = shade_types::awning;
     }
     else {
       this->shadeType = static_cast<shade_types>(obj["shadeType"].as<uint8_t>());
