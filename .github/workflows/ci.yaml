@@ -63,18 +63,18 @@ jobs:
       matrix:
         include:
           - board: esp32
+            addr_bootloader: 0x1000
             chip: ESP32
-            flash_size: 4MB
             fqbn: esp32:esp32:esp32
             name: ESP32
           - board: lolin_c3_mini
+            addr_bootloader: 0x0
             chip: ESP32-C3
-            flash_size: 4MB
             fqbn: esp32:esp32:lolin_c3_mini
             name: LOLIN-C3-mini
           - board: lolin_s2_mini
+            addr_bootloader: 0x1000
             chip: ESP32-S2
-            flash_size: 4MB
             fqbn: esp32:esp32:lolin_s2_mini
             name: LOLIN-S2-mini
 
@@ -129,8 +129,7 @@ jobs:
         run: |
           python -m esptool --chip ${{ matrix.chip }} \
             merge_bin -o build/SomfyController.onboard.bin \
-            --flash_size ${{ matrix.flash_size }} \
-            0x1000 build/SomfyController.ino.bootloader.bin \
+            ${{ matrix.addr_bootloader }} build/SomfyController.ino.bootloader.bin \
             0x8000 build/SomfyController.ino.partitions.bin \
             0x10000 build/SomfyController.ino.bin \
             0x290000 SomfyController.littlefs.bin
