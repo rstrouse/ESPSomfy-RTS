@@ -329,7 +329,7 @@ uint32_t Network::getChipId() {
   return chipId;
 }
 int Network::getStrengthBySSID(const char *ssid) {
-  int strength = -100;
+  int32_t strength = -100;
   int n = WiFi.scanNetworks(false, true);
   for(int i = 0; i < n; i++) {
     if(WiFi.SSID(i).compareTo(ssid) == 0) strength = max(WiFi.RSSI(i), strength);

@@ -61,6 +61,11 @@ jobs:
             flash_size: 4MB
             fqbn: esp32:esp32:esp32
             name: ESP32
+          - board: lolin_c3_mini
+            chip: ESP32-C3
+            flash_size: 4MB
+            fqbn: esp32:esp32:lolin_c3_mini
+            name: LOLIN-C3-mini
           - board: lolin_s2_mini
             chip: ESP32-S2
             flash_size: 4MB
