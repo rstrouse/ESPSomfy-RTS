@@ -35,7 +35,7 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
   //Serial.println();
 
   // We need to start at the last slash in the data
-  uint16_t ndx = strlen(topic) - 1;
+  int16_t ndx = strlen(topic) - 1;
   // ------------------+
   // shades/1/target/set
   while(ndx >= 0 && topic[ndx] != '/') ndx--; // Back off the set command

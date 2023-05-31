@@ -1831,7 +1831,7 @@ static somfy_rx_queue_t rx_queue;
 
 bool somfy_tx_queue_t::pop(somfy_tx_t *tx) {
   // Read the oldest index.
-  for(uint8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
+  for(int8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
     if(this->index[i] < MAX_TX_BUFFER) {
       uint8_t ndx = this->index[i];
       memcpy(tx, &this->items[ndx], sizeof(somfy_tx_t));
@@ -1881,7 +1881,7 @@ void somfy_rx_queue_t::init() {
 bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
   // Read off the data from the oldest index.
   //Serial.println("Popping RX Queue");
-  for(uint8_t i = MAX_RX_BUFFER - 1; i >= 0; i--) {
+  for(int8_t i = MAX_RX_BUFFER - 1; i >= 0; i--) {
     if(this->index[i] < MAX_RX_BUFFER) {
       uint8_t ndx = this->index[i];
       memcpy(rx, &this->items[this->index[i]], sizeof(somfy_rx_t));
