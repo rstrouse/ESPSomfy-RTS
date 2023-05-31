@@ -1343,17 +1343,19 @@ void SomfyShade::moveToTiltTarget(float target) {
   else if(target > this->currentTiltPos)
     cmd = somfy_commands::Down;
   if(target >= 0.0f && target <= 100.0f) {
-    if(cmd != somfy_commands::My) {
-      Serial.print("Moving Tilt to ");
-      Serial.print(target);
-      Serial.print("% from ");
-      Serial.print(this->currentTiltPos);
-      Serial.print("% using ");
-      Serial.println(translateSomfyCommand(cmd));
-      SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : 1);
+    if(this->currentPos == this->target || this->tiltType == tilt_types::tiltmotor) {
+      if(cmd != somfy_commands::My) {
+        Serial.print("Moving Tilt to ");
+        Serial.print(target);
+        Serial.print("% from ");
+        Serial.print(this->currentTiltPos);
+        Serial.print("% using ");
+        Serial.println(translateSomfyCommand(cmd));
+        SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : 1);
+      }
+      else
+        SomfyRemote::sendCommand(cmd);
     }
-    else
-      SomfyRemote::sendCommand(cmd);
     this->tiltTarget = target;
   }
   this->settingTiltPos = true;
