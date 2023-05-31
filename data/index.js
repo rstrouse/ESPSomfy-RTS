@@ -1075,9 +1075,10 @@ class Somfy {
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
             divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`
             if (shade.myTiltPos > 0) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
-            divCtl += '</div>'
+            divCtl += '</div>';
 
             divCtl += `<div class="shadectl-buttons">`;
+            divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-shadeid="${shade.shadeId}" data-on="${shade.flags & 0x01 ? 'true' : 'false'}" style="${shade.shadeType !== 3 ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-shadeid="${shade.shadeId}"><i class="icss-somfy-up"></i></div>`;
             divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-shadeid="${shade.shadeId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-shadeid="${shade.shadeId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
@@ -1100,6 +1101,12 @@ class Somfy {
                     this.btnTimer = null;
                     if (new Date().getTime() - this.btnDown > 2000) event.preventDefault();
                     else this.sendCommand(shadeId, cmd);
+                }
+                else if (cmd === 'sunflag') {
+                    if (makeBool(event.currentTarget.getAttribute('data-on')))
+                        this.sendCommand(shadeId, 'flag');
+                    else
+                        this.sendCommand(shadeId, 'sunflag');
                 }
                 else this.sendCommand(shadeId, cmd);
             }, true);
@@ -1299,6 +1306,12 @@ class Somfy {
                 tilts[i].setAttribute('data-tiltposition', `${state.tiltPosition}`);
             }
         }
+        let flags = document.querySelectorAll(`.button-sunflag[data-shadeid="${state.shadeId}"]`);
+        for (let i = 0; i < flags.length; i++) {
+            flags[i].style.display = state.type === 3 ? '' : 'none';
+            flags[i].setAttribute('data-on', state.flags & 0x01 === 0x01 ? 'true' : 'false');
+           
+        }
         let divs = document.querySelectorAll(`.somfyShadeCtl[data-shadeid="${state.shadeId}"]`);
         for (let i = 0; i < divs.length; i++) {
             divs[i].setAttribute('data-direction', state.direction);
@@ -1412,10 +1425,19 @@ class Somfy {
             case 1:
                 document.getElementById('divTiltSettings').style.display = '';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (!ico.classList.contains('icss-window-blind')) ico.classList.add('icss-window-blind');
                 break;
+            case 3:
+                document.getElementById('divTiltSettings').style.display = 'none';
+                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (!ico.classList.contains('icss-awning')) ico.classList.add('icss-awning');
+                break;
+
             default:
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (!ico.classList.contains('icss-window-shade')) ico.classList.add('icss-window-shade');
                 document.getElementById('divTiltSettings').style.display = 'none';
                 tilt = false;

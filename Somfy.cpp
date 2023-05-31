@@ -91,8 +91,6 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Step Up";
     case somfy_commands::StepDown:
         return "Step Down";
-    case somfy_commands::Status:
-        return "Status";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
     }
@@ -172,12 +170,8 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::UpDown:
         case somfy_commands::MyUpDown:
         case somfy_commands::Prog:
-        case somfy_commands::SunFlag:
         case somfy_commands::Flag:
-            break;
-        case somfy_commands::Status:
-            this->rollingCode = 0;
-            this->status = static_cast<somfy_status_t>(decoded[3]);
+        case somfy_commands::SunFlag:
             break;
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
@@ -931,11 +925,11 @@ void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
   char buf[320];
   if(this->tiltType != tilt_types::none)
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d}", 
-      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, static_cast<uint8_t>(floor(this->currentPos)), static_cast<uint8_t>(floor(this->target)), static_cast<int8_t>(floor(this->myPos)), static_cast<int8_t>(this->myTiltPos), static_cast<uint8_t>(this->tiltType), this->tiltDirection, static_cast<uint8_t>(floor(this->tiltTarget)), static_cast<uint8_t>(floor(this->currentTiltPos)));
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flags\":%d}", 
+      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, static_cast<uint8_t>(floor(this->currentPos)), static_cast<uint8_t>(floor(this->target)), static_cast<int8_t>(floor(this->myPos)), static_cast<int8_t>(this->myTiltPos), static_cast<uint8_t>(this->tiltType), this->tiltDirection, static_cast<uint8_t>(floor(this->tiltTarget)), static_cast<uint8_t>(floor(this->currentTiltPos)),this->flags);
   else
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u}", 
-      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, static_cast<uint8_t>(floor(this->currentPos)), static_cast<uint8_t>(floor(this->target)), static_cast<int8_t>(floor(this->myPos)), static_cast<uint8_t>(this->tiltType));
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flags\":%d}", 
+      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, static_cast<uint8_t>(floor(this->currentPos)), static_cast<uint8_t>(floor(this->target)), static_cast<int8_t>(floor(this->myPos)), static_cast<uint8_t>(this->tiltType), this->flags);
   if(num >= 255) sockEmit.sendToClients(evt, buf);
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
@@ -952,6 +946,7 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
     mqtt.publish(topic, static_cast<int8_t>(floor(this->myPos)));
     snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
+    snprintf(topic, sizeof(topic), "shades/%u/flags", this->flags);
     if(this->tiltType != tilt_types::none) {
       snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
       mqtt.publish(topic, static_cast<int8_t>(floor(this->myTiltPos)));
@@ -1075,6 +1070,14 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   // At this point we are not processing the combo buttons
   // will need to see what the shade does when you press both.
   switch(frame.cmd) {
+    case somfy_commands::Flag:
+      this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Sun));
+      this->emitState();
+      break;    
+    case somfy_commands::SunFlag:
+      this->flags |= static_cast<uint8_t>(somfy_flags_t::Sun);
+      this->emitState();
+      break;
     case somfy_commands::Up:
       if(this->tiltType == tilt_types::tiltmotor) {
         // Wait another half second just in case we are potentially processing a tilt.

@@ -716,3 +716,150 @@ i.icss-awning {
         background-image: repeating-linear-gradient(90deg, var(--shade-color, currentColor), var(--shade-color, currentColor) calc(25% - 4px), black calc(25% - 2px), var(--shade-color, currentColor) calc(25% - 2px)); 
         background-color: rgba(71, 212, 255, 0);
     }
+i.icss-sun-c {
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    background-color: transparent;
+    background-image: radial-gradient(ellipse at center, #fd0 1%, #fb0 39%, #fb0 39%, #d61 100%);
+    box-shadow: 0 0 .06em .03em rgba(255, 107, 0, 0.4), 0 0 22px 11px rgba(255, 203, 0, 0.13);
+    background-position: -.7em -.6em;
+    background-size: 165%;
+    margin: 0;
+}
+
+    i.icss-sun-c:before {
+    }
+
+    i.icss-sun-c:after {
+    }
+
+i.icss-sun {
+    width: .6em;
+    height: .6em;
+    border-radius: 50%;
+    background-color: transparent;
+    border: 0.03em solid transparent;
+    box-shadow: inset 0 0 0 .5em;
+    margin: .2em;
+}
+
+    i.icss-sun:before {
+        width: .1em;
+        height: .1em;
+        background-color: transparent;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: .45em 0, .38em 0, -.45em 0, -.38em 0, 0 .45em, 0 .38em, 0 -.45em, 0 -.38em;
+    }
+
+    i.icss-sun:after {
+        width: .1em;
+        height: .1em;
+        background-color: transparent;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(45deg);
+        box-shadow: .45em 0, .38em 0, -.45em 0, -.38em 0, 0 .45em, 0 .38em, 0 -.45em, 0 -.38em;
+    }
+i.icss-sun-o {
+    width: .6em;
+    height: .6em;
+    border-radius: 50%;
+    background-color: transparent;
+    border: 0.03em solid transparent;
+    box-shadow: inset 0 0 0 .065em;
+    margin: .2em;
+}
+
+    i.icss-sun-o:before {
+        width: .1em;
+        height: .1em;
+        background-color: transparent;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: .45em 0, .38em 0, -.45em 0, -.38em 0, 0 .45em, 0 .38em, 0 -.45em, 0 -.38em;
+    }
+
+    i.icss-sun-o:after {
+        width: .1em;
+        height: .1em;
+        background-color: transparent;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(45deg);
+        box-shadow: .45em 0, .38em 0, -.45em 0, -.38em 0, 0 .45em, 0 .38em, 0 -.45em, 0 -.38em;
+    }
+i.icss-sun-c {
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    background-color: transparent;
+    background-image: radial-gradient(ellipse at center, #fd0 1%, #fb0 39%, #fb0 39%, #d61 100%);
+    box-shadow: 0 0 .06em .03em rgba(255, 107, 0, 0.4), 0 0 22px 11px rgba(255, 203, 0, 0.13);
+    background-position: -.7em -.6em;
+    background-size: 165%;
+    margin: 0;
+}
+
+    i.icss-sun-c:before {
+    }
+
+    i.icss-sun-c:after {
+    }
+
+i.icss-sun-o {
+    width: .6em;
+    height: .6em;
+    border-radius: 50%;
+    background-color: transparent;
+    border: 0.03em solid transparent;
+    box-shadow: inset 0 0 0 .065em;
+    margin: .2em;
+}
+
+    i.icss-sun-o:before {
+        width: .1em;
+        height: .1em;
+        background-color: transparent;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: .45em 0, .38em 0, -.45em 0, -.38em 0, 0 .45em, 0 .38em, 0 -.45em, 0 -.38em;
+    }
+
+    i.icss-sun-o:after {
+        width: .1em;
+        height: .1em;
+        background-color: transparent;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(45deg);
+        box-shadow: .45em 0, .38em 0, -.45em 0, -.38em 0, 0 .45em, 0 .38em, 0 -.45em, 0 -.38em;
+    }
+
+div.button-sunflag {
+    position: relative;
+    margin-left:-30px;
+    cursor:pointer;
+}
+    div.button-sunflag[data-on=false] i.icss-sun-c {
+        background-image: radial-gradient(ellipse at center, gainsboro 1%, #ccc 39%, silver 39%, gray 100%);
+    }
+
+
+    div.button-sunflag > i.icss-sun-c {
+        position: absolute;
+        font-size: 18px;
+        color: orange;
+        left: 6px;
+        top: 7px;
+    }
+
+    div.button-sunflag > i.icss-sun-o {
+        position: absolute;
+        font-size: 32px;
+        color: orange;
+    }

@@ -28,7 +28,7 @@ enum class somfy_commands : byte {
     StepDown = 0xB,
     UnknownC = 0xC,
     UnknownD = 0xD,
-    Status = 0xE,
+    UnknownE = 0xE,
     RTWProto = 0xF, // RTW Protocol
     // Command extensions for 80 bit frames
     StepUp = 0x8B
@@ -95,10 +95,9 @@ typedef struct somfy_tx_queue_t {
   bool push(uint32_t await, somfy_commands cmd, uint8_t repeats);
 };
 
-typedef enum {
-    no_sun = 0,
-    sun = 2
-} somfy_status_t;
+enum class somfy_flags_t : byte {
+    Sun = 1
+};
 typedef struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
@@ -115,7 +114,6 @@ typedef struct somfy_frame_t {
     uint32_t await = 0;
     uint8_t bitLength = 56;
     uint16_t pulseCount = 0;
-    somfy_status_t status = no_sun;
     void print();
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
@@ -161,6 +159,7 @@ class SomfyShade : public SomfyRemote {
   public:
     shade_types shadeType = shade_types::roller;
     tilt_types tiltType = tilt_types::none;
+    uint8_t flags = 0;
     void load();
     somfy_tx_queue_t txQueue;
     somfy_frame_t lastFrame;
