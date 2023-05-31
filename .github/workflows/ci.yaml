@@ -54,7 +54,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        board: [esp32, lolin_s2_mini]
         include:
           - board: esp32
             chip: ESP32
