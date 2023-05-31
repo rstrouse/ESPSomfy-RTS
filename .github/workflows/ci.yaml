@@ -123,7 +123,7 @@ jobs:
       - name: Build ${{ matrix.name }}
         run: |
           mkdir -p build
-          arduino-cli compile --clean --output-dir build --fqbn ${{ matrix.fqbn }} ./SomfyController
+          arduino-cli compile --clean --output-dir build --fqbn ${{ matrix.fqbn }} --warnings default ./SomfyController
 
       - name: ${{ matrix.name }} Image
         run: |

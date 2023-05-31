@@ -728,7 +728,7 @@ void SSDPClass::_processRequest(AsyncUDPPacket &p) {
       this->_printPacket(&pkt);
       DEBUG_SSDP.println("---------------   ROOT   ---------------------");
       #endif
-      if(pkt.method == MULTICAST) 
+      if(pkt.type == MULTICAST) 
         this->_addToSendQueue(IPAddress(SSDP_MULTICAST_ADDR), SSDP_PORT, dev, pkt.st, pkt.mx, false);
       else 
         this->_sendResponse(p.remoteIP(), p.remotePort(), dev, pkt.st, false);
@@ -746,7 +746,7 @@ void SSDPClass::_processRequest(AsyncUDPPacket &p) {
         this->_printPacket(&pkt);
         DEBUG_SSDP.println("--------------   ACCEPT   --------------------");
         #endif
-        if(pkt.method == MULTICAST)
+        if(pkt.type == MULTICAST)
           this->_addToSendQueue(IPAddress(SSDP_MULTICAST_ADDR), SSDP_PORT, dev, pkt.st, pkt.mx, useUUID);
         else {
           this->_sendResponse(p.remoteIP(), p.remotePort(), dev, pkt.st, useUUID);

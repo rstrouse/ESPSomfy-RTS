@@ -38,7 +38,7 @@ typedef enum {
   MULTICAST,
   UNICAST
 } ssdp_req_types_t;
-typedef struct ssdp_packet_t {
+struct ssdp_packet_t {
   bool pending;
   unsigned long recvd;
   ssdp_method_t                   method;
@@ -91,7 +91,7 @@ class UPNPDeviceType {
     char *getUSN(const char *st);
     void setChipId(uint32_t chipId);
 };
-typedef struct ssdp_response_t {
+struct ssdp_response_t {
   bool waiting;
   IPAddress address;
   uint16_t port;

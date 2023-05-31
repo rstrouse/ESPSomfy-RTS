@@ -314,11 +314,12 @@ bool Network::connect() {
   return this->connectWiFi();
 }
 int Network::getStrengthByMac(const char *macAddr) {
-  int strength = -100;
   int n = WiFi.scanNetworks(true);
   for(int i = 0; i < n; i++) {
-    if(WiFi.BSSIDstr(i).compareTo(macAddr) == 0) return WiFi.RSSI(i);
+    if (WiFi.BSSIDstr(i).compareTo(macAddr) == 0)
+      return WiFi.RSSI(i);
   }
+  return -100;
 }
 uint32_t Network::getChipId() {
   uint32_t chipId = 0;
@@ -416,6 +417,7 @@ bool Network::openSoftAP() {
     }
     yield();
   }
+  return true;
 }
 bool Network::connected() {
   if(this->connType == conn_types::unset) return false;

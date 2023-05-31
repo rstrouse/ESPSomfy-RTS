@@ -58,7 +58,10 @@ bool ConfigFile::seekRecordByIndex(uint16_t ndx) {
   if(!this->file) {
     return false;
   }
-  if(((this->header.recordSize * ndx) + this->header.length) > this->file.size()) return false;
+  if(((this->header.recordSize * ndx) + this->header.length) > this->file.size()) {
+    return false;
+  }
+  return true;
 }
 bool ConfigFile::readString(char *buff, size_t len) {
   if(!this->file) return false;

@@ -8,7 +8,7 @@
 #define CFG_REC_END '\n'
 #define CFG_TOK_NONE 0x00
 
-typedef struct config_header_t {
+struct config_header_t {
   uint8_t version = 1;
   uint16_t recordSize = 0;
   uint16_t records = 0;
@@ -63,4 +63,4 @@ class ShadeConfigFile : public ConfigFile {
     bool seekRecordById(uint8_t id);
     bool validate();
 };
-#endif;
+#endif

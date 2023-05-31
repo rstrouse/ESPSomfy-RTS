@@ -33,6 +33,7 @@ bool BaseSettings::saveFile(const char *filename) {
   this->toJSON(obj);
   serializeJson(doc, file);
   file.close();
+  return true;
 }
 bool BaseSettings::parseValueString(JsonObject &obj, const char *prop, char *pdest, size_t size) {
   if(obj.containsKey(prop)) strlcpy(pdest, obj[prop], size);
@@ -272,8 +273,8 @@ String WifiSettings::mapEncryptionType(int type) {
       return "WPA/WPA2/PSK";
     case WIFI_AUTH_WPA2_ENTERPRISE:
       return "WPA/Enterprise";
-    return "Unknown";
   }
+  return "Unknown";
 }
 void WifiSettings::print() {
   Serial.println("WIFI Settings");

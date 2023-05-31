@@ -37,7 +37,7 @@ static void _rtrim(char *str) {
   while(e >= 0 && (str[e] == ' ' || str[e] == '\n' || str[e] == '\r' || str[e] == '\t' || str[e] == '"')) {str[e] = '\0'; e--;}
 }
 static void _trim(char *str) { _ltrim(str); _rtrim(str); }
-typedef struct rebootDelay_t {
+struct rebootDelay_t {
   bool reboot = false;
   int rebootTime = 0;
   bool closed = false;
