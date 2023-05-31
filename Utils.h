@@ -4,7 +4,7 @@
 
 #define DEBUG_SOMFY Serial
 
-static void SETCHARPROP(char *prop, const char *value, size_t size) {strncpy(prop, value, size); prop[size - 1] = '\0';}
+[[maybe_unused]] static void SETCHARPROP(char *prop, const char *value, size_t size) {strncpy(prop, value, size); prop[size - 1] = '\0';}
 namespace util { 
   // Createa a custom to_string function.  C++ can be annoying
   // with all the trailing 0s on number formats.
@@ -36,13 +36,13 @@ static void _rtrim(char *str) {
   int e = strlen(str) - 1;
   while(e >= 0 && (str[e] == ' ' || str[e] == '\n' || str[e] == '\r' || str[e] == '\t' || str[e] == '"')) {str[e] = '\0'; e--;}
 }
-static void _trim(char *str) { _ltrim(str); _rtrim(str); }
+[[maybe_unused]] static void _trim(char *str) { _ltrim(str); _rtrim(str); }
 struct rebootDelay_t {
   bool reboot = false;
   int rebootTime = 0;
   bool closed = false;
 };
-static bool toBoolean(const char *str, bool def) {
+[[maybe_unused]] static bool toBoolean(const char *str, bool def) {
   if(!str) return def;
   if(strlen(str) == 0) return def;
   else if(str[0] == 't' || str[0] == 'T' || str[0] == '1') return true;
@@ -51,7 +51,7 @@ static bool toBoolean(const char *str, bool def) {
 }
 
 class Timestamp {
-  char _timeBuffer[44];
+  char _timeBuffer[128];
   public:
     time_t getUTC();
     time_t getUTC(time_t epoch);

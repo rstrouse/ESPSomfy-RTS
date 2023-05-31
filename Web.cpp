@@ -250,7 +250,6 @@ void Web::begin() {
   server.on("/", []() {
     webServer.sendCacheHeaders(604800);
     webServer.sendCORSHeaders();
-    int statusCode = 200;
     // Load the index html page from the data directory.
     Serial.println("Loading file index.html");
     File file = LittleFS.open("/index.html", "r");
@@ -481,7 +480,7 @@ void Web::begin() {
     });
   server.on("/addShade", []() {
     HTTPMethod method = server.method();
-    SomfyShade* shade;
+    SomfyShade* shade = nullptr;
     if (method == HTTP_POST || method == HTTP_PUT) {
       Serial.println("Adding a shade");
       DynamicJsonDocument doc(512);
@@ -1320,7 +1319,6 @@ void Web::begin() {
     });
   server.on("/setgeneral", []() {
     webServer.sendCORSHeaders();
-    int statusCode = 200;
     DynamicJsonDocument doc(256);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
@@ -1399,7 +1397,6 @@ void Web::begin() {
   });
   server.on("/connectwifi", []() {
     webServer.sendCORSHeaders();
-    int statusCode = 200;
     Serial.println("Settings WIFI connection...");
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));

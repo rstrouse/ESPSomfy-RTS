@@ -305,6 +305,8 @@ void SSDPClass::_parsePacket(ssdp_packet_t *pkt, AsyncUDPPacket &p) {
             case AGENT:
               strcpy(pkt->agent, buffer);
               break;
+            default:
+              break;
           }
           keys = KEY;
           pos = 0;
@@ -683,7 +685,7 @@ void SSDPClass::_sendQueuedResponses() {
   }
 }
 void SSDPClass::_printPacket(ssdp_packet_t *pkt) {
-  Serial.printf("Rec: %d\n", pkt->recvd);
+  Serial.printf("Rec: %lu\n", pkt->recvd);
   switch(pkt->method) {
     case NONE:
       Serial.println("Method: NONE");
@@ -734,7 +736,7 @@ void SSDPClass::_processRequest(AsyncUDPPacket &p) {
         this->_sendResponse(p.remoteIP(), p.remotePort(), dev, pkt.st, false);
     }
     else {
-      UPNPDeviceType *dev;
+      UPNPDeviceType *dev = nullptr;
       bool useUUID = false;
       if(this->_startsWith("uuid:", pkt.st)) {
         dev = this->findDeviceByUUID(pkt.st);

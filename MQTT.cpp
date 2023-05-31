@@ -102,7 +102,7 @@ bool MQTTClass::connect() {
   if(settings.MQTT.enabled) {
     if(this->lastConnect + 10000 > millis()) return false;    
     uint64_t mac = ESP.getEfuseMac();
-    snprintf(this->clientId, sizeof(this->clientId), "client-%08lx%08lx", (uint32_t)((mac >> 32) & 0xFFFFFFFF), (uint32_t)(mac & 0xFFFFFFFF));
+    snprintf(this->clientId, sizeof(this->clientId), "client-%08x%08x", (uint32_t)((mac >> 32) & 0xFFFFFFFF), (uint32_t)(mac & 0xFFFFFFFF));
     if(strlen(settings.MQTT.protocol) > 0 && strlen(settings.MQTT.hostname) > 0) {
       mqttClient.setServer(settings.MQTT.hostname, settings.MQTT.port);
       if(mqttClient.connect(this->clientId, settings.MQTT.username, settings.MQTT.password)) {
@@ -138,7 +138,7 @@ bool MQTTClass::disconnect() {
 }
 bool MQTTClass::unsubscribe(const char *topic) {
   if(mqttClient.connected()) {
-    char top[64];
+    char top[128];
     if(strlen(settings.MQTT.rootTopic) > 0)
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
     else
@@ -149,7 +149,7 @@ bool MQTTClass::unsubscribe(const char *topic) {
 }
 bool MQTTClass::subscribe(const char *topic) {
   if(mqttClient.connected()) {
-    char top[64];
+    char top[128];
     if(strlen(settings.MQTT.rootTopic) > 0)
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
     else
@@ -162,7 +162,7 @@ bool MQTTClass::subscribe(const char *topic) {
 }
 bool MQTTClass::publish(const char *topic, const char *payload) {
   if(mqttClient.connected()) {
-    char top[64];
+    char top[128];
     if(strlen(settings.MQTT.rootTopic) > 0)
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
     else

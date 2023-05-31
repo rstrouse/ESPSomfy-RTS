@@ -291,6 +291,8 @@ bool Network::connectWiFi() {
           Serial.print(settings.WIFI.ssid);
           Serial.print(" could not be found");
           return false;
+        default:
+          break;
       }
       delay(500);
       if(connectAttempts == 1) Serial.print("*");
@@ -342,11 +344,6 @@ int Network::getStrengthBySSID(const char *ssid) {
     Serial.print(n);
     Serial.println(" Networks...");
     String network;
-    uint8_t encType;
-    int32_t RSSI;
-    uint8_t* BSSID;
-    int32_t channel;
-    bool isHidden;
     for(int i = 0; i < n; i++) {
       //WiFi.getNetworkInfo(i, network, encType, RSSI, BSSID, channel, isHidden);
       if(network.compareTo(this->ssid) == 0) Serial.print("*");
@@ -360,7 +357,6 @@ int Network::getStrengthBySSID(const char *ssid) {
       Serial.print(WiFi.channel(i));
       Serial.print(" MAC:");
       Serial.print(WiFi.BSSIDstr(i).c_str());
-      if(isHidden) Serial.print(" [hidden]");
       Serial.println();
     }
   }

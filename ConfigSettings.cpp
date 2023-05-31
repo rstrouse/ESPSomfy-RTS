@@ -19,7 +19,7 @@ bool BaseSettings::loadFile(const char *filename) {
       data += c;
     }
     DynamicJsonDocument doc(filesize);
-    DeserializationError err = deserializeJson(doc, data);
+    deserializeJson(doc, data);
     JsonObject obj = doc.as<JsonObject>();
     this->fromJSON(obj);
     file.close();
@@ -81,7 +81,7 @@ bool ConfigSettings::load() {
   pref.end();
   if(this->connType == conn_types::unset) {
     // We are doing this to convert the data from previous versions.
-    this->connType == conn_types::wifi;
+    this->connType = conn_types::wifi;
     pref.begin("WIFI");
     pref.getString("hostname", this->hostname, sizeof(this->hostname));
     this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
@@ -113,7 +113,7 @@ bool ConfigSettings::fromJSON(JsonObject &obj) {
     return true;
 }
 void ConfigSettings::print() {
-  Serial.printf("Connection Type: %d\n", this->connType);
+  Serial.printf("Connection Type: %u\n", (unsigned int) this->connType);
   this->NTP.print();
   if(this->connType == conn_types::wifi || this->connType == conn_types::unset) this->WIFI.print();
   if(this->connType == conn_types::ethernet || this->connType == conn_types::ethernetpref) this->Ethernet.print();
@@ -290,11 +290,6 @@ void WifiSettings::printNetworks() {
   Serial.print(n);
   Serial.println(" Networks...");
   String network;
-  uint8_t encType;
-  int32_t RSSI;
-  uint8_t* BSSID;
-  int32_t channel;
-  bool isHidden;
   for(int i = 0; i < n; i++) {
     if(WiFi.SSID(i).compareTo(this->ssid) == 0) Serial.print("*");
     else Serial.print(" ");
@@ -307,7 +302,6 @@ void WifiSettings::printNetworks() {
     Serial.print(WiFi.channel(i));
     Serial.print(" MAC:");
     Serial.print(WiFi.BSSIDstr(i));
-    if(isHidden) Serial.print(" [hidden]");
     Serial.println();
   }
 }

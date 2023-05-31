@@ -372,7 +372,6 @@ bool ShadeConfigFile::getAppVersion(appver_t &ver) {
   char app[15];
   if(!LittleFS.exists("/appversion")) return false;
   File f = LittleFS.open("/appversion", "r");
-  size_t fsize = f.size();
   memset(app, 0x00, sizeof(app));
   f.read((uint8_t *)app, sizeof(app) - 1);
   f.close();
