@@ -378,6 +378,15 @@
                             </div>
                             <div class="field-group" style="display:inline-block;width:auto;min-width:247px;margin-top:-20px;vertical-align:top;">
                                 <div class="field-group">
+                                    <input id="slidFrequency" name="frequency" type="range" min="433330" max="433499" step="1" style="width:100%;" oninput="somfy.frequencyChanged(this);" />
+                                    <label for="slidRxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
+                                        <span>Base Frequency </span>
+                                        <span style="float:right;display:inline-block;margin-right:7px;">
+                                            <span id="spanFrequency" style="color:black;"></span><span>MHz</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="field-group" style="margin-top:-10px;">
                                     <input id="slidRxBandwidth" name="rxBandwidth" type="range" min="5803" max="81250" step="1" style="width:100%;" oninput="somfy.rxBandwidthChanged(this);" />
                                     <label for="slidRxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
                                         <span>RX Bandwidth </span>

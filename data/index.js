@@ -928,6 +928,8 @@ class Somfy {
                 document.getElementById('selRadioType').value = somfy.transceiver.config.type;
                 document.getElementById('selRadioProto').value = somfy.transceiver.config.proto;
                 document.getElementById('spanMaxShades').innerText = somfy.maxShades;
+                document.getElementById('spanFrequency').innerText = (Math.round(somfy.transceiver.config.frequency * 1000) / 1000).fmt('#,##0.000');
+                document.getElementById('slidFrequency').value = Math.round(somfy.transceiver.config.frequency * 1000);
                 document.getElementById('spanRxBandwidth').innerText = (Math.round(somfy.transceiver.config.rxBandwidth * 100) / 100).fmt('#,##0.00');
                 document.getElementById('slidRxBandwidth').value = Math.round(somfy.transceiver.config.rxBandwidth * 100);
                 document.getElementById('spanTxPower').innerText = somfy.transceiver.config.txPower;
@@ -971,6 +973,7 @@ class Somfy {
             MISOPin: getIntValue('selTransMISOPin'),
             TXPin: getIntValue('selTransTXPin'),
             RXPin: getIntValue('selTransRXPin'),
+            frequency: (Math.round(parseFloat(document.getElementById('spanFrequency').innerText) * 1000)) / 1000,
             rxBandwidth: (Math.round(parseFloat(document.getElementById('spanRxBandwidth').innerText) * 100)) / 100,
             txPower: parseInt(document.getElementById('spanTxPower').innerText, 10),
             deviation: (Math.round(parseFloat(document.getElementById('spanDeviation').innerText) * 100)) / 100
@@ -1897,6 +1900,9 @@ class Somfy {
     rxBandwidthChanged(el) {
         document.getElementById('spanRxBandwidth').innerText = (el.value / 100).fmt('#,##0.00');
     };
+    frequencyChanged(el) {
+        document.getElementById('spanFrequency').innerText = (el.value / 1000).fmt('#,##0.000');
+    }
     txPowerChanged(el) {
         console.log(el.value);
         let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];

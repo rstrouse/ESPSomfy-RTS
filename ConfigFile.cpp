@@ -6,9 +6,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 7
+#define SHADE_HDR_VER 8
 #define SHADE_HDR_SIZE 16
-#define SHADE_REC_SIZE 232
+#define SHADE_REC_SIZE 236
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -58,9 +58,7 @@ bool ConfigFile::seekRecordByIndex(uint16_t ndx) {
   if(!this->file) {
     return false;
   }
-  if(((this->header.recordSize * ndx) + this->header.length) > this->file.size()) {
-    return false;
-  }
+  if(((this->header.recordSize * ndx) + this->header.length) > this->file.size()) return false;
   return true;
 }
 bool ConfigFile::readString(char *buff, size_t len) {
@@ -307,6 +305,7 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
       if(this->header.version < 5 && j == 4) break; // Prior to version 5 we only supported 5 linked remotes.
     }
     shade->lastRollingCode = this->readUInt16(0);
+    if(this->header.version > 7) shade->flags = this->readUInt8(0);
     if(shade->getRemoteAddress() != 0) shade->lastRollingCode = max(pref.getUShort(shade->getRemotePrefId(), shade->lastRollingCode), shade->lastRollingCode);
     if(this->header.version < 4)
       shade->myPos = static_cast<float>(this->readUInt8(255));
@@ -361,6 +360,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeUInt32(rem->getRemoteAddress());
   }
   this->writeUInt16(shade->lastRollingCode);
+  this->writeUInt8(shade->flags);
   this->writeFloat(shade->myPos, 5);
   this->writeFloat(shade->myTiltPos, 5);
   this->writeFloat(shade->currentPos, 5);
@@ -372,6 +372,7 @@ bool ShadeConfigFile::getAppVersion(appver_t &ver) {
   char app[15];
   if(!LittleFS.exists("/appversion")) return false;
   File f = LittleFS.open("/appversion", "r");
+  size_t fsize = f.size();
   memset(app, 0x00, sizeof(app));
   f.read((uint8_t *)app, sizeof(app) - 1);
   f.close();
