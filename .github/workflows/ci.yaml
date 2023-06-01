@@ -4,9 +4,16 @@ on: [push, pull_request]
 
 env:
   ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json"
+  ARDUINO_CLI_VERSION: "0.x"
+  ARDUINO_ESP32_VERSION: "2.0.9"
+  ARDUINO_JSON_VERSION: "6.21.2"
+  ESPTOOL_VERSION: "4.6"
   LITTLEFS_VERSION: "v2.5.1"
   MKLITTLEFS_VERSION: "3.1.0"
+  PUB_SUB_CLIENT_VERSION: "2.8.0"
   PYTHON_VERSION: "3.10"
+  SMARTRC_CC1101_VERSION: "2.5.7"
+  WEB_SOCKET_VERSION: "2.4.0"
 
 jobs:
   littlefs:
@@ -90,22 +97,24 @@ jobs:
 
       - name: Install ESPTool
         run: |
-          pip install esptool
+          pip install esptool==${{ env.ESPTOOL_VERSION }}
 
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v1
+        with:
+          version: ${{ env.ARDUINO_CLI_VERSION }}
 
       - name: Configure Arduino CLI
         run: |
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          arduino-cli core install esp32:esp32@${{ env.ARDUINO_ESP32_VERSION }}
 
       - name: Configure Arduino Libraries
         run: |
-          arduino-cli lib install ArduinoJson
-          arduino-cli lib install PubSubClient
-          arduino-cli lib install SmartRC-CC1101-Driver-Lib
-          arduino-cli lib install WebSockets
+          arduino-cli lib install ArduinoJson@${{ env.ARDUINO_JSON_VERSION }}
+          arduino-cli lib install PubSubClient@${{ env.PUB_SUB_CLIENT_VERSION }}
+          arduino-cli lib install SmartRC-CC1101-Driver-Lib@${{ env.SMARTRC_CC1101_VERSION }}
+          arduino-cli lib install WebSockets@${{ env.WEB_SOCKET_VERSION }}
 
       - name: Build ${{ matrix.name }}
         run: |
