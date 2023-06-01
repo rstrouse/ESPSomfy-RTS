@@ -1509,6 +1509,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["shadeType"] = static_cast<uint8_t>(this->shadeType);
   obj["bitLength"] = this->bitLength;
   obj["proto"] = static_cast<uint8_t>(this->proto);
+  obj["flags"] = this->flags;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
