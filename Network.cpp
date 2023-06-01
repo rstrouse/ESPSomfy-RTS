@@ -291,6 +291,8 @@ bool Network::connectWiFi() {
           Serial.print(settings.WIFI.ssid);
           Serial.print(" could not be found");
           return false;
+        default:
+          break;
       }
       delay(500);
       if(connectAttempts == 1) Serial.print("*");
@@ -314,11 +316,12 @@ bool Network::connect() {
   return this->connectWiFi();
 }
 int Network::getStrengthByMac(const char *macAddr) {
-  int strength = -100;
   int n = WiFi.scanNetworks(true);
   for(int i = 0; i < n; i++) {
-    if(WiFi.BSSIDstr(i).compareTo(macAddr) == 0) return WiFi.RSSI(i);
+    if (WiFi.BSSIDstr(i).compareTo(macAddr) == 0)
+      return WiFi.RSSI(i);
   }
+  return -100;
 }
 uint32_t Network::getChipId() {
   uint32_t chipId = 0;
@@ -341,11 +344,6 @@ int Network::getStrengthBySSID(const char *ssid) {
     Serial.print(n);
     Serial.println(" Networks...");
     String network;
-    uint8_t encType;
-    int32_t RSSI;
-    uint8_t* BSSID;
-    int32_t channel;
-    bool isHidden;
     for(int i = 0; i < n; i++) {
       //WiFi.getNetworkInfo(i, network, encType, RSSI, BSSID, channel, isHidden);
       if(network.compareTo(this->ssid) == 0) Serial.print("*");
@@ -359,7 +357,6 @@ int Network::getStrengthBySSID(const char *ssid) {
       Serial.print(WiFi.channel(i));
       Serial.print(" MAC:");
       Serial.print(WiFi.BSSIDstr(i).c_str());
-      if(isHidden) Serial.print(" [hidden]");
       Serial.println();
     }
   }
@@ -416,6 +413,7 @@ bool Network::openSoftAP() {
     }
     yield();
   }
+  return true;
 }
 bool Network::connected() {
   if(this->connType == conn_types::unset) return false;

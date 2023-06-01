@@ -6,7 +6,7 @@
 #define SOCK_MAX_ROOMS 1
 #define ROOM_EMIT_FRAME 0
 
-typedef struct room_t {
+struct room_t {
   uint8_t clients[5] = {255, 255, 255, 255};
   uint8_t activeClients();
   bool isJoined(uint8_t num);

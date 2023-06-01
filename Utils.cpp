@@ -25,7 +25,6 @@ char * Timestamp::formatISO(struct tm *dt, int tz) {
   int tzHrs = floor(tz/100);
   int tzMin = tz - (tzHrs * 100);
   int ms = millis() % 1000;
-  char isoTime[32];
   snprintf(this->_timeBuffer, sizeof(this->_timeBuffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03d%s%02d%02d", 
     dt->tm_year + 1900, dt->tm_mon + 1, dt->tm_mday, dt->tm_hour, dt->tm_min, dt->tm_sec, ms, tzHrs < 0 ? "-" : "+", abs(tzHrs), abs(tzMin));
   return this->_timeBuffer;

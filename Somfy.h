@@ -4,7 +4,7 @@
 #define SOMFY_MAX_SHADES 32
 #define SOMFY_MAX_LINKED_REMOTES 7
 
-typedef struct appver_t {
+struct appver_t {
   uint8_t major;
   uint8_t minor;
   uint8_t build;
@@ -58,7 +58,18 @@ typedef enum {
     complete = 2
 } t_status;
 
-typedef struct somfy_rx_t {
+struct somfy_rx_t {
+    void clear() {
+      this->status = t_status::waiting_synchro;
+      this->bit_length = 56;
+      this->cpt_synchro_hw = 0;
+      this->cpt_bits = 0;
+      this->previous_bit = 0;
+      this->waiting_half_symbol = false;
+      memset(this->payload, 0, sizeof(this->payload));
+      memset(this->pulses, 0, sizeof(this->pulses));
+      this->pulseCount = 0;
+    }
     t_status status;
     uint8_t bit_length = 56;
     uint8_t cpt_synchro_hw = 0;
@@ -72,7 +83,7 @@ typedef struct somfy_rx_t {
 // A simple FIFO queue to hold rx buffers.  We are using
 // a byte index to make it so we don't have to reorganize
 // the storage each time we push or pop.
-typedef struct somfy_rx_queue_t {
+struct somfy_rx_queue_t {
   void init();
   uint8_t length = 0;
   uint8_t index[MAX_RX_BUFFER];
@@ -80,14 +91,26 @@ typedef struct somfy_rx_queue_t {
   //void push(somfy_rx_t *rx);
   bool pop(somfy_rx_t *rx);
 };
-typedef struct somfy_tx_t {
+struct somfy_tx_t {
+  void clear() {
+    this->await = 0;
+    this->cmd = somfy_commands::Unknown0;
+    this->repeats = 0;
+  }
   uint32_t await = 0;
   somfy_commands cmd;
   uint8_t repeats;
 };
-typedef struct somfy_tx_queue_t {
-  somfy_tx_queue_t() { memset(this->index, 255, MAX_TX_BUFFER); memset(&this->items[0], 0x00, sizeof(somfy_tx_queue_t) * MAX_TX_BUFFER); }
-  void clear() { memset(&this->index[0], 255, MAX_TX_BUFFER); memset(&this->items[0], 0x00, sizeof(somfy_tx_queue_t) * MAX_TX_BUFFER); }
+struct somfy_tx_queue_t {
+  somfy_tx_queue_t() {
+    this->clear();
+  }
+  void clear() {
+    for (uint8_t i = 0; i < MAX_TX_BUFFER; i++) {
+      this->index[i] = 255;
+      this->items[i].clear();
+    }
+  }
   uint8_t length = 0;
   uint8_t index[MAX_TX_BUFFER];
   somfy_tx_t items[MAX_TX_BUFFER];
@@ -98,7 +121,7 @@ typedef struct somfy_tx_queue_t {
 enum class somfy_flags_t : byte {
     Sun = 1
 };
-typedef struct somfy_frame_t {
+struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
     radio_proto proto = radio_proto::RTS;
@@ -209,7 +232,7 @@ class SomfyShade : public SomfyRemote {
     void commitMyPosition();
 };
 
-typedef struct transceiver_config_t {
+struct transceiver_config_t {
     bool printBuffer = false;
     bool enabled = false;
     uint8_t type = 56;                // 56 or 80 bit protocol.

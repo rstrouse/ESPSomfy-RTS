@@ -58,7 +58,10 @@ bool ConfigFile::seekRecordByIndex(uint16_t ndx) {
   if(!this->file) {
     return false;
   }
-  if(((this->header.recordSize * ndx) + this->header.length) > this->file.size()) return false;
+  if(((this->header.recordSize * ndx) + this->header.length) > this->file.size()) {
+    return false;
+  }
+  return true;
 }
 bool ConfigFile::readString(char *buff, size_t len) {
   if(!this->file) return false;
@@ -369,7 +372,6 @@ bool ShadeConfigFile::getAppVersion(appver_t &ver) {
   char app[15];
   if(!LittleFS.exists("/appversion")) return false;
   File f = LittleFS.open("/appversion", "r");
-  size_t fsize = f.size();
   memset(app, 0x00, sizeof(app));
   f.read((uint8_t *)app, sizeof(app) - 1);
   f.close();
