@@ -1494,6 +1494,7 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
       this->linkedRemotes[j].setRemoteAddress(linkedAddresses[j]);
     }
   }
+  if(obj.containsKey("flags")) this->flags = obj["flags"];
   return true;
 }
 bool SomfyShade::toJSON(JsonObject &obj) {
