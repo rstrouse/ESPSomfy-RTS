@@ -1081,10 +1081,28 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   // will need to see what the shade does when you press both.
   switch(frame.cmd) {
     case somfy_commands::Sensor:
-      if((frame.rollingCode << 4) & static_cast<uint8_t>(somfy_flags_t::Sunny)) this->flags |= static_cast<uint8_t>(somfy_flags_t::Sunny);
-      else this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Sunny));
-      if((frame.rollingCode << 4) & static_cast<uint8_t>(somfy_flags_t::Windy)) this->flags |= static_cast<uint8_t>(somfy_flags_t::Windy);
-      else this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Windy));
+      if ((frame.rollingCode << 4) & static_cast<uint8_t>(somfy_flags_t::Sunny))
+        this->flags |= static_cast<uint8_t>(somfy_flags_t::Sunny);
+      else
+        this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Sunny));
+
+      if ((frame.rollingCode << 4) & static_cast<uint8_t>(somfy_flags_t::Windy))
+        this->flags |= static_cast<uint8_t>(somfy_flags_t::Windy);
+      else
+        this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Windy));
+
+      if (this->flags & static_cast<uint8_t>(somfy_flags_t::Windy))
+      {
+        this->target = 0.0f;
+      }
+      else if (this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag))
+      {
+        if (this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny))
+          this->target = 100.0f;
+        else
+          this->target = 0.0f;
+      }
+
       this->emitState();
       break;
     
