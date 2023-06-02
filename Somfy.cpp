@@ -161,7 +161,9 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     }
     this->rollingCode = decoded[3] + (decoded[2] << 8);
     this->remoteAddress = (decoded[6] + (decoded[5] << 8) + (decoded[4] << 16));
-    this->valid = this->checksum == checksum && this->remoteAddress > 0 && this->remoteAddress < 16777215 && this->rollingCode > 0;
+    this->valid = this->checksum == checksum && this->remoteAddress > 0 && this->remoteAddress < 16777215;
+    if (this->cmd != somfy_commands::Sensor)
+      this->valid &= (this->rollingCode > 0);
     if (this->valid) {
         // Check for valid command.
         switch (this->cmd) {
