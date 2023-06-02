@@ -863,3 +863,56 @@ div.button-sunflag {
         font-size: 32px;
         color: orange;
     }
+i.icss-warning {
+    width: 1em;
+    height: .1em;
+    border-radius: 0.05em;
+    margin: .82em 0 .06em 0;
+    transform-origin: 50% -.33em;
+}
+div.indicator {
+    position: absolute;
+    top:34px;
+    font-size:20px;
+}
+div.indicator-wind {
+    color: orangered;
+    clip-path: polygon(48% 18%, 0% 95%, 110% 92%);
+    background:yellow;
+    top:30%;
+    left:13px;
+}
+div.indicator-sun {
+    color: darkorange;
+    left: -13px;
+    top:3px;
+}
+.somfyShadeCtl[data-sunny="false"] .indicator-sun {
+    display:none;
+}
+.somfyShadeCtl[data-windy="false"] .indicator-wind {
+    display: none;
+}
+
+    i.icss-warning:before {
+        width: 1.23em;
+        height: 1.23em;
+        border: 0.2em solid currentColor;
+        border-color: currentColor currentColor transparent transparent;
+        border-radius: .1em .13em;
+        transform: translateX(-50%) scaleX(0.6) rotate(-45deg);
+        top: -.55em;
+        left: 50%;
+    }
+
+    i.icss-warning:after {
+        width: .125em;
+        border: .0em solid transparent;
+        border-top: .25em solid currentColor;
+        border-bottom: .07em solid transparent;
+        box-shadow: 0 .1em 0 -.012em;
+        top: -.44em;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+

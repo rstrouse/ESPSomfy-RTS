@@ -1056,8 +1056,9 @@ class Somfy {
             divCfg += '</div>';
 
             divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}" data-mytiltpos="${shade.myTiltPos} data-shadetype="${shade.shadeType}" data-tilt="${shade.tiltType}"`;
+            divCtl += ` data-windy="${(shade.flags & 0x10) === 0x10 ? 'true' : false}" data-sunny=${(shade.flags & 0x20) === 0x20 ? 'true' : 'false'}`;
             if (shade.tiltType !== 0) {
-                divCtl += ` data-tiltposition="${shade.tiltPosition}" data-tiltdirection="${shade.tiltDirection}" data-tilttarget="${shade.tiltTarget}"`
+                divCtl += ` data-tiltposition="${shade.tiltPosition}" data-tiltdirection="${shade.tiltDirection}" data-tilttarget="${shade.tiltTarget}"`;
             }
             divCtl += `><div class="shade-icon" data-shadeid="${shade.shadeId}" onclick="event.stopPropagation(); console.log(event); somfy.openSetPosition(${shade.shadeId});">`;
             divCtl += `<i class="somfy-shade-icon`;
@@ -1074,7 +1075,9 @@ class Somfy {
             }
             divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.position}%;vertical-align: top;"></i>`;
             divCtl += shade.tiltType !== 0 ? `<i class="icss-window-tilt" data-shadeid="${shade.shadeId}" data-tiltposition="${shade.tiltPosition}"></i></div>` : '</div>';
+            divCtl += `<div class="indicator indicator-wind"><i class="icss-warning"></i></div><div class="indicator indicator-sun"><i class="icss-sun"></i></div>`;
             divCtl += `<div class="shade-name">`;
+
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
             divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`
             if (shade.myTiltPos > 0) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
@@ -1321,6 +1324,8 @@ class Somfy {
             divs[i].setAttribute('data-position', state.position);
             divs[i].setAttribute('data-target', state.target);
             divs[i].setAttribute('data-mypos', state.mypos);
+            divs[i].setAttribute('data-windy', (state.flags & 0x10) === 0x10 ? 'true' : 'false');
+            divs[i].setAttribute('data-sunny', (state.flags & 0x20) === 0x20 ? 'true' : 'false');
             if (typeof state.myTiltPos !== 'undefined') divs[i].setAttribute('data-mytiltpos', state.myTiltPos);
             else divs[i].setAttribute('data-mytiltpos', -1);
             if (state.tiltType !== 0) {

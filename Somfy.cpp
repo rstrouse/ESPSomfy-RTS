@@ -50,12 +50,14 @@ somfy_commands translateSomfyCommand(const String& string) {
     else if (string.equalsIgnoreCase("StepUp")) return somfy_commands::StepUp;
     else if (string.equalsIgnoreCase("StepDown")) return somfy_commands::StepDown;
     else if (string.equalsIgnoreCase("Flag")) return somfy_commands::Flag;
+    else if (string.equalsIgnoreCase("Sensor")) return somfy_commands::Sensor;
     else if (string.startsWith("mud") || string.startsWith("MUD")) return somfy_commands::MyUpDown;
     else if (string.startsWith("md") || string.startsWith("MD")) return somfy_commands::MyDown;
     else if (string.startsWith("ud") || string.startsWith("UD")) return somfy_commands::UpDown;
     else if (string.startsWith("mu") || string.startsWith("MU")) return somfy_commands::MyUp;
     else if (string.startsWith("su") || string.startsWith("SU")) return somfy_commands::StepUp;
     else if (string.startsWith("sd") || string.startsWith("SD")) return somfy_commands::StepDown;
+    else if (string.startsWith("sen") || string.startsWith("SEN")) return somfy_commands::Sensor;
     else if (string.startsWith("p") || string.startsWith("P")) return somfy_commands::Prog;
     else if (string.startsWith("u") || string.startsWith("U")) return somfy_commands::Up;
     else if (string.startsWith("d") || string.startsWith("D")) return somfy_commands::Down;
@@ -91,6 +93,8 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Step Up";
     case somfy_commands::StepDown:
         return "Step Down";
+    case somfy_commands::Sensor:
+        return "Sensor";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
     }
@@ -172,6 +176,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::Prog:
         case somfy_commands::Flag:
         case somfy_commands::SunFlag:
+        case somfy_commands::Sensor:
             break;
         case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
@@ -291,8 +296,6 @@ void somfy_frame_t::encodeFrame(byte *frame) {
       case somfy_commands::Flag:
         frame[0] = 142;
         break;
-      default:
-        break;
     }
   }
   else {
@@ -311,8 +314,6 @@ void somfy_frame_t::encodeFrame(byte *frame) {
         frame[7] = 196;
         frame[8] = 0;
         frame[9] = 25;
-        break;
-      default:
         break;
     }
   }
@@ -915,6 +916,9 @@ void SomfyShade::publish() {
     mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
     snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
+    snprintf(topic, sizeof(topic), "shades/%u/flags", this->shadeId);
+    mqtt.publish(topic, this->flags);
+    
     if(this->tiltType != tilt_types::none) {
       snprintf(topic, sizeof(topic), "shades/%u/tiltDirection", this->shadeId);
       mqtt.publish(topic, this->tiltDirection);
@@ -1043,8 +1047,6 @@ void SomfyShade::processWaitingFrame() {
           Serial.println(" repeats");
         }
         break;
-      default:
-        break;
     }
   }
 }
@@ -1057,7 +1059,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   if(!hasRemote) {
     for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
       if(this->linkedRemotes[i].getRemoteAddress() == frame.remoteAddress) {
-        this->linkedRemotes[i].setRollingCode(frame.rollingCode);
+        if(frame.cmd != somfy_commands::Sensor) this->linkedRemotes[i].setRollingCode(frame.rollingCode);
         hasRemote = true;
         break;      
       }
@@ -1066,6 +1068,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   if(!hasRemote) return;
   this->lastFrame.copy(frame);
   int8_t dir = 0;
+  int8_t tiltDir = 0;
   this->moveStart = this->tiltStart = millis();
   this->startPos = this->currentPos;
   this->startTiltPos = this->currentTiltPos;
@@ -1075,12 +1078,20 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   // At this point we are not processing the combo buttons
   // will need to see what the shade does when you press both.
   switch(frame.cmd) {
+    case somfy_commands::Sensor:
+      if((frame.rollingCode << 4) & static_cast<uint8_t>(somfy_flags_t::Sunny)) this->flags |= static_cast<uint8_t>(somfy_flags_t::Sunny);
+      else this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Sunny));
+      if((frame.rollingCode << 4) & static_cast<uint8_t>(somfy_flags_t::Windy)) this->flags |= static_cast<uint8_t>(somfy_flags_t::Windy);
+      else this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Windy));
+      this->emitState();
+      break;
+    
     case somfy_commands::Flag:
-      this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Sun));
+      this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
       this->emitState();
       break;    
     case somfy_commands::SunFlag:
-      this->flags |= static_cast<uint8_t>(somfy_flags_t::Sun);
+      this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
       this->emitState();
       break;
     case somfy_commands::Up:
@@ -1341,6 +1352,7 @@ void SomfyShade::sendTiltCommand(somfy_commands cmd) {
   }
 }
 void SomfyShade::moveToTiltTarget(float target) {
+  int8_t newDir = 0;
   somfy_commands cmd = somfy_commands::My;
   if(target < this->currentTiltPos)
     cmd = somfy_commands::Up;
@@ -1365,6 +1377,7 @@ void SomfyShade::moveToTiltTarget(float target) {
   this->settingTiltPos = true;
 }
 void SomfyShade::moveToTarget(float pos, float tilt) {
+  int8_t newDir = 0;
   somfy_commands cmd = somfy_commands::My;
   if(pos < this->currentPos)
     cmd = somfy_commands::Up;
@@ -1556,6 +1569,7 @@ void SomfyShadeController::publish() {
   mqtt.publish("shades", arr);
 }
 uint8_t SomfyShadeController::getNextShadeId() {
+  uint8_t nextId = 0;
   // There is no shortcut for this since the deletion of
   // a shade in the middle makes all of this very difficult.
   for(uint8_t i = 1; i < SOMFY_MAX_SHADES - 1; i++) {
@@ -1795,7 +1809,7 @@ bool SomfyShadeController::toJSON(JsonArray &arr) {
 }
 void SomfyShadeController::loop() { 
   this->transceiver.loop(); 
-  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
+  for(uint8_t i; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() != 255) this->shades[i].checkMovement();
   }
   // Only commit the file once per second.
@@ -1827,16 +1841,17 @@ static const uint32_t tempo_if_gap = 30415;  // Gap between frames
 
 
 static int16_t  bitMin = SYMBOL * TOLERANCE_MIN;
+static uint16_t timing_index = 0;
 static somfy_rx_t somfy_rx;
 static somfy_rx_queue_t rx_queue;
 
 bool somfy_tx_queue_t::pop(somfy_tx_t *tx) {
   // Read the oldest index.
-  for(int8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
+  for(uint8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
     if(this->index[i] < MAX_TX_BUFFER) {
       uint8_t ndx = this->index[i];
       memcpy(tx, &this->items[ndx], sizeof(somfy_tx_t));
-      this->items[ndx].clear();
+      memset(&this->items[ndx], 0x00, sizeof(somfy_tx_t));
       this->length--;
       this->index[i] = 255;
       return true;
@@ -1849,8 +1864,7 @@ bool somfy_tx_queue_t::push(uint32_t await, somfy_commands cmd, uint8_t repeats)
     uint8_t ndx = this->index[MAX_TX_BUFFER - 1];
     this->index[MAX_TX_BUFFER - 1] = 255;
     this->length = MAX_TX_BUFFER - 1;
-    if(ndx < MAX_TX_BUFFER)
-      this->items[ndx].clear();
+    if(ndx < MAX_TX_BUFFER) memset(&this->items[ndx], 0x00, sizeof(somfy_tx_t));
   }
   // Place the command in the first empty slot.  Empty slots are those
   // with a millis of 0.  We will shift the indexes right so that this
@@ -1873,8 +1887,7 @@ bool somfy_tx_queue_t::push(uint32_t await, somfy_commands cmd, uint8_t repeats)
 }
 void somfy_rx_queue_t::init() { 
   Serial.println("Initializing RX Queue");
-  for (uint8_t i = 0; i < MAX_RX_BUFFER; i++)
-    this->items[i].clear();
+  memset(&this->items[0], 0x00, sizeof(somfy_rx_t) * MAX_RX_BUFFER);
   memset(&this->index[0], 0xFF, MAX_RX_BUFFER);
   this->length = 0;
 }
@@ -1882,11 +1895,11 @@ void somfy_rx_queue_t::init() {
 bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
   // Read off the data from the oldest index.
   //Serial.println("Popping RX Queue");
-  for(int8_t i = MAX_RX_BUFFER - 1; i >= 0; i--) {
+  for(uint8_t i = MAX_RX_BUFFER - 1; i >= 0; i--) {
     if(this->index[i] < MAX_RX_BUFFER) {
       uint8_t ndx = this->index[i];
       memcpy(rx, &this->items[this->index[i]], sizeof(somfy_rx_t));
-      this->items[ndx].clear();
+      memset(&this->items[ndx], 0x00, sizeof(somfy_rx_t));
       this->length--;
       this->index[i] = 255;
       return true;      
@@ -2128,7 +2141,7 @@ void Transceiver::emitFrame(somfy_frame_t *frame, somfy_rx_t *rx) {
     evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"rcode\":%d,", frame->rollingCode);
     evt.appendMessage(buf);
-    snprintf(buf, sizeof(buf), "\"command\":\"%s\",", translateSomfyCommand(frame->cmd).c_str());
+    snprintf(buf, sizeof(buf), "\"command\":\"%s\",", translateSomfyCommand(frame->cmd));
     evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"rssi\":%d,", frame->rssi);
     evt.appendMessage(buf);
