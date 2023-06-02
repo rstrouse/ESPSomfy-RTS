@@ -1112,6 +1112,15 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;    
     case somfy_commands::SunFlag:
       this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
+
+      if (!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy)))
+      {
+        if (this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny))
+          this->target = 100.0f;
+        else
+          this->target = 0.0f;
+      }
+
       this->emitState();
       break;
     case somfy_commands::Up:
