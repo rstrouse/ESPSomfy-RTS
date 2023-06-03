@@ -360,7 +360,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeUInt32(rem->getRemoteAddress());
   }
   this->writeUInt16(shade->lastRollingCode);
-  this->writeUInt8(shade->flags);
+  this->writeUInt8(shade->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
   this->writeFloat(shade->myPos, 5);
   this->writeFloat(shade->myTiltPos, 5);
   this->writeFloat(shade->currentPos, 5);

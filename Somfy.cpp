@@ -1215,6 +1215,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     
     case somfy_commands::Flag:
       this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
+      somfy.isDirty = true;
       this->emitState();
       break;    
     case somfy_commands::SunFlag:
@@ -1233,6 +1234,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
             this->target = 0.0f;
         }
 
+        somfy.isDirty = true;
         this->emitState();
       }
       break;
