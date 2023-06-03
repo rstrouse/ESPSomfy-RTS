@@ -1010,7 +1010,6 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
     mqtt.publish(topic, static_cast<int8_t>(floor(this->myPos)));
     snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
-    snprintf(topic, sizeof(topic), "shades/%u/flags", this->flags);
     if(this->tiltType != tilt_types::none) {
       snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
       mqtt.publish(topic, static_cast<int8_t>(floor(this->myTiltPos)));
@@ -1018,6 +1017,18 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
       mqtt.publish(topic, static_cast<uint8_t>(floor(this->currentTiltPos)));
       snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
       mqtt.publish(topic, static_cast<uint8_t>(floor(this->tiltTarget)));
+    }
+    else if (this->shadeType == shade_types::awning) {
+      const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
+      const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
+      const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
+
+      snprintf(topic, sizeof(topic), "shades/%u/sunFlag", this->shadeId);
+      mqtt.publish(topic, sunFlag);
+      snprintf(topic, sizeof(topic), "shades/%u/sunny", this->shadeId);
+      mqtt.publish(topic, isSunny);
+      snprintf(topic, sizeof(topic), "shades/%u/windy", this->shadeId);
+      mqtt.publish(topic, isWindy);
     }
   }
 }
