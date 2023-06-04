@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.6.2';
+    appVersion = 'v1.7.0';
     reloadApp = false;
     async init() {
         this.setAppVersion();

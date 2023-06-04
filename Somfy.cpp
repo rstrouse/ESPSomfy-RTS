@@ -630,7 +630,7 @@ void SomfyShade::checkMovement() {
           && this->sunStart
           && (curTime - this->sunStart) >= SOMFY_SUN_TIMEOUT)
       {
-        this->target = 100.0f;
+        this->target = this->myPos >= 0 ? this->myPos : 100.0f;
         this->sunDone = true;
 
         Serial.printf("[%u] Sun -> done\r\n", this->shadeId);
@@ -1240,7 +1240,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
           const bool isSunny = this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny);
 
           if (isSunny && this->sunDone)
-            this->target = 100.0f;
+            this->target = this->myPos >= 0 ? this->myPos : 100.0f;
           else if (!isSunny && this->noSunDone)
             this->target = 0.0f;
         }

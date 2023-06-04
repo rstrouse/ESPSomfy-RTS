@@ -78,6 +78,10 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
       if(val >= 0 && val <= 100)
         shade->moveToTarget(atoi(value));
     }
+    if(strncmp(command, "tiltTarget", sizeof(command)) == 0) {
+      if(val >= 0 && val <= 100)
+        shade->moveToTiltTarget(atoi(value));
+    }
     else if(strncmp(command, "direction", sizeof(command)) == 0) {
       if(val < 0)
         shade->sendCommand(somfy_commands::Up);
@@ -89,6 +93,10 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
     else if(strncmp(command, "mypos", sizeof(command)) == 0) {
       if(val >= 0 && val <= 100)
         shade->setMyPosition(val);
+    }
+    else if(strncmp(command, "sunFlag", sizeof(command)) == 0) {
+      if(val >= 0) shade->sendCommand(somfy_commands::SunFlag);
+      else shade->sendCommand(somfy_commands::Flag);
     }
   }
 }
@@ -110,8 +118,10 @@ bool MQTTClass::connect() {
         Serial.println(this->clientId);
         somfy.publish();
         this->subscribe("shades/+/target/set");
+        this->subscribe("shades/+/tiltTarget/set");
         this->subscribe("shades/+/direction/set");
         this->subscribe("shades/+/mypos/set");
+        this->subscribe("shades/+/sunFlag/set");
         mqttClient.setCallback(MQTTClass::receive);
         this->lastConnect = millis();
         return true;
@@ -132,6 +142,9 @@ bool MQTTClass::disconnect() {
   if(mqttClient.connected()) {
     this->unsubscribe("shades/+/target/set");
     this->unsubscribe("shades/+/direction/set");
+    this->unsubscribe("shades/+/tiltTarget/set");
+    this->unsubscribe("shades/+/mypos/set");
+    this->unsubscribe("shades/+/sunFlag/set");
     mqttClient.disconnect();
   }
   return true;
