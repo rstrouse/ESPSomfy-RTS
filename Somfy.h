@@ -4,6 +4,16 @@
 #define SOMFY_MAX_SHADES 32
 #define SOMFY_MAX_LINKED_REMOTES 7
 
+#define SECS_TO_MILLIS(x) ((x) * 1000)
+#define MINS_TO_MILLIS(x) SECS_TO_MILLIS((x) * 60)
+
+#define SOMFY_SUN_TIMEOUT MINS_TO_MILLIS(2)
+#define SOMFY_NO_SUN_TIMEOUT MINS_TO_MILLIS(20)
+
+#define SOMFY_WIND_TIMEOUT SECS_TO_MILLIS(2)
+#define SOMFY_NO_WIND_TIMEOUT MINS_TO_MILLIS(12)
+#define SOMFY_NO_WIND_REMOTE_TIMEOUT SECS_TO_MILLIS(30)
+
 struct appver_t {
   uint8_t major;
   uint8_t minor;
@@ -152,6 +162,15 @@ class SomfyShade : public SomfyRemote {
     uint8_t shadeId = 255;
     uint64_t moveStart = 0;
     uint64_t tiltStart = 0;
+    uint64_t noSunStart = 0;
+    uint64_t sunStart = 0;
+    uint64_t windStart = 0;
+    uint64_t windLast = 0;
+    uint64_t noWindStart = 0;
+    bool noSunDone = true;
+    bool sunDone = true;
+    bool windDone = true;
+    bool noWindDone = true;
     float startPos = 0.0f;
     float startTiltPos = 0.0f;
     bool settingMyPos = false;
