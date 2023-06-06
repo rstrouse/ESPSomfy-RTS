@@ -1162,6 +1162,11 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
           this->flags |= static_cast<uint8_t>(somfy_flags_t::Windy);
         else
           this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Windy));
+        if(frame.rollingCode & static_cast<uint8_t>(somfy_flags_t::DemoMode))
+          this->flags |= static_cast<uint8_t>(somfy_flags_t::DemoMode);
+        else
+          this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::DemoMode));
+          
 
         const bool isSunny = this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny);
         const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);

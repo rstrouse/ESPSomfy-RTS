@@ -107,6 +107,7 @@ struct somfy_tx_queue_t {
 
 enum class somfy_flags_t : byte {
     SunFlag = 0x01,
+    DemoMode = 0x04,
     Windy = 0x10,
     Sunny = 0x20
 };
