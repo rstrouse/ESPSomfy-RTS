@@ -69,6 +69,17 @@ typedef enum {
 } t_status;
 
 struct somfy_rx_t {
+    void clear() {
+      this->status = t_status::waiting_synchro;
+      this->bit_length = 56;
+      this->cpt_synchro_hw = 0;
+      this->cpt_bits = 0;
+      this->previous_bit = 0;
+      this->waiting_half_symbol = false;
+      memset(this->payload, 0, sizeof(this->payload));
+      memset(this->pulses, 0, sizeof(this->pulses));
+      this->pulseCount = 0;
+    }
     t_status status;
     uint8_t bit_length = 56;
     uint8_t cpt_synchro_hw = 0;
@@ -91,13 +102,25 @@ struct somfy_rx_queue_t {
   bool pop(somfy_rx_t *rx);
 };
 struct somfy_tx_t {
+  void clear() {
+    this->await = 0;
+    this->cmd = somfy_commands::Unknown0;
+    this->repeats = 0;
+  }
   uint32_t await = 0;
   somfy_commands cmd;
   uint8_t repeats;
 };
 struct somfy_tx_queue_t {
-  somfy_tx_queue_t() { memset(this->index, 255, MAX_TX_BUFFER); memset(&this->items[0], 0x00, sizeof(somfy_tx_queue_t) * MAX_TX_BUFFER); }
-  void clear() { memset(&this->index[0], 255, MAX_TX_BUFFER); memset(&this->items[0], 0x00, sizeof(somfy_tx_queue_t) * MAX_TX_BUFFER); }
+  somfy_tx_queue_t() {
+    this->clear();
+  }
+  void clear() {
+    for (uint8_t i = 0; i < MAX_TX_BUFFER; i++) {
+      this->index[i] = 255;
+      this->items[i].clear();
+    }
+  }
   uint8_t length = 0;
   uint8_t index[MAX_TX_BUFFER];
   somfy_tx_t items[MAX_TX_BUFFER];

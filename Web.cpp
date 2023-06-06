@@ -229,7 +229,7 @@ void Web::begin() {
       Serial.print("Received:");
       Serial.println(apiServer.arg("plain"));
       // Send the command to the shade.
-      if(target >= 0 && target <= 100)
+      if(target <= 100)
         shade->moveToTiltTarget(target);
       else
         shade->sendTiltCommand(command);
