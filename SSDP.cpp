@@ -133,7 +133,7 @@ void UPNPDeviceType::setChipId(uint32_t chipId) {
     (uint16_t)((chipId >> 8) & 0xff),
     (uint16_t)chipId & 0xff);    
 }
-SSDPClass::SSDPClass():sendQueue{NULL} {}
+SSDPClass::SSDPClass():sendQueue{false, INADDR_NONE, 0, nullptr, false, 0, ""} {}
 SSDPClass::~SSDPClass() { end(); }
 bool SSDPClass::begin() { 
   for(int i = 0; i < SSDP_QUEUE_SIZE; i++) {

@@ -298,6 +298,8 @@ void somfy_frame_t::encodeFrame(byte *frame) {
       case somfy_commands::Flag:
         frame[0] = 142;
         break;
+      default:
+        break;
     }
   }
   else {
@@ -316,6 +318,8 @@ void somfy_frame_t::encodeFrame(byte *frame) {
         frame[7] = 196;
         frame[8] = 0;
         frame[9] = 25;
+        break;
+      default:
         break;
     }
   }
@@ -1114,6 +1118,8 @@ void SomfyShade::processWaitingFrame() {
           Serial.println(" repeats");
         }
         break;
+      default:
+        break;
     }
   }
 }
@@ -1136,7 +1142,6 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   const uint64_t curTime = millis();
   this->lastFrame.copy(frame);
   int8_t dir = 0;
-  int8_t tiltDir = 0;
   this->moveStart = this->tiltStart = curTime;
   this->startPos = this->currentPos;
   this->startTiltPos = this->currentTiltPos;
@@ -1514,7 +1519,6 @@ void SomfyShade::sendTiltCommand(somfy_commands cmd) {
   }
 }
 void SomfyShade::moveToTiltTarget(float target) {
-  int8_t newDir = 0;
   somfy_commands cmd = somfy_commands::My;
   if(target < this->currentTiltPos)
     cmd = somfy_commands::Up;
@@ -1539,7 +1543,6 @@ void SomfyShade::moveToTiltTarget(float target) {
   this->settingTiltPos = true;
 }
 void SomfyShade::moveToTarget(float pos, float tilt) {
-  int8_t newDir = 0;
   somfy_commands cmd = somfy_commands::My;
   if(pos < this->currentPos)
     cmd = somfy_commands::Up;
@@ -1732,7 +1735,6 @@ void SomfyShadeController::publish() {
   mqtt.publish("shades", arr);
 }
 uint8_t SomfyShadeController::getNextShadeId() {
-  uint8_t nextId = 0;
   // There is no shortcut for this since the deletion of
   // a shade in the middle makes all of this very difficult.
   for(uint8_t i = 1; i < SOMFY_MAX_SHADES - 1; i++) {
@@ -1972,7 +1974,7 @@ bool SomfyShadeController::toJSON(JsonArray &arr) {
 }
 void SomfyShadeController::loop() { 
   this->transceiver.loop(); 
-  for(uint8_t i; i < SOMFY_MAX_SHADES; i++) {
+  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() != 255) this->shades[i].checkMovement();
   }
   // Only commit the file once per second.
@@ -2004,17 +2006,16 @@ static const uint32_t tempo_if_gap = 30415;  // Gap between frames
 
 
 static int16_t  bitMin = SYMBOL * TOLERANCE_MIN;
-static uint16_t timing_index = 0;
 static somfy_rx_t somfy_rx;
 static somfy_rx_queue_t rx_queue;
 
 bool somfy_tx_queue_t::pop(somfy_tx_t *tx) {
   // Read the oldest index.
-  for(uint8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
+  for(int8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
     if(this->index[i] < MAX_TX_BUFFER) {
       uint8_t ndx = this->index[i];
       memcpy(tx, &this->items[ndx], sizeof(somfy_tx_t));
-      memset(&this->items[ndx], 0x00, sizeof(somfy_tx_t));
+      this->items[ndx].clear();
       this->length--;
       this->index[i] = 255;
       return true;
@@ -2027,7 +2028,8 @@ bool somfy_tx_queue_t::push(uint32_t await, somfy_commands cmd, uint8_t repeats)
     uint8_t ndx = this->index[MAX_TX_BUFFER - 1];
     this->index[MAX_TX_BUFFER - 1] = 255;
     this->length = MAX_TX_BUFFER - 1;
-    if(ndx < MAX_TX_BUFFER) memset(&this->items[ndx], 0x00, sizeof(somfy_tx_t));
+    if (ndx < MAX_TX_BUFFER)
+        this->items[ndx].clear();
   }
   // Place the command in the first empty slot.  Empty slots are those
   // with a millis of 0.  We will shift the indexes right so that this
@@ -2050,7 +2052,8 @@ bool somfy_tx_queue_t::push(uint32_t await, somfy_commands cmd, uint8_t repeats)
 }
 void somfy_rx_queue_t::init() { 
   Serial.println("Initializing RX Queue");
-  memset(&this->items[0], 0x00, sizeof(somfy_rx_t) * MAX_RX_BUFFER);
+  for (uint8_t i = 0; i < MAX_RX_BUFFER; i++)
+    this->items[i].clear();
   memset(&this->index[0], 0xFF, MAX_RX_BUFFER);
   this->length = 0;
 }
@@ -2058,11 +2061,11 @@ void somfy_rx_queue_t::init() {
 bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
   // Read off the data from the oldest index.
   //Serial.println("Popping RX Queue");
-  for(uint8_t i = MAX_RX_BUFFER - 1; i >= 0; i--) {
+  for(int8_t i = MAX_RX_BUFFER - 1; i >= 0; i--) {
     if(this->index[i] < MAX_RX_BUFFER) {
       uint8_t ndx = this->index[i];
       memcpy(rx, &this->items[this->index[i]], sizeof(somfy_rx_t));
-      memset(&this->items[ndx], 0x00, sizeof(somfy_rx_t));
+      this->items[ndx].clear();
       this->length--;
       this->index[i] = 255;
       return true;      
@@ -2304,7 +2307,7 @@ void Transceiver::emitFrame(somfy_frame_t *frame, somfy_rx_t *rx) {
     evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"rcode\":%d,", frame->rollingCode);
     evt.appendMessage(buf);
-    snprintf(buf, sizeof(buf), "\"command\":\"%s\",", translateSomfyCommand(frame->cmd));
+    snprintf(buf, sizeof(buf), "\"command\":\"%s\",", translateSomfyCommand(frame->cmd).c_str());
     evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"rssi\":%d,", frame->rssi);
     evt.appendMessage(buf);
