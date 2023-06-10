@@ -971,7 +971,9 @@ void SomfyShade::publish() {
     snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
     mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(floor(this->myPos)));
+    mqtt.publish(topic, static_cast<int8_t>(floor(this->myPos)));
+    snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
+    mqtt.publish(topic, static_cast<int8_t>(floor(this->myTiltPos)));
     snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
     snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
@@ -986,6 +988,18 @@ void SomfyShade::publish() {
       mqtt.publish(topic, static_cast<uint8_t>(floor(this->currentTiltPos)));
       snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
       mqtt.publish(topic, static_cast<uint8_t>(floor(this->tiltTarget)));
+    }
+    else if (this->shadeType == shade_types::awning) {
+      const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
+      const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
+      const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
+
+      snprintf(topic, sizeof(topic), "shades/%u/sunFlag", this->shadeId);
+      mqtt.publish(topic, sunFlag);
+      snprintf(topic, sizeof(topic), "shades/%u/sunny", this->shadeId);
+      mqtt.publish(topic, isSunny);
+      snprintf(topic, sizeof(topic), "shades/%u/windy", this->shadeId);
+      mqtt.publish(topic, isWindy);
     }
   }
 }
@@ -1898,6 +1912,13 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
     if(this->shades[i].getShadeId() == shadeId) {
       shades[i].emitState("shadeRemoved");
       this->shades[i].setShadeId(255);
+      this->shades[i].currentPos = 0;
+      this->shades[i].currentTiltPos = 0;
+      this->shades[i].myPos = -1.0f;
+      this->shades[i].myTiltPos = -1.0f;
+      this->shades[i].shadeType = shade_types::roller;
+      this->shades[i].tiltType = tilt_types::none;
+      this->shades[i].flags = 0;
     }
   }
   if(this->useNVS()) {

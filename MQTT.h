@@ -13,6 +13,7 @@ class MQTTClass {
     bool connect();
     bool disconnect();
     bool connected();
+    void reset();
     bool publish(const char *topic, const char *payload);
     bool publish(const char *topic, JsonDocument &doc);
     bool publish(const char *topic, JsonArray &arr);

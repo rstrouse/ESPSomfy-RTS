@@ -360,11 +360,21 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeUInt32(rem->getRemoteAddress());
   }
   this->writeUInt16(shade->lastRollingCode);
-  this->writeUInt8(shade->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
-  this->writeFloat(shade->myPos, 5);
-  this->writeFloat(shade->myTiltPos, 5);
-  this->writeFloat(shade->currentPos, 5);
-  this->writeFloat(shade->currentTiltPos, 5, CFG_REC_END);
+  if(shade->getShadeId() != 255) {
+    this->writeUInt8(shade->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
+    this->writeFloat(shade->myPos, 5);
+    this->writeFloat(shade->myTiltPos, 5);
+    this->writeFloat(shade->currentPos, 5);
+    this->writeFloat(shade->currentTiltPos, 5, CFG_REC_END);
+  }
+  else {
+    // Make sure that we write cleared values when the shade is deleted.
+    this->writeUInt8(0);
+    this->writeFloat(-1.0f, 5); // MyPos
+    this->writeFloat(-1.0f, 5); // MyTiltPos
+    this->writeFloat(0.0f, 5);  // currentPos
+    this->writeFloat(0.0f, 5, CFG_REC_END); // currentTiltPos
+  }
   return true;  
 }
 bool ShadeConfigFile::exists() { return LittleFS.exists("/shades.cfg"); }

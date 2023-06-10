@@ -18,7 +18,12 @@ bool MQTTClass::begin() {
 }
 bool MQTTClass::end() {
   this->disconnect();
+  this->lastConnect = 0;
+  this->connect();
   return true;
+}
+void MQTTClass::reset() {
+  this->disconnect();
 }
 bool MQTTClass::loop() {
   if(settings.MQTT.enabled && !mqttClient.connected())
@@ -121,6 +126,7 @@ bool MQTTClass::connect() {
         this->subscribe("shades/+/tiltTarget/set");
         this->subscribe("shades/+/direction/set");
         this->subscribe("shades/+/mypos/set");
+        this->subscribe("shades/+/myTiltPos/set");
         this->subscribe("shades/+/sunFlag/set");
         mqttClient.setCallback(MQTTClass::receive);
         this->lastConnect = millis();
@@ -144,6 +150,7 @@ bool MQTTClass::disconnect() {
     this->unsubscribe("shades/+/direction/set");
     this->unsubscribe("shades/+/tiltTarget/set");
     this->unsubscribe("shades/+/mypos/set");
+    this->unsubscribe("shades/+/myTiltPos/set");
     this->unsubscribe("shades/+/sunFlag/set");
     mqttClient.disconnect();
   }
@@ -156,6 +163,8 @@ bool MQTTClass::unsubscribe(const char *topic) {
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
     else
       strlcpy(top, topic, sizeof(top));
+    Serial.print("MQTT Unsubscribed from:");
+    Serial.println(top);
     return mqttClient.unsubscribe(top);
   }
   return true;

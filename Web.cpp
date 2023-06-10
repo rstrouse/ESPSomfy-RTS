@@ -7,13 +7,14 @@
 #include "Utils.h"
 #include "SSDP.h"
 #include "Somfy.h"
+#include "MQTT.h"
 
 extern ConfigSettings settings;
 extern SSDPClass SSDP;
 extern rebootDelay_t rebootDelay;
 extern SomfyShadeController somfy;
 extern Web webServer;
-
+extern MQTTClass mqtt;
 #define WEB_MAX_RESPONSE 16384
 static char g_content[WEB_MAX_RESPONSE];
 
@@ -1477,11 +1478,14 @@ void Web::begin() {
     else {
       JsonObject obj = doc.as<JsonObject>();
       HTTPMethod method = server.method();
+      Serial.print("Saving MQTT ");
       Serial.print(F("HTTP Method: "));
       Serial.println(server.method());
       if (method == HTTP_POST || method == HTTP_PUT) {
+        mqtt.disconnect();
         settings.MQTT.fromJSON(obj);
         settings.MQTT.save();
+        
         StaticJsonDocument<512> sdoc;
         JsonObject sobj = sdoc.to<JsonObject>();
         settings.MQTT.toJSON(sobj);
