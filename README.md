@@ -18,6 +18,9 @@ After you get this up and running you will have the ability to interact with you
 
 ![image](https://user-images.githubusercontent.com/47839015/224559426-c81422c0-cdfe-45f9-a9c2-0c727619cdf9.png)
 
+![image](https://github.com/rstrouse/ESPSomfy-RTS/assets/47839015/2a605e54-4487-49ba-9a7a-07e153db1c02)
+
+
 * Move the shade using up, down, and my buttons
 * Set and remove my button favorite
 * Interactive shade positioning
