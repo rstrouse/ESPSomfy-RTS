@@ -23,6 +23,7 @@ After you get this up and running you will have the ability to interact with you
 * Interactive shade positioning
 * Tilt blinds
 * Set blind tilt by percentage
+* Control Awning Sun/Wind Sensors
 
 ## Moving a Shade
 You can move the shade to the full up position by clicking the up button.  To stop the shade during travel, press the my button and the shade will stop.  To move the shade to the full down position press the down button.  At any point during the movement you can press the my button to stop the shade.
