@@ -193,10 +193,10 @@ function getJSON(url, cb) {
     xhr.onload = () => {
         let status = xhr.status;
         cb(status === 200 ? null : status, xhr.response);
-    }
+    };
     xhr.onerror = (evt) => {
         cb(xhr.status || 500, xhr.statusText);
-    }
+    };
     xhr.send();
 }
 function getText(url, cb) {
@@ -207,10 +207,10 @@ function getText(url, cb) {
     xhr.onload = () => {
         let status = xhr.status;
         cb(status === 200 ? null : status, xhr.responseText);
-    }
+    };
     xhr.onerror = (evt) => {
         cb(xhr.status || 500, xhr.statusText);
-    }
+    };
     xhr.send();
 }
 function putJSON(url, data, cb) {
@@ -223,10 +223,10 @@ function putJSON(url, data, cb) {
     xhr.onload = () => {
         let status = xhr.status;
         cb(status === 200 ? null : status, xhr.response);
-    }
+    };
     xhr.onerror = (evt) => {
         cb(xhr.status || 500, xhr.statusText);
-    }
+    };
     xhr.send(JSON.stringify(data));
 }
 var socket;
@@ -364,7 +364,7 @@ async function initSockets() {
         };
         socket.onerror = (evt) => {
             console.log({ msg: 'socket error', evt: evt, sock: socket });
-        }
+        };
     } catch (err) {
         console.log({
             msg: 'Websocket connection error', err: err
@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.7.0';
+    appVersion = 'v1.7.1';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -399,106 +399,106 @@ class General {
         document.location.reload();
     }
     timeZones = [
-        { city: "Africa/Abidjan", code: "GMT0" },
-        { city: "Africa/Addis_Ababa", code: "EAT-3" },
-        { city: "Africa/Algiers", code: "CET-1" },
-        { city: "Africa/Bangui", code: "WAT-1" },
-        { city: "Africa/Blantyre", code: "CAT-2" },
-        { city: "Africa/Cairo", code: "EET-2" },
-        { city: "Africa/Casablanca", code: "<+01>-1" },
-        { city: "Africa/Ceuta", code: "CET-1CEST,M3.5.0,M10.5.0/3" },
-        { city: "Africa/Johannesburg", code: "SAST-2" },
-        { city: "America/Adak", code: "HST10HDT,M3.2.0,M11.1.0" },
-        { city: "America/Anchorage", code: "AKST9AKDT,M3.2.0,M11.1.0" },
-        { city: "America/Antigua", code: "AST4" },
-        { city: "America/Araguaina", code: "<-03>3" },
-        { city: "America/Asuncion", code: "<-04>4<-03>,M10.1.0/0,M3.4.0/0" },
-        { city: "America/Bahia_Banderas", code: "CST6CDT,M4.1.0,M10.5.0" },
-        { city: "America/Belize", code: "CST6" },
-        { city: "America/Boa_Vista", code: "<-04>4" },
-        { city: "America/Bogota", code: "<-05>5" },
-        { city: "America/Boise", code: "MST7MDT,M3.2.0,M11.1.0" },
-        { city: "America/Cancun", code: "EST5" },
-        { city: "America/Chicago", code: "CST6CDT,M3.2.0,M11.1.0" },
-        { city: "America/Chihuahua", code: "MST7MDT,M4.1.0,M10.5.0" },
-        { city: "America/Creston", code: "MST7" },
-        { city: "America/Detroit", code: "EST5EDT,M3.2.0,M11.1.0" },
-        { city: "America/Glace_Bay", code: "AST4ADT,M3.2.0,M11.1.0" },
-        { city: "America/Godthab", code: "<-03>3<-02>,M3.5.0/-2,M10.5.0/-1" },
-        { city: "America/Havana", code: "CST5CDT,M3.2.0/0,M11.1.0/1" },
-        { city: "America/Los_Angeles", code: "PST8PDT,M3.2.0,M11.1.0" },
-        { city: "America/Miquelon", code: "<-03>3<-02>,M3.2.0,M11.1.0" },
-        { city: "America/Noronha", code: "<-02>2" },
-        { city: "America/Santiago", code: "<-04>4<-03>,M9.1.6/24,M4.1.6/24" },
-        { city: "America/Sao_Paulo", code: "<-03>3" },
-        { city: "America/Scoresbysund", code: "<-01>1<+00>,M3.5.0/0,M10.5.0/1" },
-        { city: "America/St_Johns", code: "NST3:30NDT,M3.2.0,M11.1.0" },
-        { city: "Antarctica/Casey", code: "<+11>-11" },
-        { city: "Antarctica/Davis", code: "<+07>-7" },
-        { city: "Antarctica/DumontDUrville", code: "<+10>-10" },
-        { city: "Antarctica/Macquarie", code: "AEST-10AEDT,M10.1.0,M4.1.0/3" },
-        { city: "Antarctica/Mawson", code: "<+05>-5" },
-        { city: "Antarctica/McMurdo", code: "NZST-12NZDT,M9.5.0,M4.1.0/3" },
-        { city: "Antarctica/Syowa", code: "<+03>-3" },
-        { city: "Antarctica/Troll", code: "<+00>0<+02>-2,M3.5.0/1,M10.5.0/3" },
-        { city: "Antarctica/Vostok", code: "<+06>-6" },
-        { city: "Asia/Amman", code: "EET-2EEST,M2.5.4/24,M10.5.5/1" },
-        { city: "Asia/Anadyr", code: "<+12>-12" },
-        { city: "Asia/Baku", code: "<+04>-4" },
-        { city: "Asia/Beirut", code: "EET-2EEST,M3.5.0/0,M10.5.0/0" },
-        { city: "Asia/Brunei", code: "<+08>-8" },
-        { city: "Asia/Chita", code: "<+09>-9" },
-        { city: "Asia/Colombo", code: "<+0530>-5:30" },
-        { city: "Asia/Damascus", code: "EET-2EEST,M3.5.5/0,M10.5.5/0" },
-        { city: "Asia/Famagusta", code: "EET-2EEST,M3.5.0/3,M10.5.0/4" },
-        { city: "Asia/Gaza", code: "EET-2EEST,M3.4.4/48,M10.5.5/1" },
-        { city: "Asia/Hong_Kong", code: "HKT-8" },
-        { city: "Asia/Jakarta", code: "WIB-7" },
-        { city: "Asia/Jayapura", code: "WIT-9" },
-        { city: "Asia/Jerusalem", code: "IST-2IDT,M3.4.4/26,M10.5.0" },
-        { city: "Asia/Kabul", code: "<+0430>-4:30" },
-        { city: "Asia/Karachi", code: "PKT-5" },
-        { city: "Asia/Kathmandu", code: "<+0545>-5:45" },
-        { city: "Asia/Kolkata", code: "IST-5:30" },
-        { city: "Asia/Macau", code: "CST-8" },
-        { city: "Asia/Makassar", code: "WITA-8" },
-        { city: "Asia/Manila", code: "PST-8" },
-        { city: "Asia/Pyongyang", code: "KST-9" },
-        { city: "Asia/Tehran", code: "<+0330>-3:30<+0430>,J79/24,J263/24" },
-        { city: "Asia/Tokyo", code: "JST-9" },
-        { city: "Asia/Yangon", code: "<+0630>-6:30" },
-        { city: "Atlantic/Canary", code: "WET0WEST,M3.5.0/1,M10.5.0" },
-        { city: "Atlantic/Cape_Verde", code: "<-01>1" },
-        { city: "Australia/Adelaide", code: "ACST-9:30ACDT,M10.1.0,M4.1.0/3" },
-        { city: "Australia/Brisbane", code: "AEST-10" },
-        { city: "Australia/Darwin", code: "ACST-9:30" },
-        { city: "Australia/Eucla", code: "<+0845>-8:45" },
-        { city: "Australia/Lord_Howe", code: "<+1030>-10:30<+11>-11,M10.1.0,M4.1.0" },
-        { city: "Australia/Perth", code: "AWST-8" },
-        { city: "Etc/GMT+10", code: "<-10>10" },
-        { city: "Etc/GMT+11", code: "<-11>11" },
-        { city: "Etc/GMT+12", code: "<-12>12" },
-        { city: "Etc/GMT+6", code: "<-06>6" },
-        { city: "Etc/GMT+7", code: "<-07>7" },
-        { city: "Etc/GMT+8", code: "<-08>8" },
-        { city: "Etc/GMT+9", code: "<-09>9" },
-        { city: "Etc/GMT-13", code: "<+13>-13" },
-        { city: "Etc/GMT-14", code: "<+14>-14" },
-        { city: "Etc/GMT-2", code: "<+02>-2" },
-        { city: "Etc/Universal Coorinated Time", code: "UTC0" },
-        { city: "Europe/Berlin", code: "CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00" },
-        { city: "Europe/Chisinau", code: "EET-2EEST,M3.5.0,M10.5.0/3" },
-        { city: "Europe/Dublin", code: "IST-1GMT0,M10.5.0,M3.5.0/1" },
-        { city: "Europe/Guernsey", code: "GMT0BST,M3.5.0/1,M10.5.0" },
-        { city: "Europe/Moscow", code: "MSK-3" },
-        { city: "Pacific/Chatham", code: "<+1245>-12:45<+1345>,M9.5.0/2:45,M4.1.0/3:45" },
-        { city: "Pacific/Easter", code: "<-06>6<-05>,M9.1.6/22,M4.1.6/22" },
-        { city: "Pacific/Fiji", code: "<+12>-12<+13>,M11.2.0,M1.2.3/99" },
-        { city: "Pacific/Guam", code: "ChST-10" },
-        { city: "Pacific/Honolulu", code: "HST10" },
-        { city: "Pacific/Marquesas", code: "<-0930>9:30" },
-        { city: "Pacific/Midway", code: "SST11" },
-        { city: "Pacific/Norfolk", code: "<+11>-11<+12>,M10.1.0,M4.1.0/3" }];
+    { city: 'Africa/Cairo', code: 'EET-2' },
+    { city: 'Africa/Johannesburg', code: 'SAST-2' },
+    { city: 'Africa/Juba', code: 'CAT-2' },
+    { city: 'Africa/Lagos', code: 'WAT-1' },
+    { city: 'Africa/Mogadishu', code: 'EAT-3' },
+    { city: 'Africa/Tunis', code: 'CET-1' },
+    { city: 'America/Adak', code: 'HST10HDT,M3.2.0,M11.1.0' },
+    { city: 'America/Anchorage', code: 'AKST9AKDT,M3.2.0,M11.1.0' },
+    { city: 'America/Asuncion', code: '<-04>4<-03>,M10.1.0/0,M3.4.0/0' },
+    { city: 'America/Bahia_Banderas', code: 'CST6CDT,M4.1.0,M10.5.0' },
+    { city: 'America/Barbados', code: 'AST4' },
+    { city: 'America/Bermuda', code: 'AST4ADT,M3.2.0,M11.1.0' },
+    { city: 'America/Cancun', code: 'EST5' },
+    { city: 'America/Central_Time', code: 'CST6CDT,M3.2.0,M11.1.0' },
+    { city: 'America/Chihuahua', code: 'MST7MDT,M4.1.0,M10.5.0' },
+    { city: 'America/Eastern_Time', code: 'EST5EDT,M3.2.0,M11.1.0' },
+    { city: 'America/Godthab', code: '<-03>3<-02>,M3.5.0/-2,M10.5.0/-1' },
+    { city: 'America/Havana', code: 'CST5CDT,M3.2.0/0,M11.1.0/1' },
+    { city: 'America/Mexico_City', code: 'CST6' },
+    { city: 'America/Miquelon', code: '<-03>3<-02>,M3.2.0,M11.1.0' },
+    { city: 'America/Mountain_Time', code: 'MST7MDT,M3.2.0,M11.1.0' },
+    { city: 'America/Pacific_Time', code: 'PST8PDT,M3.2.0,M11.1.0' },
+    { city: 'America/Phoenix', code: 'MST7' },
+    { city: 'America/Santiago', code: '<-04>4<-03>,M9.1.6/24,M4.1.6/24' },
+    { city: 'America/St_Johns', code: 'NST3:30NDT,M3.2.0,M11.1.0' },
+    { city: 'Antarctica/Troll', code: '<+00>0<+02>-2,M3.5.0/1,M10.5.0/3' },
+    { city: 'Asia/Amman', code: 'EET-2EEST,M2.5.4/24,M10.5.5/1' },
+    { city: 'Asia/Beirut', code: 'EET-2EEST,M3.5.0/0,M10.5.0/0' },
+    { city: 'Asia/Colombo', code: '<+0530>-5:30' },
+    { city: 'Asia/Damascus', code: 'EET-2EEST,M3.5.5/0,M10.5.5/0' },
+    { city: 'Asia/Gaza', code: 'EET-2EEST,M3.4.4/50,M10.4.4/50' },
+    { city: 'Asia/Hong_Kong', code: 'HKT-8' },
+    { city: 'Asia/Jakarta', code: 'WIB-7' },
+    { city: 'Asia/Jayapura', code: 'WIT-9' },
+    { city: 'Asia/Jerusalem', code: 'IST-2IDT,M3.4.4/26,M10.5.0' },
+    { city: 'Asia/Kabul', code: '<+0430>-4:30' },
+    { city: 'Asia/Karachi', code: 'PKT-5' },
+    { city: 'Asia/Kathmandu', code: '<+0545>-5:45' },
+    { city: 'Asia/Kolkata', code: 'IST-5:30' },
+    { city: 'Asia/Makassar', code: 'WITA-8' },
+    { city: 'Asia/Manila', code: 'PST-8' },
+    { city: 'Asia/Seoul', code: 'KST-9' },
+    { city: 'Asia/Shanghai', code: 'CST-8' },
+    { city: 'Asia/Tehran', code: '<+0330>-3:30' },
+    { city: 'Asia/Tokyo', code: 'JST-9' },
+    { city: 'Atlantic/Azores', code: '<-01>1<+00>,M3.5.0/0,M10.5.0/1' },
+    { city: 'Australia/Adelaide', code: 'ACST-9:30ACDT,M10.1.0,M4.1.0/3' },
+    { city: 'Australia/Brisbane', code: 'AEST-10' },
+    { city: 'Australia/Darwin', code: 'ACST-9:30' },
+    { city: 'Australia/Eucla', code: '<+0845>-8:45' },
+    { city: 'Australia/Lord_Howe', code: '<+1030>-10:30<+11>-11,M10.1.0,M4.1.0' },
+    { city: 'Australia/Melbourne', code: 'AEST-10AEDT,M10.1.0,M4.1.0/3' },
+    { city: 'Australia/Perth', code: 'AWST-8' },
+    { city: 'Etc/GMT-1', code: '<+01>-1' },
+    { city: 'Etc/GMT-2', code: '<+02>-2' },
+    { city: 'Etc/GMT-3', code: '<+03>-3' },
+    { city: 'Etc/GMT-4', code: '<+04>-4' },
+    { city: 'Etc/GMT-5', code: '<+05>-5' },
+    { city: 'Etc/GMT-6', code: '<+06>-6' },
+    { city: 'Etc/GMT-7', code: '<+07>-7' },
+    { city: 'Etc/GMT-8', code: '<+08>-8' },
+    { city: 'Etc/GMT-9', code: '<+09>-9' },
+    { city: 'Etc/GMT-10',code: '<+10>-10' },
+    { city: 'Etc/GMT-11', code: '<+11>-11' },
+    { city: 'Etc/GMT-12', code: '<+12>-12' },
+    { city: 'Etc/GMT-13', code: '<+13>-13' },
+    { city: 'Etc/GMT-14', code: '<+14>-14' },
+    { city: 'Etc/GMT+0', code: 'GMT0' },
+    { city: 'Etc/GMT+1', code: '<-01>1' },
+    { city: 'Etc/GMT+2', code: '<-02>2' },
+    { city: 'Etc/GMT+3', code: '<-03>3' },
+    { city: 'Etc/GMT+4', code: '<-04>4' },
+    { city: 'Etc/GMT+5', code: '<-05>5' },
+    { city: 'Etc/GMT+6', code: '<-06>6' },
+    { city: 'Etc/GMT+7', code: '<-07>7' },
+    { city: 'Etc/GMT+8', code: '<-08>8' },
+    { city: 'Etc/GMT+9', code: '<-09>9' },
+    { city: 'Etc/GMT+10', code: '<-10>10' },
+    { city: 'Etc/GMT+11', code: '<-11>11' },
+    { city: 'Etc/GMT+12', code: '<-12>12' },
+    { city: 'Etc/UTC', code: 'UTC0' },
+    { city: 'Europe/Athens', code: 'EET-2EEST,M3.5.0/3,M10.5.0/4' },
+    { city: "Europe/Berlin", code: "CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00" },
+    { city: 'Europe/Brussels', code: 'CET-1CEST,M3.5.0,M10.5.0/3' },
+    { city: 'Europe/Chisinau', code: 'EET-2EEST,M3.5.0,M10.5.0/3' },
+    { city: 'Europe/Dublin', code: 'IST-1GMT0,M10.5.0,M3.5.0/1' },
+    { city: 'Europe/Lisbon',  code: 'WET0WEST,M3.5.0/1,M10.5.0' },
+    { city: 'Europe/London', code: 'GMT0BST,M3.5.0/1,M10.5.0' },
+    { city: 'Europe/Moscow', code: 'MSK-3' },
+    { city: 'Indian/Cocos',  code: '<+0630>-6:30' },
+    { city: 'Pacific/Auckland', code: 'NZST-12NZDT,M9.5.0,M4.1.0/3' },
+    { city: 'Pacific/Chatham', code: '<+1245>-12:45<+1345>,M9.5.0/2:45,M4.1.0/3:45' },
+    { city: 'Pacific/Easter', code: '<-06>6<-05>,M9.1.6/22,M4.1.6/22' },
+    { city: 'Pacific/Fiji', code: '<+12>-12<+13>,M11.2.0,M1.2.3/99' },
+    { city: 'Pacific/Guam',  code: 'ChST-10' },
+    { city: 'Pacific/Honolulu', code: 'HST10' },
+    { city: 'Pacific/Marquesas', code: '<-0930>9:30' },
+    { city: 'Pacific/Midway',  code: 'SST11' },
+    { city: 'Pacific/Norfolk', code: '<+11>-11<+12>,M10.1.0,M4.1.0/3' }
+    ];
     loadGeneral() {
         let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
         getJSON('/modulesettings', (err, settings) => {
