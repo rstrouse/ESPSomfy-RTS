@@ -6,9 +6,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 8
+#define SHADE_HDR_VER 9
 #define SHADE_HDR_SIZE 16
-#define SHADE_REC_SIZE 236
+#define SHADE_REC_SIZE 242
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -329,6 +329,9 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     }
     shade->target = floor(shade->currentPos);
     shade->tiltTarget = floor(shade->currentTiltPos);
+    if(this->header.version >= 9) {
+      shade->inverted = this->readBool(false);
+    }
   }
   pref.end();
   if(opened) {
@@ -365,7 +368,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeFloat(shade->myPos, 5);
     this->writeFloat(shade->myTiltPos, 5);
     this->writeFloat(shade->currentPos, 5);
-    this->writeFloat(shade->currentTiltPos, 5, CFG_REC_END);
+    this->writeFloat(shade->currentTiltPos, 5);
   }
   else {
     // Make sure that we write cleared values when the shade is deleted.
@@ -373,8 +376,9 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeFloat(-1.0f, 5); // MyPos
     this->writeFloat(-1.0f, 5); // MyTiltPos
     this->writeFloat(0.0f, 5);  // currentPos
-    this->writeFloat(0.0f, 5, CFG_REC_END); // currentTiltPos
+    this->writeFloat(0.0f, 5); // currentTiltPos
   }
+  this->writeBool(shade->inverted, CFG_REC_END);
   return true;  
 }
 bool ShadeConfigFile::exists() { return LittleFS.exists("/shades.cfg"); }

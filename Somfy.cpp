@@ -1058,7 +1058,7 @@ void SomfyShade::processWaitingFrame() {
   }
   if(this->lastFrame.processed) return;
   if(this->lastFrame.await > 0 && (millis() > this->lastFrame.await)) {
-    switch(this->lastFrame.cmd) {
+    switch(this->transformCommand(this->lastFrame.cmd)) {
       case somfy_commands::StepUp:
           this->lastFrame.processed = true;
           // Simply move the shade up by 1%.
@@ -1161,10 +1161,11 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   this->startTiltPos = this->currentTiltPos;
   // If the command is coming from a remote then we are aborting all these positioning operations.
   if(!internal) this->settingMyPos = this->settingPos = this->settingTiltPos = false;
-  
+
+  somfy_commands cmd = this->transformCommand(frame.cmd);
   // At this point we are not processing the combo buttons
   // will need to see what the shade does when you press both.
-  switch(frame.cmd) {
+  switch(cmd) {
     case somfy_commands::Sensor:
       {
         const uint8_t prevFlags = this->flags;
@@ -1644,6 +1645,7 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
       this->shadeType = static_cast<shade_types>(obj["shadeType"].as<uint8_t>());
     }
   }
+  if(obj.containsKey("inverted")) this->inverted = obj["inverted"].as<bool>();
   if(obj.containsKey("tiltType")) {
     if(obj["tiltType"].is<const char *>()) {
       if(strncmp(obj["tiltType"].as<const char *>(), "none", 4) == 0)
@@ -1703,6 +1705,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["bitLength"] = this->bitLength;
   obj["proto"] = static_cast<uint8_t>(this->proto);
   obj["flags"] = this->flags;
+  obj["inverted"] = this->inverted;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -1859,11 +1862,32 @@ SomfyShade *SomfyShadeController::addShade() {
   }
   return shade;
 }
+somfy_commands SomfyRemote::transformCommand(somfy_commands cmd) {
+  if(this->inverted) {
+    switch(cmd) {
+      case somfy_commands::Up:
+        return somfy_commands::Down;
+      case somfy_commands::MyUp:
+        return somfy_commands::MyDown;
+      case somfy_commands::Down:
+        return somfy_commands::Up;
+      case somfy_commands::MyDown:
+        return somfy_commands::MyUp;
+      case somfy_commands::StepUp:
+        return somfy_commands::StepDown;
+      case somfy_commands::StepDown:
+        return somfy_commands::StepUp;
+      default:
+        break;
+    }
+  }
+  return cmd;
+}
 void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   somfy_frame_t frame;
   frame.rollingCode = this->getNextRollingCode();
   frame.remoteAddress = this->getRemoteAddress();
-  frame.cmd = cmd;
+  frame.cmd = this->transformCommand(cmd);
   frame.repeats = repeat;
   frame.bitLength = this->bitLength;
   // Match the encKey to the rolling code.  These keys range from 160 to 175.

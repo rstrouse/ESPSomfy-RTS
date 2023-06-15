@@ -1486,6 +1486,7 @@ class Somfy {
                     document.getElementById('selShadeProto').value = shade.proto || 0;
                     document.getElementById('slidStepSize').value = shade.stepSize || 100;
                     document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
+                    document.getElementById('cbInverted').value = shade.inverted || false;
                 }
             });
         }
@@ -1519,6 +1520,7 @@ class Somfy {
                     document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
                     document.getElementById('fldTiltTime').value = shade.tiltTime;
                     document.getElementById('selTiltType').value = shade.tiltType;
+                    document.getElementById('cbInverted').checked = shade.inverted;
                     this.onShadeTypeChanged(document.getElementById('selShadeType'));
                     let ico = document.getElementById('icoShade');
                     switch (shade.shadeType) {
@@ -1576,7 +1578,8 @@ class Somfy {
             tiltTime: parseInt(document.getElementById('fldTiltTime').value, 10),
             bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56,
             proto: parseInt(document.getElementById('selShadeProto').value, 10) || 0,
-            stepSize: parseInt(document.getElementById('slidStepSize').value, 10) || 100
+            stepSize: parseInt(document.getElementById('slidStepSize').value, 10) || 100,
+            inverted: document.getElementById('cbInverted').checked
         };
         if (obj.shadeType === 1) {
             obj.tiltType = parseInt(document.getElementById('selTiltType').value, 10);
