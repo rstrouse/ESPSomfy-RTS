@@ -903,7 +903,7 @@ class Somfy {
         this.loadPins('inout', document.getElementById('selTransSCKPin'));
         this.loadPins('inout', document.getElementById('selTransCSNPin'));
         this.loadPins('inout', document.getElementById('selTransMOSIPin'));
-        this.loadPins('inout', document.getElementById('selTransMISOPin'));
+        this.loadPins('input', document.getElementById('selTransMISOPin'));
         this.loadPins('out', document.getElementById('selTransTXPin'));
         this.loadPins('input', document.getElementById('selTransRXPin'));
         this.loadSomfy();
@@ -1283,7 +1283,7 @@ class Somfy {
                 case 9:
                 case 10:
                 case 11:
-                    if(type !== 'inout') continue;
+                    if(type !== 'inout' && type !== 'input') continue;
                     break;
                 case 37:
                 case 38:
