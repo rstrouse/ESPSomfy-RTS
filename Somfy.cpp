@@ -506,6 +506,51 @@ SomfyShade * SomfyShadeController::getShadeById(uint8_t shadeId) {
   }
   return nullptr;
 }
+void SomfyShade::clear() {
+  this->setShadeId(255);
+  this->setRemoteAddress(0);
+  this->moveStart = 0;
+  this->tiltStart = 0;
+  this->noSunStart = 0;
+  this->sunStart = 0;
+  this->windStart = 0;
+  this->windLast = 0;
+  this->noWindStart = 0;
+  this->noSunDone = true;
+  this->sunDone = true;
+  this->windDone = true;
+  this->noWindDone = true;
+  this->startPos = 0.0f;
+  this->startTiltPos = 0.0f;
+  this->settingMyPos = false;
+  this->settingPos = false;
+  this->settingTiltPos = false;
+  this->awaitMy = 0;
+  this->flipPosition = false;
+  this->flipCommands = false;
+  this->lastRollingCode = 0;
+  this->shadeType = shade_types::roller;
+  this->tiltType = tilt_types::none;
+  this->txQueue.clear();
+  this->currentPos = 0.0f;
+  this->currentTiltPos = 0.0f;
+  this->direction = 0;
+  this->tiltDirection = 0;  
+  this->target = 0.0f;
+  this->tiltTarget = 0.0f;
+  this->myPos = -1.0f;
+  this->myTiltPos = -1.0f;
+  this->bitLength = somfy.transceiver.config.type;
+  this->proto = somfy.transceiver.config.proto;
+  for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++)
+    this->linkedRemotes[i].setRemoteAddress(0);
+  this->paired = false;
+  this->name[0] = 0x00;
+  this->upTime = 10000;
+  this->downTime = 10000;
+  this->tiltTime = 7000;
+  this->stepSize = 100;
+}
 bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
   // Check to see if the remote is already linked. If it is
   // just return true after setting the rolling code
@@ -963,31 +1008,34 @@ void SomfyShade::publish() {
     snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
     mqtt.publish(topic, this->getRemoteAddress());
     snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(floor(this->currentPos)));
+    mqtt.publish(topic, this->transformPosition(this->currentPos));
     snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
     mqtt.publish(topic, this->direction);
     snprintf(topic, sizeof(topic), "shades/%u/target", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(floor(this->target)));
+    mqtt.publish(topic, this->transformPosition(this->target));
     snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
     mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
-    mqtt.publish(topic, static_cast<int8_t>(floor(this->myPos)));
+    mqtt.publish(topic, this->transformPosition(this->myPos));
     snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
-    mqtt.publish(topic, static_cast<int8_t>(floor(this->myTiltPos)));
+    mqtt.publish(topic, this->transformPosition(this->myTiltPos));
     snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
     snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
     snprintf(topic, sizeof(topic), "shades/%u/flags", this->shadeId);
     mqtt.publish(topic, this->flags);
-    
+    snprintf(topic, sizeof(topic), "shades/%u/flipCommands", this->shadeId);
+    mqtt.publish(topic, this->flipCommands);
+    snprintf(topic, sizeof(topic), "shades/%u/flipPosition", this->shadeId);
+    mqtt.publish(topic, this->flipPosition);
     if(this->tiltType != tilt_types::none) {
       snprintf(topic, sizeof(topic), "shades/%u/tiltDirection", this->shadeId);
       mqtt.publish(topic, this->tiltDirection);
       snprintf(topic, sizeof(topic), "shades/%u/tiltPosition", this->shadeId);
-      mqtt.publish(topic, static_cast<uint8_t>(floor(this->currentTiltPos)));
+      mqtt.publish(topic, this->transformPosition(this->currentTiltPos));
       snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
-      mqtt.publish(topic, static_cast<uint8_t>(floor(this->tiltTarget)));
+      mqtt.publish(topic, this->transformPosition(this->tiltTarget));
     }
     else if (this->shadeType == shade_types::awning) {
       const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
@@ -1004,37 +1052,43 @@ void SomfyShade::publish() {
   }
 }
 void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
+int8_t SomfyShade::transformPosition(float fpos) { return static_cast<int8_t>(this->flipPosition && fpos >= 0.00f ? floor(100.0f - fpos) : floor(fpos)); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
-  char buf[320];
+  char buf[420];
   if(this->tiltType != tilt_types::none)
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flags\":%d}", 
-      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, static_cast<uint8_t>(floor(this->currentPos)), static_cast<uint8_t>(floor(this->target)), static_cast<int8_t>(floor(this->myPos)), static_cast<int8_t>(this->myTiltPos), static_cast<uint8_t>(this->tiltType), this->tiltDirection, static_cast<uint8_t>(floor(this->tiltTarget)), static_cast<uint8_t>(floor(this->currentTiltPos)),this->flags);
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d}", 
+      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
+      this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), this->transformPosition(this->myTiltPos), static_cast<uint8_t>(this->tiltType), this->tiltDirection, 
+      this->transformPosition(this->tiltTarget), this->transformPosition(this->currentTiltPos),
+      this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags);
   else
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flags\":%d}", 
-      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, static_cast<uint8_t>(floor(this->currentPos)), static_cast<uint8_t>(floor(this->target)), static_cast<int8_t>(floor(this->myPos)), static_cast<uint8_t>(this->tiltType), this->flags);
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d}", 
+      this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
+      this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), 
+      static_cast<uint8_t>(this->tiltType), this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags);
   if(num >= 255) sockEmit.sendToClients(evt, buf);
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
     char topic[32];
     snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(floor(this->currentPos)));
+    mqtt.publish(topic, this->transformPosition(this->currentPos));
     snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
     mqtt.publish(topic, this->direction);
     snprintf(topic, sizeof(topic), "shades/%u/target", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(floor(this->target)));
+    mqtt.publish(topic, this->transformPosition(this->target));
     snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
     mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
-    mqtt.publish(topic, static_cast<int8_t>(floor(this->myPos)));
+    mqtt.publish(topic, this->transformPosition(this->myPos));
     snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
     if(this->tiltType != tilt_types::none) {
       snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
-      mqtt.publish(topic, static_cast<int8_t>(floor(this->myTiltPos)));
+      mqtt.publish(topic, this->transformPosition(this->myTiltPos));
       snprintf(topic, sizeof(topic), "shades/%u/tiltPosition", this->shadeId);
-      mqtt.publish(topic, static_cast<uint8_t>(floor(this->currentTiltPos)));
+      mqtt.publish(topic, this->transformPosition(this->currentTiltPos));
       snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
-      mqtt.publish(topic, static_cast<uint8_t>(floor(this->tiltTarget)));
+      mqtt.publish(topic, this->transformPosition(this->tiltTarget));
     }
     else if (this->shadeType == shade_types::awning) {
       const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
@@ -1645,7 +1699,8 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
       this->shadeType = static_cast<shade_types>(obj["shadeType"].as<uint8_t>());
     }
   }
-  if(obj.containsKey("inverted")) this->inverted = obj["inverted"].as<bool>();
+  if(obj.containsKey("flipCommands")) this->flipCommands = obj["flipCommands"].as<bool>();
+  if(obj.containsKey("flipPosition")) this->flipPosition = obj["flipPosition"].as<bool>();
   if(obj.containsKey("tiltType")) {
     if(obj["tiltType"].is<const char *>()) {
       if(strncmp(obj["tiltType"].as<const char *>(), "none", 4) == 0)
@@ -1689,15 +1744,15 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["paired"] = this->paired;
   //obj["remotePrefId"] = this->getRemotePrefId();
   obj["lastRollingCode"] = this->lastRollingCode;
-  obj["position"] = static_cast<uint8_t>(floor(this->currentPos));
-  obj["tiltPosition"] = static_cast<uint8_t>(floor(this->currentTiltPos));
+  obj["position"] = this->transformPosition(this->currentPos);
+  obj["tiltPosition"] = this->transformPosition(this->currentTiltPos);
   obj["tiltDirection"] = this->tiltDirection;
   obj["tiltTime"] = this->tiltTime;
   obj["stepSize"] = this->stepSize;
-  obj["tiltTarget"] = static_cast<uint8_t>(floor(this->tiltTarget));
-  obj["target"] = this->target;
-  obj["myPos"] = static_cast<int8_t>(floor(this->myPos));
-  obj["myTiltPos"] = static_cast<int8_t>(floor(this->myTiltPos));
+  obj["tiltTarget"] = this->transformPosition(this->tiltTarget);
+  obj["target"] = this->transformPosition(this->target);
+  obj["myPos"] = this->transformPosition(this->myPos);
+  obj["myTiltPos"] = this->transformPosition(this->myTiltPos);
   obj["direction"] = this->direction;
   obj["tiltType"] = static_cast<uint8_t>(this->tiltType);
   obj["tiltTime"] = this->tiltTime;
@@ -1705,7 +1760,8 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["bitLength"] = this->bitLength;
   obj["proto"] = static_cast<uint8_t>(this->proto);
   obj["flags"] = this->flags;
-  obj["inverted"] = this->inverted;
+  obj["flipCommands"] = this->flipCommands;
+  obj["flipPosition"] = this->flipPosition;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -1863,7 +1919,7 @@ SomfyShade *SomfyShadeController::addShade() {
   return shade;
 }
 somfy_commands SomfyRemote::transformCommand(somfy_commands cmd) {
-  if(this->inverted) {
+  if(this->flipCommands) {
     switch(cmd) {
       case somfy_commands::Up:
         return somfy_commands::Down;
@@ -1935,14 +1991,7 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() == shadeId) {
       shades[i].emitState("shadeRemoved");
-      this->shades[i].setShadeId(255);
-      this->shades[i].currentPos = 0;
-      this->shades[i].currentTiltPos = 0;
-      this->shades[i].myPos = -1.0f;
-      this->shades[i].myTiltPos = -1.0f;
-      this->shades[i].shadeType = shade_types::roller;
-      this->shades[i].tiltType = tilt_types::none;
-      this->shades[i].flags = 0;
+      this->shades[i].clear();
     }
   }
   if(this->useNVS()) {

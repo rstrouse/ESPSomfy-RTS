@@ -296,13 +296,18 @@
                                 </label>
                             </div>
                         </div>
-                        <div id="divInverted" style="margin-top:-10px;">
+                        <div style="margin-top:-10px;">
                             <div class="field-group">
-                                <input id="cbInverted" name="inverted" type="checkbox" style="" />
-                                <label for="cbInverted" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Commands</label>
+                                <input id="cbFlipCommands" name="flipCommands" type="checkbox" style="" />
+                                <label for="cbFlipCommands" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Commands</label>
                             </div>
                         </div>
-
+                        <div style="margin-top:-10px;">
+                            <div class="field-group">
+                                <input id="cbFlipPosition" name="flipPos" type="checkbox" style="" />
+                                <label for="cbFlipPosition" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Position (expressed in % of open)</label>
+                            </div>
+                        </div>
                         <div class="button-container" style="text-align:center;">
                             <button id="btnPairShade" type="button" onclick="somfy.pairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
                                 Pair Shade

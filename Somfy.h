@@ -167,7 +167,8 @@ class SomfyRemote {
     uint32_t m_remoteAddress = 0;
   public:
     radio_proto proto = radio_proto::RTS;
-    bool inverted = false;
+    bool flipCommands = false;
+    
     uint8_t flags = 0;
     uint8_t bitLength = 0;
     char *getRemotePrefId() {return m_remotePrefId;}
@@ -205,6 +206,7 @@ class SomfyShade : public SomfyRemote {
     bool settingTiltPos = false;
     uint32_t awaitMy = 0;
   public:
+    bool flipPosition = false;
     shade_types shadeType = shade_types::roller;
     tilt_types tiltType = tilt_types::none;
     void load();
@@ -215,10 +217,10 @@ class SomfyShade : public SomfyRemote {
     //uint16_t movement = 0;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
     int8_t tiltDirection = 0; // 0=stopped, 1=clockwise, -1=counter clockwise
-    float target = 0.0;
-    float tiltTarget = 0.0;
-    float myPos = -1.0;
-    float myTiltPos = -1.0;
+    float target = 0.0f;
+    float tiltTarget = 0.0f;
+    float myPos = -1.0f;
+    float myTiltPos = -1.0f;
     SomfyLinkedRemote linkedRemotes[SOMFY_MAX_LINKED_REMOTES];
     bool paired = false;
     bool fromJSON(JsonObject &obj);
@@ -254,6 +256,8 @@ class SomfyShade : public SomfyRemote {
     void commitShadePosition();
     void commitTiltPosition();
     void commitMyPosition();
+    void clear();
+    int8_t transformPosition(float fpos);
 };
 
 struct transceiver_config_t {

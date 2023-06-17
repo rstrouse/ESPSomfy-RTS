@@ -226,6 +226,10 @@ bool MQTTClass::publish(const char *topic, uint16_t val) {
   snprintf(g_content, sizeof(g_content), "%u", val);
   return this->publish(topic, g_content);
 }
+bool MQTTClass::publish(const char *topic, bool val) {
+  snprintf(g_content, sizeof(g_content), "%s", val ? "true" : "false");
+  return this->publish(topic, g_content);
+}
 bool MQTTClass::connected() {
   if(settings.MQTT.enabled) return mqttClient.connected();
   return false;

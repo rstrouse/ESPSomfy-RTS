@@ -6,9 +6,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 9
+#define SHADE_HDR_VER 10
 #define SHADE_HDR_SIZE 16
-#define SHADE_REC_SIZE 242
+#define SHADE_REC_SIZE 248
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -330,8 +330,12 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     shade->target = floor(shade->currentPos);
     shade->tiltTarget = floor(shade->currentTiltPos);
     if(this->header.version >= 9) {
-      shade->inverted = this->readBool(false);
+      shade->flipCommands = this->readBool(false);
     }
+    if(this->header.version >= 10) {
+      shade->flipPosition = this->readBool(false);
+    }
+    if(shade->getShadeId() == 255) shade->clear();
   }
   pref.end();
   if(opened) {
@@ -378,7 +382,8 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeFloat(0.0f, 5);  // currentPos
     this->writeFloat(0.0f, 5); // currentTiltPos
   }
-  this->writeBool(shade->inverted, CFG_REC_END);
+  this->writeBool(shade->flipCommands);
+  this->writeBool(shade->flipPosition, CFG_REC_END);
   return true;  
 }
 bool ShadeConfigFile::exists() { return LittleFS.exists("/shades.cfg"); }

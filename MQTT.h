@@ -22,6 +22,7 @@ class MQTTClass {
     bool publish(const char *topic, int8_t val);
     bool publish(const char *topic, uint32_t val);
     bool publish(const char *topic, uint16_t val);
+    bool publish(const char *topic, bool val);
     bool subscribe(const char *topic);
     bool unsubscribe(const char *topic);
     static void receive(const char *topic, byte *payload, uint32_t length);

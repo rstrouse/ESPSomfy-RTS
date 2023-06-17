@@ -167,7 +167,7 @@ void Web::begin() {
       Serial.println(apiServer.arg("plain"));
       // Send the command to the shade.
       if(target <= 100)
-        shade->moveToTarget(target);
+        shade->moveToTarget(shade->transformPosition(target));
       else
         shade->sendCommand(command, repeat);
       DynamicJsonDocument sdoc(512);
@@ -231,7 +231,7 @@ void Web::begin() {
       Serial.println(apiServer.arg("plain"));
       // Send the command to the shade.
       if(target <= 100)
-        shade->moveToTiltTarget(target);
+        shade->moveToTiltTarget(shade->transformPosition(target));
       else
         shade->sendTiltCommand(command);
       DynamicJsonDocument sdoc(512);
@@ -688,7 +688,7 @@ void Web::begin() {
       Serial.println(server.arg("plain"));
       // Send the command to the shade.
       if(target <= 100)
-        shade->moveToTiltTarget(target);
+        shade->moveToTiltTarget(shade->transformPosition(target));
       else
         shade->sendTiltCommand(command);
       DynamicJsonDocument sdoc(512);
@@ -755,7 +755,7 @@ void Web::begin() {
       Serial.println(server.arg("plain"));
       // Send the command to the shade.
       if(target <= 100)
-        shade->moveToTarget(target);
+        shade->moveToTarget(shade->transformPosition(target));
       else
         shade->sendCommand(command, repeat);
       DynamicJsonDocument sdoc(512);
@@ -813,7 +813,7 @@ void Web::begin() {
       if(tilt < 0) tilt = shade->myPos;
       if(shade->tiltType == tilt_types::none) tilt = -1;
       if(pos >= 0 && pos <= 100)
-        shade->setMyPosition(pos, tilt);
+        shade->setMyPosition(shade->transformPosition(pos), shade->transformPosition(tilt));
       DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);

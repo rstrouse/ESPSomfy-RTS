@@ -172,9 +172,9 @@ void Network::setConnected(conn_types connType) {
   SSDP.setURL(0, "/");
   if(MDNS.begin(settings.hostname)) {
     Serial.printf("MDNS Responder Started: serverId=%s\n", settings.serverId);
-    MDNS.addService("http", "tcp", 80);
-    MDNS.addServiceTxt("http", "tcp", "board", "ESP32");
-    MDNS.addServiceTxt("http", "tcp", "model", "ESPSomfyRTS");
+    //MDNS.addService("http", "tcp", 80);
+    //MDNS.addServiceTxt("http", "tcp", "board", "ESP32");
+    //MDNS.addServiceTxt("http", "tcp", "model", "ESPSomfyRTS");
     
     MDNS.addService("espsomfy_rts", "tcp", 8080);
     MDNS.addServiceTxt("espsomfy_rts", "tcp", "serverId", String(settings.serverId));

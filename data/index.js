@@ -1073,7 +1073,7 @@ class Somfy {
                     divCtl += ' icss-window-shade';
                     break;
             }
-            divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.position}%;vertical-align: top;"></i>`;
+            divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.flipPosition ? 100 - shade.position : shade.position}%;vertical-align: top;"></i>`;
             divCtl += shade.tiltType !== 0 ? `<i class="icss-window-tilt" data-shadeid="${shade.shadeId}" data-tiltposition="${shade.tiltPosition}"></i></div>` : '</div>';
             divCtl += `<div class="indicator indicator-wind"><i class="icss-warning"></i></div><div class="indicator indicator-sun"><i class="icss-sun"></i></div>`;
             divCtl += `<div class="shade-name">`;
@@ -1304,7 +1304,7 @@ class Somfy {
         console.log(state);
         let icons = document.querySelectorAll(`.somfy-shade-icon[data-shadeid="${state.shadeId}"]`);
         for (let i = 0; i < icons.length; i++) {
-            icons[i].style.setProperty('--shade-position', `${state.position}%`);
+            icons[i].style.setProperty('--shade-position', `${state.flipPosition ? 100 - state.position : state.position}%`);
         }
         if (state.tiltType !== 0) {
             let tilts = document.querySelectorAll(`.icss-window-tilt[data-shadeid="${state.shadeId}"]`);
@@ -1323,7 +1323,7 @@ class Somfy {
             divs[i].setAttribute('data-direction', state.direction);
             divs[i].setAttribute('data-position', state.position);
             divs[i].setAttribute('data-target', state.target);
-            divs[i].setAttribute('data-mypos', state.mypos);
+            divs[i].setAttribute('data-mypos', state.myPos);
             divs[i].setAttribute('data-windy', (state.flags & 0x10) === 0x10 ? 'true' : 'false');
             divs[i].setAttribute('data-sunny', (state.flags & 0x20) === 0x20 ? 'true' : 'false');
             if (typeof state.myTiltPos !== 'undefined') divs[i].setAttribute('data-mytiltpos', state.myTiltPos);
@@ -1486,7 +1486,8 @@ class Somfy {
                     document.getElementById('selShadeProto').value = shade.proto || 0;
                     document.getElementById('slidStepSize').value = shade.stepSize || 100;
                     document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
-                    document.getElementById('cbInverted').value = shade.inverted || false;
+                    document.getElementById('cbFlipCommands').value = shade.flipCommands || false;
+                    document.getElementById('cbFlipPosition').value = shade.flipPosition || false;
                 }
             });
         }
@@ -1520,7 +1521,8 @@ class Somfy {
                     document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
                     document.getElementById('fldTiltTime').value = shade.tiltTime;
                     document.getElementById('selTiltType').value = shade.tiltType;
-                    document.getElementById('cbInverted').checked = shade.inverted;
+                    document.getElementById('cbFlipCommands').checked = shade.flipCommands;
+                    document.getElementById('cbFlipPosition').checked = shade.flipPosition;
                     this.onShadeTypeChanged(document.getElementById('selShadeType'));
                     let ico = document.getElementById('icoShade');
                     switch (shade.shadeType) {
@@ -1537,8 +1539,8 @@ class Somfy {
                     tilt.style.display = shade.tiltType !== 0 ? '' : 'none';
                     tilt.setAttribute('data-tiltposition', shade.tiltPosition);
                     tilt.setAttribute('data-shadeid', shade.shadeId);
-                    ico.style.setProperty('--shade-position', `${shade.position}%`);
-                    ico.style.setProperty('--tilt-position', `${shade.tiltPosition}%`);
+                    ico.style.setProperty('--shade-position', `${shade.flipPosition ? 100 - shade.position : shade.position}%`);
+                    ico.style.setProperty('--tilt-position', `${shade.flipPosition ? 100 - shade.tiltPosition : shade.tiltPosition}%`);
                     ico.setAttribute('data-shadeid', shade.shadeId);
                     somfy.onShadeBitLengthChanged(document.getElementById('selShadeBitLength'));
                     document.getElementById('btnSetRollingCode').style.display = 'inline-block';
@@ -1579,7 +1581,8 @@ class Somfy {
             bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56,
             proto: parseInt(document.getElementById('selShadeProto').value, 10) || 0,
             stepSize: parseInt(document.getElementById('slidStepSize').value, 10) || 100,
-            inverted: document.getElementById('cbInverted').checked
+            flipCommands: document.getElementById('cbFlipCommands').checked,
+            flipPosition: document.getElementById('cbFlipPosition').checked
         };
         if (obj.shadeType === 1) {
             obj.tiltType = parseInt(document.getElementById('selTiltType').value, 10);
@@ -1687,7 +1690,7 @@ class Somfy {
                 document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
                 document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
                 let ico = document.getElementById('icoShade');
-                ico.style.setProperty('--shade-position', `${shade.position}%`);
+                ico.style.setProperty('--shade-position', `${shade.flipPosition ? 100 - shade.position : shade.position}%`);
                 ico.setAttribute('data-shadeid', shade.shadeId);
                 if (shade.paired) {
                     document.getElementById('btnUnpairShade').style.display = 'inline-block';
@@ -1719,7 +1722,7 @@ class Somfy {
                 document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
                 document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
                 let ico = document.getElementById('icoShade');
-                ico.style.setProperty('--shade-position', `${shade.position}%`);
+                ico.style.setProperty('--shade-position', `${shade.flipPosition ? 100 - shade.position : shade.position}%`);
                 ico.setAttribute('data-shadeid', shade.shadeId);
                 if (shade.paired) {
                     document.getElementById('btnUnpairShade').style.display = 'inline-block';
@@ -1797,7 +1800,7 @@ class Somfy {
                 document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
                 document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
                 let ico = document.getElementById('icoShade');
-                ico.style.setProperty('--shade-position', `${shade.position}%`);
+                ico.style.setProperty('--shade-position', `${shade.flipPosition ? 100 - shade.position : shade.position}%`);
                 ico.setAttribute('data-shadeid', shade.shadeId);
                 if (shade.paired) {
                     document.getElementById('btnUnpairShade').style.display = 'inline-block';
