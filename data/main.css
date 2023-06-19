@@ -489,6 +489,13 @@ div.waitoverlay > .lds-roller {
 .somfyShade {
     text-align:center;
     padding-bottom:4px;
+    display:inline-table;
+    padding-left:4px;
+    padding-right:4px;
+}
+.somfyShade > div,
+.somfyShade > span {
+    display:table-cell;
 }
 .button-outline {
     background-color: #00bcd4;

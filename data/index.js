@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.7.1';
+    appVersion = 'v1.7.2';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -2038,6 +2038,10 @@ class MQTT {
 var mqtt = new MQTT();
 class Firmware {
     async init() { }
+    isMobile() {
+        let agt = navigator.userAgent.toLowerCase();
+        return /Android|iPhone|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)
+    };
     backup() {
         var link = document.createElement('a');
         link.href = '/backup';
@@ -2061,11 +2065,12 @@ class Firmware {
         html += `<div id="divInstText"></div>`;
         html += `<input id="fileName" type="file" name="updateFS" style="display:none;" onchange="document.getElementById('span-selected-file').innerText = this.files[0].name;"/>`;
         html += `<label for="fileName">`;
-        html += `<span id="span-selected-file" style="display:inline-block;min-width:257px;border-bottom:solid 2px white;font-size:14px;white-space:nowrap;overflow:hidden;max-width:320px;text-overflow:ellipsis;"></span>`;
+        html += `<span id="span-selected-file" style="display:inline-block;width:calc(100% - 47px);border-bottom:solid 2px white;font-size:14px;white-space:nowrap;overflow:hidden;max-width:320px;text-overflow:ellipsis;"></span>`;
         html += `<div id="btn-select-file" class="button-outline" style="font-size:.8em;padding:10px;"><i class="icss-upload" style="margin:0px;"></i></div>`;
         html += `</label>`;
         html += `<div class="progress-bar" id="progFileUpload" style="--progress:0%;margin-top:10px;display:none;"></div>`
         html += `<div class="button-container">`
+        html += `<button id="btnBackupCfg" type="button" style="display:none;width:auto;padding-left:20px;padding-right:20px;margin-right:4px;" onclick="firmware.backup();">Backup</button>`
         html += `<button id="btnUploadFile" type="button" style="width:auto;padding-left:20px;padding-right:20px;margin-right:4px;display:inline-block;" onclick="firmware.uploadFile('${service}', document.getElementById('divUploadFile'));">Upload File</button>`
         html += `<button id="btnClose" type="button" style="width:auto;padding-left:20px;padding-right:20px;display:inline-block;" onclick="document.getElementById('divUploadFile').remove();">Cancel</button></div>`;
         html += `</form><div>`;
@@ -2083,8 +2088,14 @@ class Firmware {
         general.reloadApp = true;
         let inst = div.querySelector('div[id=divInstText]');
         inst.innerHTML = '<div style="font-size:14px;">Select a binary file [SomfyController.littlefs.bin] containing the littlefs data for the application then press the Upload File button.</div>';
-        inst.innerHTML += '<hr/><div style="font-size:14px;margin-bottom:10px;">A backup file for your configuration will be downloaded to your browser.  If the application update process fails please restore this file using the restore button</div>';
+        if (this.isMobile()) {
+            inst.innerHTML += `<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="margin-top:7px;width:100%;background:yellow;padding:3px;display:inline-block;border-radius:5px;background:white;">WARNING<span></div>`;
+            inst.innerHTML += '<hr/><div style="font-size:14px;margin-bottom:10px;">This browser does not support automatic backups.  It is highly recommended that you back up your configuration using the backup button before proceeding.</div>';
+        }
+        else
+            inst.innerHTML += '<hr/><div style="font-size:14px;margin-bottom:10px;">A backup file for your configuration will be downloaded to your browser.  If the application update process fails please restore this file using the restore button</div>';
         document.getElementById('fsUpdates').appendChild(div);
+        if(this.isMobile()) document.getElementById('btnBackupCfg').style.display = 'inline-block';
     };
     async uploadFile(service, el) {
         let field = el.querySelector('input[type="file"]');
@@ -2096,28 +2107,30 @@ class Firmware {
                     errorMessage(el, 'This file is not a valid littleFS file system.');
                     return;
                 }
-                // The first thing we need to do is backup the configuration. So lets do this
-                // in a promise.
-                await new Promise((resolve, reject) => {
-                    firmware.backup();
-                    try {
-                        // Next we need to download the current configuration data.
-                        getText('/shades.cfg', (err, cfg) => {
-                            if (err)
-                                reject(err);
-                            else {
-                                resolve();
-                                console.log(cfg);
-                            }
-                        });
-                    } catch (err) {
-                        reject(err);
+                if (!this.isMobile()) {
+                    // The first thing we need to do is backup the configuration. So lets do this
+                    // in a promise.
+                    await new Promise((resolve, reject) => {
+                        firmware.backup();
+                        try {
+                            // Next we need to download the current configuration data.
+                            getText('/shades.cfg', (err, cfg) => {
+                                if (err)
+                                    reject(err);
+                                else {
+                                    resolve();
+                                    console.log(cfg);
+                                }
+                            });
+                        } catch (err) {
+                            serviceError(el, err);
+                            reject(err);
+                            return;
+                        }
+                    }).catch((err) => {
                         serviceError(el, err);
-                        return;
-                    }
-                }).catch((err) => {
-                    serviceError(el, err);
-                });
+                    });
+                }
                 break;
             case '/updateFirmware':
                 if (filename.indexOf('.ino.') === -1 || !filename.endsWith('.bin')) {
@@ -2135,6 +2148,8 @@ class Firmware {
         let formData = new FormData();
         let btnUpload = el.querySelector('button[id="btnUploadFile"]');
         let btnCancel = el.querySelector('button[id="btnClose"]');
+        let btnBackup = el.querySelector('button[id="btnBackupCfg"]');
+        btnBackup.style.display = 'none';
         btnUpload.style.display = 'none';
         field.disabled = true;
         let btnSelectFile = el.querySelector('div[id="btn-select-file"]');
@@ -2153,6 +2168,7 @@ class Firmware {
         };
         xhr.onerror = function (err) {
             console.log(err);
+            serviceError(el, err);
         };
         xhr.onload = function () {
             console.log('File upload load called');
