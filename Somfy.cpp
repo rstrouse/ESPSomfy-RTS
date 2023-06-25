@@ -127,33 +127,43 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     if(this->cmd == somfy_commands::RTWProto) {
       this->proto = radio_proto::RTW;
       switch(this->encKey) {
+        case 149:
         case 133:
           this->cmd = somfy_commands::My;
           break;
+        case 150:
         case 134:
           this->cmd = somfy_commands::Up;
           break;
+        case 151:
         case 135:
           this->cmd = somfy_commands::MyUp;
           break;
+        case 152:
         case 136:
           this->cmd = somfy_commands::Down;
           break;
+        case 153:
         case 137:
           this->cmd = somfy_commands::MyDown;
           break;
+        case 154:
         case 138:
           this->cmd = somfy_commands::UpDown;
           break;
+        case 155:
         case 139:
           this->cmd = somfy_commands::MyUpDown;
           break;
+        case 156:
         case 140:
           this->cmd = somfy_commands::Prog;
           break;
+        case 157:
         case 141:
           this->cmd = somfy_commands::SunFlag;
           break;
+        case 158:
         case 142:
           this->cmd = somfy_commands::Flag;
           break;
@@ -301,6 +311,44 @@ void somfy_frame_t::encodeFrame(byte *frame) {
       default:
         break;
     }
+  }
+  else if(this->proto == radio_proto::RTV) {
+    frame[1] = 0xF0;
+    switch(this->cmd) {
+      case somfy_commands::My:
+        frame[0] = 149;
+        break;
+      case somfy_commands::Up:
+        frame[0] = 150;
+        break;
+      case somfy_commands::MyUp:
+        frame[0] = 151;
+        break;
+      case somfy_commands::Down:
+        frame[0] = 152;
+        break;
+      case somfy_commands::MyDown:
+        frame[0] = 153;
+        break;
+      case somfy_commands::UpDown:
+        frame[0] = 154;
+        break;
+      case somfy_commands::MyUpDown:
+        frame[0] = 155;
+        break;
+      case somfy_commands::Prog:
+        frame[0] = 156;
+        break;
+      case somfy_commands::SunFlag:
+        frame[0] = 157;
+        break;
+      case somfy_commands::Flag:
+        frame[0] = 158;
+        break;
+      default:
+        break;
+    }
+    
   }
   else {
     switch(this->cmd) {
@@ -1765,6 +1813,43 @@ bool SomfyShade::toJSON(JsonObject &obj) {
     if(lremote.getRemoteAddress() != 0) {
       JsonObject lro = arr.createNestedObject();
       lremote.toJSON(lro);
+    }
+  }
+  return true;
+}
+bool SomfyGroup::fromJSON(JsonObject &obj) {
+  if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
+  if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
+  if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
+  if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
+  if(obj.containsKey("linkedShades")) {
+    uint8_t linkedShades[SOMFY_MAX_GROUPED_SHADES];
+    memset(linkedShades, 0x00, sizeof(linkedShades));
+    JsonArray arr = obj["linkedShades"];
+    uint8_t i = 0;
+    for(uint8_t shadeId : arr) {
+      linkedShades[i++] = shadeId;
+    }
+  }
+  return true;
+}
+bool SomfyGroup::toJSON(JsonObject &obj) {
+  obj["groupId"] = this->getGroupId();
+  obj["name"] = this->name;
+  obj["remoteAddress"] = this->m_remoteAddress;
+  obj["lastRollingCode"] = this->lastRollingCode;
+  obj["bitLength"] = this->bitLength;
+  obj["proto"] = static_cast<uint8_t>(this->proto);
+  SomfyRemote::toJSON(obj);
+  JsonArray arr = obj.createNestedArray("linkedShades");
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    uint8_t shadeId = this->linkedShades[i];
+    if(shadeId > 0 && shadeId < 255) {
+      SomfyShade *shade = somfy.getShadeById(shadeId);
+      if(shade) {
+        JsonObject lsd = arr.createNestedObject();
+        shade->toJSON(lsd);
+      }
     }
   }
   return true;

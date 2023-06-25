@@ -2,7 +2,9 @@
 #define SOMFY_H
 
 #define SOMFY_MAX_SHADES 32
+#define SOMFY_MAX_GROUPS 16
 #define SOMFY_MAX_LINKED_REMOTES 7
+#define SOMFY_MAX_GROUPED_SHADES 32
 
 #define SECS_TO_MILLIS(x) ((x) * 1000)
 #define MINS_TO_MILLIS(x) SECS_TO_MILLIS((x) * 60)
@@ -21,7 +23,8 @@ struct appver_t {
 };
 enum class radio_proto : byte {
   RTS = 0x00,
-  RTW = 0x01
+  RTW = 0x01,
+  RTV = 0x02
 };
 enum class somfy_commands : byte {
     Unknown0 = 0x0,
@@ -260,7 +263,17 @@ class SomfyShade : public SomfyRemote {
     void clear();
     int8_t transformPosition(float fpos);
 };
-
+class SomfyGroup : public SomfyRemote {
+  protected:
+    uint8_t groupId = 255;
+  public:
+    char name[21] = "";
+    uint8_t linkedShades[SOMFY_MAX_GROUPED_SHADES];
+    void setGroupId(uint8_t id) { groupId = id; }
+    uint8_t getGroupId() { return groupId; }
+    bool fromJSON(JsonObject &obj);
+    bool toJSON(JsonObject &obj);
+};
 struct transceiver_config_t {
     bool printBuffer = false;
     bool enabled = false;
