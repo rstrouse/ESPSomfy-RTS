@@ -48,6 +48,7 @@ enum class shade_types : byte {
   blind = 0x01,
   drapery = 0x02,
   awning = 0x03,
+  shutter = 0x04
 };
 enum class tilt_types : byte {
   none = 0x00,

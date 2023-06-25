@@ -576,6 +576,37 @@ i.icss-window-shade {
         background-size: 0.05em 0.05em;
         background-color: rgba(71, 212, 255, 0);
     }
+i.icss-shutter {
+    width: 1.1em;
+    height: .75em;
+    background-color: transparent;
+    border: .05em solid transparent;
+    border-width: 0 .1em;
+    box-shadow: inset 0 0 0 0.01em, inset 0 0.01em 0px 0.04em;
+    margin: .2em 0 0;
+}
+
+    i.icss-shutter:before {
+        width: 1.1em;
+        height: .2em;
+        border-bottom: .05em solid transparent;
+        box-shadow: inset 0 1em, 0 0em 0 -.1em;
+        top: -.1em;
+        left: -.09em;
+    }
+
+    i.icss-shutter:after {
+        width: calc(100% - .05em);
+        height: var(--shade-position, 0%);
+        left: 0.025em;
+        top: 0.025em;
+        border-bottom: solid 0.025em gray;
+        background-image: repeating-linear-gradient(var(--shade-color, currentColor) 0% 50%, rgba(71, 212, 255, 0) 0% 75%);
+        background-position: 0 0, 100% 100%;
+        background-size: 0.05em 0.05em;
+        background-color: rgba(71, 212, 255, 0);
+    }
+
 i.icss-window-blind {
     width: 1.1em;
     height: .75em;

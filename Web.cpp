@@ -480,6 +480,7 @@ void Web::begin() {
     server.send(200, _encoding_json, g_content);
     });
   server.on("/addShade", []() {
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     SomfyShade* shade = nullptr;
     if (method == HTTP_POST || method == HTTP_PUT) {
@@ -536,6 +537,7 @@ void Web::begin() {
     });
   server.on("/shade", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_GET) {
       if (server.hasArg("shadeId")) {
@@ -596,6 +598,7 @@ void Web::begin() {
     });
   server.on("/saveShade", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
       // We are updating an existing shade.
@@ -639,6 +642,7 @@ void Web::begin() {
     });
   server.on("/tiltCommand", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
@@ -703,6 +707,7 @@ void Web::begin() {
     });
   server.on("/shadeCommand", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
@@ -770,6 +775,7 @@ void Web::begin() {
     });
   server.on("/setMyPosition", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
     int8_t pos = -1;
@@ -826,6 +832,7 @@ void Web::begin() {
     });
   server.on("/setRollingCode", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
       uint8_t shadeId = 255;
@@ -874,6 +881,7 @@ void Web::begin() {
   });
   server.on("/setPaired", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     uint8_t shadeId = 255;
     bool paired = false;
     if(server.hasArg("plain")) {
@@ -919,6 +927,7 @@ void Web::begin() {
   });
   server.on("/unpairShade", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
       uint8_t shadeId = 255;
@@ -1014,6 +1023,7 @@ void Web::begin() {
     });
   server.on("/linkRemote", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
       // We are updating an existing shade by adding a linked remote.
@@ -1062,6 +1072,7 @@ void Web::begin() {
     });
   server.on("/deleteShade", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
@@ -1102,6 +1113,7 @@ void Web::begin() {
     });
   server.on("/updateFirmware", HTTP_POST, []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     if (Update.hasError())
       server.send(500, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Error updating firmware: \"}");
     else
@@ -1133,6 +1145,7 @@ void Web::begin() {
     });
   server.on("/updateShadeConfig", HTTP_POST, []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
     server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Shade Config: \"}");
     }, []() {
@@ -1156,6 +1169,7 @@ void Web::begin() {
     });
   server.on("/updateApplication", HTTP_POST, []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
     server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Application: \"}");
     rebootDelay.reboot = true;
@@ -1222,6 +1236,7 @@ void Web::begin() {
     });
   server.on("/reboot", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_PUT) {
       Serial.println("Rebooting ESP...");
@@ -1235,6 +1250,7 @@ void Web::begin() {
     });
   server.on("/saveRadio", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
@@ -1271,6 +1287,7 @@ void Web::begin() {
     });
   server.on("/sendRemoteCommand", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       somfy_frame_t frame;
@@ -1320,7 +1337,12 @@ void Web::begin() {
     });
   server.on("/setgeneral", []() {
     webServer.sendCORSHeaders();
-    DynamicJsonDocument doc(256);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    DynamicJsonDocument doc(512);
+    
+    Serial.print("Plain: ");
+    Serial.print(server.method());
+    Serial.println(server.arg("plain"));
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
       Serial.print("Error parsing JSON ");
@@ -1350,6 +1372,7 @@ void Web::begin() {
     });
   server.on("/setNetwork", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
@@ -1398,6 +1421,7 @@ void Web::begin() {
   });
   server.on("/connectwifi", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     Serial.println("Settings WIFI connection...");
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
@@ -1467,6 +1491,7 @@ void Web::begin() {
     server.send(200, _encoding_json, g_content);
     });
   server.on("/connectmqtt", []() {
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {

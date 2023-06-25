@@ -378,7 +378,7 @@ async function reopenSocket() {
     await initSockets();
 }
 class General {
-    appVersion = 'v1.7.2';
+    appVersion = 'v1.7.3';
     reloadApp = false;
     async init() {
         this.setAppVersion();
@@ -1069,6 +1069,9 @@ class Somfy {
                 case 3:
                     divCtl += ' icss-awning';
                     break;
+                case 4:
+                    divCtl += ' icss-shutter';
+                    break;
                 default:
                     divCtl += ' icss-window-shade';
                     break;
@@ -1434,19 +1437,29 @@ class Somfy {
                 document.getElementById('divTiltSettings').style.display = '';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-window-blind')) ico.classList.add('icss-window-blind');
                 break;
             case 3:
                 document.getElementById('divTiltSettings').style.display = 'none';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-awning')) ico.classList.add('icss-awning');
+                break;
+            case 4:
+                document.getElementById('divTiltSettings').style.display = 'none';
+                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (!ico.classList.contains('icss-shutter')) ico.classList.add('icss-shutter');
                 break;
 
             default:
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (!ico.classList.contains('icss-window-shade')) ico.classList.add('icss-window-shade');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 document.getElementById('divTiltSettings').style.display = 'none';
                 tilt = false;
                 break;
@@ -1533,6 +1546,10 @@ class Somfy {
                         case 3:
                             ico.classList.remove('icss-window-shade');
                             ico.classList.add('icss-awning');
+                            break;
+                        case 4:
+                            ico.classList.remove('icss-window-shade');
+                            ico.classList.add('icss-shutter');
                             break;
                     }
                     let tilt = ico.parentElement.querySelector('i.icss-window-tilt');

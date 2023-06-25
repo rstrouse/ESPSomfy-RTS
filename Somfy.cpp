@@ -652,6 +652,10 @@ void SomfyShade::checkMovement() {
   const bool sunFlag = this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag);
   const bool isSunny = this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny);
   const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
+  // We need to first evaluate the sensor flags as these could be triggering movement from previous sensor inputs. So
+  // we must check this before setting the directional items or it will not get processed until the next loop.
+
+  
 
   // We are checking movement for essentially 3 types of motors.
   // If this is an integrated tilt we need to first tilt in the direction we are moving then move.  We know 
@@ -670,10 +674,8 @@ void SomfyShade::checkMovement() {
   uint8_t currPos = floor(this->currentPos);
   uint8_t currTiltPos = floor(this->currentTiltPos);
 
-  if (sunFlag)
-  {
-    if (isSunny && !isWindy)
-    {
+  if (sunFlag) {
+    if (isSunny && !isWindy) {  // It is sunny and there is no wind so we should be extended
       if (this->noWindDone
           && !this->sunDone
           && this->sunStart
@@ -681,21 +683,17 @@ void SomfyShade::checkMovement() {
       {
         this->target = this->myPos >= 0 ? this->myPos : 100.0f;
         this->sunDone = true;
-
         Serial.printf("[%u] Sun -> done\r\n", this->shadeId);
       }
-
       if (!this->noWindDone
           && this->noWindStart
           && (curTime - this->noWindStart) >= SOMFY_NO_WIND_TIMEOUT)
       {
-        this->target = 100.0f;
+        this->target = this->myPos >= 0 ? this->myPos : 100.0f;
         this->noWindDone = true;
-
         Serial.printf("[%u] No Wind -> done\r\n", this->shadeId);
       }
     }
-
     if (!isSunny
         && !this->noSunDone
         && this->noSunStart
@@ -703,7 +701,6 @@ void SomfyShade::checkMovement() {
     {
       this->target = 0.0f;
       this->noSunDone = true;
-
       Serial.printf("[%u] No Sun -> done\r\n", this->shadeId);
     }
   }
@@ -715,7 +712,6 @@ void SomfyShade::checkMovement() {
   {
     this->target = 0.0f;
     this->windDone = true;
-
     Serial.printf("[%u] Wind -> done\r\n", this->shadeId);
   }
 
