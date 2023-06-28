@@ -488,6 +488,7 @@ class General {
     { city: 'Europe/Lisbon',  code: 'WET0WEST,M3.5.0/1,M10.5.0' },
     { city: 'Europe/London', code: 'GMT0BST,M3.5.0/1,M10.5.0' },
     { city: 'Europe/Moscow', code: 'MSK-3' },
+    { city: 'Europe/Paris', code: 'CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00'),
     { city: 'Indian/Cocos',  code: '<+0630>-6:30' },
     { city: 'Pacific/Auckland', code: 'NZST-12NZDT,M9.5.0,M4.1.0/3' },
     { city: 'Pacific/Chatham', code: '<+1245>-12:45<+1345>,M9.5.0/2:45,M4.1.0/3:45' },
