@@ -113,6 +113,13 @@ void Network::setConnected(conn_types connType) {
       Serial.print(" (");
       Serial.print(this->strength);
       Serial.println("dbm)");
+      if(settings.IP.dhcp) {
+        settings.IP.ip = WiFi.localIP();
+        settings.IP.subnet = WiFi.subnetMask();
+        settings.IP.gateway = WiFi.gatewayIP();
+        settings.IP.dns1 = WiFi.dnsIP(0);
+        settings.IP.dns2 = WiFi.dnsIP(1);
+      }
     }
     else {
       Serial.print("Successfully Connected to Ethernet!!! ");
@@ -123,6 +130,13 @@ void Network::setConnected(conn_types connType) {
       Serial.print(" ");
       Serial.print(ETH.linkSpeed());
       Serial.println("Mbps");
+      if(settings.IP.dhcp) {
+        settings.IP.ip = ETH.localIP();
+        settings.IP.subnet = ETH.subnetMask();
+        settings.IP.gateway = ETH.gatewayIP();
+        settings.IP.dns1 = ETH.dnsIP(0);
+        settings.IP.dns2 = ETH.dnsIP(1);
+      }
       char buf[128];
       snprintf(buf, sizeof(buf), "{\"connected\":true,\"speed\":%d,\"fullduplex\":%s}", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
       sockEmit.sendToClients("ethernet", buf);
@@ -202,7 +216,11 @@ bool Network::connectWired() {
   if(!this->ethStarted) {
       this->ethStarted = true;
       WiFi.mode(WIFI_OFF);
-      
+      if(!settings.IP.dhcp)
+        if(!ETH.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
+          ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+      else
+          ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
       WiFi.onEvent(this->networkEvent);
       if(!ETH.begin(settings.Ethernet.phyAddress, settings.Ethernet.PWRPin, settings.Ethernet.MDCPin, settings.Ethernet.MDIOPin, settings.Ethernet.phyType, settings.Ethernet.CLKMode)) { 
           Serial.println("Ethernet Begin failed");
@@ -253,7 +271,11 @@ bool Network::connectWiFi() {
     this->connectStart = millis();
     Serial.print("Set hostname to:");
     Serial.println(WiFi.getHostname());
-    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    if(!settings.IP.dhcp)
+      if(!WiFi.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    else
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     WiFi.setSleep(false);
     WiFi.mode(WIFI_STA);
     delay(100);

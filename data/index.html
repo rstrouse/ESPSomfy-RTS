@@ -3,496 +3,617 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=1.7.3" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=1.7.3" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.0.0" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.0.0" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.0.0" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=1.7.3"></script>
+    <script type="text/javascript" src="index.js?v=2.0.0"></script>
 </head>
 <body>
-    <div id="divContainer" class="container" style="user-select:none;position:relative;border-radius:27px;">
-        <div id="divRadioError" style="text-align:center;background:gainsboro;color:gray;margin-bottom:7px;text-transform:uppercase;font-weight:bold;padding:4px;border-radius:5px;">Radio Not Initialized</div>
-        <h1 style="text-align: center;"><img src="icon.png" style="width:50px;float:left;margin-left:1px;margin-top:-10px;" /><span>ESPSomfy RTS</span><span class="button-outline" onclick="general.toggleConfig();" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-gear" style=""></i></span></span></h1>
-        <div id="divConfigPnl" style="display:none;">
-            <div id="divWiFiStrength" style="margin-top:-10px;text-align:center;font-size:12px;">
-                <div style="display:inline-block;vertical-align:middle;">
-                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Network:</span><span id="spanNetworkSSID" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">-------------</span></div>
-                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Channel:</span><span id="spanNetworkChannel" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">--</span></div>
-                </div>
-                <div id="divNetworkStrength" class="wifiSignal" style="display:inline-block;vertical-align:middle;">
-                </div>
-                <div style="position:absolute;display:inline-block;">
-                    <div style="position:relative;border:solid 1px silver;background-color:cornsilk;padding:2px;font-size:12px;box-shadow: 0 3px 5px rgba(0,0,0,0.19), 0 2px 2px rgba(0,0,0,0.23);float:right;border-radius:4px;margin-left:-4px;"><span id="spanNetworkStrength">---</span><span>dBm</span></div>
-                </div>
-            </div>
-            <div id="divEthernetStatus" style="margin-top:-10px;text-align:center;font-size:12px;display:none;">
-                <div style="display:inline-block;vertical-align:middle;">
-                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Status:</span><span id="spanEthernetStatus" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">-------------</span></div>
-                    <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Speed:</span><span id="spanEthernetSpeed" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">--</span></div>
-                </div>
-            </div>
-            <div class="tab-container"><span class="selected" data-grpid="fsGeneralSettings">General</span><span data-grpid="fsWiFiSettings">WiFi</span><span data-grpid="fsMQTTSettings">MQTT</span><span data-grpid="fsSomfySettings">Somfy</span><span data-grpid="fsUpdates">Updates</span></div>
-            <fieldset id="fsGeneralSettings">
-                <legend>General Settings</legend>
-                <form method="post" action="/general" style="margin-top:8px;">
-                    <div class="field-group">
-                        <input id="fldHostname" name="hostname" type="text" length=32 placeholder="Host Name">
-                        <label for="fldHostname">Host Name</label>
+    <div id="divContainer" class="container main" data-auth="false">
+        <div id="divAuthenticated" style="display:none;">
+            <div id="divRadioError" class="header-message">Radio Not Initialized</div>
+            <h1 style="text-align: center;"><img src="icon.png" style="width:50px;float:left;margin-left:1px;margin-top:-10px;" /><span>ESPSomfy RTS</span><span class="button-outline" onclick="ui.toggleConfig();" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-gear" style=""></i></span></span></h1>
+            <div id="divConfigPnl" style="display:none;">
+                <div id="divWiFiStrength" style="margin-top:-10px;text-align:center;font-size:12px;">
+                    <div style="display:inline-block;vertical-align:middle;">
+                        <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Network:</span><span id="spanNetworkSSID" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">-------------</span></div>
+                        <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Channel:</span><span id="spanNetworkChannel" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">--</span></div>
                     </div>
-                    <div class="field-group">
-                        <select id="selTimeZone" name="timeZone" placeholder="Time Zone" style="width:100%;"></select>
-                        <label for="selTimeZone">Time Zone</label>
+                    <div id="divNetworkStrength" class="wifiSignal" style="display:inline-block;vertical-align:middle;">
                     </div>
-                    <div class="field-group">
-                        <input id="fldNtptimesever" name="ntptimeserver" type="text" length=32 placeholder="Time Server">
-                        <label for="fldNtptimeserver">NTP Time Server</label>
-                    </div>
-                    <div class="field-group" style="vertical-align:middle;">
-                        <input id="cbSsdpBroadcast" name="ssdpBroadcast" type="checkbox" style="display:inline-block;" />
-                        <label for="cbSsdpBroadcast" style="display:inline-block;cursor:pointer;">Broadcast uPnP over SSDP</label>
-                    </div>
-                    <div class="button-container">
-                        <button id="btnSaveGeneral" type="button" onclick="general.setGeneral();">
-                            Save
-                        </button>
-                    </div>
-                    <div class="button-container">
-                        <button id="btnReboot" type="button" onclick="general.rebootDevice();">
-                            Reboot
-                        </button>
-                    </div>
-                </form>
-            </fieldset>
-            <fieldset id="fsWiFiSettings" style="display:none;">
-                <legend>WiFi/LAN Settings</legend>
-                <div class="field-group" style="vertical-align:middle;color:#00bcd4;margin-top:-30px;margin-bottom:18px;">
-                    <input id="cbHardwired" name="hardwired" type="checkbox" style="display:inline-block;" onclick="wifi.useEthernetClicked();" />
-                    <label for="cbHardwired" style="display:inline-block;cursor:pointer;">Use Ethernet</label>
-                    <div id="divFallbackWireless" style="display:inline-block;padding-left:7px;">
-                        <input id="cbFallbackWireless" name="fallbackwireless" type="checkbox" style="display:inline-block;" />
-                        <label for="cbFallbackWireless" style="display:inline-block;cursor:pointer;">Fallback to Wireless</label>
+                    <div style="position:absolute;display:inline-block;">
+                        <div style="position:relative;border:solid 1px silver;background-color:cornsilk;padding:2px;font-size:12px;box-shadow: 0 3px 5px rgba(0,0,0,0.19), 0 2px 2px rgba(0,0,0,0.23);float:right;border-radius:4px;margin-left:-4px;"><span id="spanNetworkStrength">---</span><span>dBm</span></div>
                     </div>
                 </div>
-                <div id="divWiFiMode">
-                    <form method="post" action="/scan">
-                        <div id="divAps" data-lastloaded="0" style="border-radius:5px;border:solid 1px #00bcd4;margin-bottom:-10px;"></div>
-                        <div class="button-container"><button id="btnScanAPs" type="button" onclick="wifi.loadAPs();">Scan</button></div>
+                <div id="divEthernetStatus" style="margin-top:-10px;text-align:center;font-size:12px;display:none;">
+                    <div style="display:inline-block;vertical-align:middle;">
+                        <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Status:</span><span id="spanEthernetStatus" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">-------------</span></div>
+                        <div><span style="text-align:right;display:inline-block;width:57px;color:#00bcd4">Speed:</span><span id="spanEthernetSpeed" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">--</span></div>
+                    </div>
+                </div>
+                <div class="tab-container"><span class="selected" data-grpid="divSystemSettings">System</span><span data-grpid="divNetworkSettings">Network</span><span data-grpid="divSomfySettings">Somfy</span><span data-grpid="divRadioSettings">Radio</span></div>
+                <div id="divSystemSettings" class="tab-content">
+                    <div class="subtab-container"><span class="selected" data-grpid="divSystemOptions">Options</span><span data-grpid="divSecurityOptions">Security</span><span data-grpid="divFirmware">Firmware</span></div>
+                    <div id="divSystemOptions" class="subtab-content">
                         <div class="field-group">
-                            <input id="fldSsid" name="ssid" type="text" length=32 placeholder="SSID">
-                            <label for="fldSsid">Network SSID</label>
+                            <input id="fldHostname" name="hostname" type="text" data-bind="general.hostname" length=32 placeholder="Host Name">
+                            <label for="fldHostname">Host Name</label>
                         </div>
                         <div class="field-group">
-                            <input id="fldPassphrase" name="passphrase" type="password" length=32 placeholder="Passphrase">
-                            <label for="fldPassphrase">Passphrase</label>
+                            <select id="selTimeZone" name="timeZone" placeholder="Time Zone" data-bind="general.posixZone" style="width:100%;"></select>
+                            <label for="selTimeZone">Time Zone</label>
+                        </div>
+                        <div class="field-group">
+                            <input id="fldNtptimesever" name="ntptimeserver" type="text" length=32 data-bind="general.ntpServer" placeholder="Time Server">
+                            <label for="fldNtptimeserver">NTP Time Server</label>
+                        </div>
+                        <div class="field-group" style="vertical-align:middle;">
+                            <input id="cbSsdpBroadcast" name="ssdpBroadcast" type="checkbox" data-bind="general.ssdpBroadcast" style="display:inline-block;" />
+                            <label for="cbSsdpBroadcast" style="display:inline-block;cursor:pointer;">Broadcast uPnP over SSDP</label>
+                        </div>
+                        <div class="button-container">
+                            <button id="btnSaveGeneral" type="button" onclick="general.setGeneral();">
+                                Save
+                            </button>
+                        </div>
+                        <div class="button-container">
+                            <button id="btnReboot" type="button" onclick="general.rebootDevice();">
+                                Reboot
+                            </button>
+                        </div>
+                    </div>
+                    <div id="divSecurityOptions" class="subtab-content" style="display:none;">
+                        <div>
+                            <div class="field-group" style="display:inline-block;width:100px;vertical-align:middle;">
+                                <select data-bind="security.type" onchange="general.onSecurityTypeChanged();" data-datatype="int" style="width:100%;">
+                                    <option value="0" selected>None</option>
+                                    <option value="1">Pin Entry</option>
+                                    <option value="2">Password</option>
+                                </select>
+                                <label for="fldPinEntry">Security Type</label>
+                            </div>
+                            <div id="divPermissions" class="field-group" style="display:none;vertical-align:middle;float:right;width:auto;">
+                                <input id="cbSecureConfigOnly" data-bind="security.permissions.configOnly" type="checkbox" style="display:inline-block;" />
+                                <label for="cbSecureConfigOnly" style="display:inline-block;cursor:pointer;">Secure Config Only</label>
+                            </div>
+                        </div>
+                        <div id="divPinSecurity" style="display:none;">
+                            <div class="field-group" style="text-align:center;">
+                                <div id="fldPinEntry" style="display:inline-block;" onkeydown="ui.pinKeyPressed(event);">
+                                    <input class="pin-digit" maxlength="1" data-bind="security.pin.d0" onfocus="ui.pinDigitFocus(event);">
+                                    <input class="pin-digit" maxlength="1" data-bind="security.pin.d1" onfocus="ui.pinDigitFocus(event);">
+                                    <input class="pin-digit" maxlength="1" data-bind="security.pin.d2" onfocus="ui.pinDigitFocus(event);">
+                                    <input class="pin-digit" maxlength="1" data-bind="security.pin.d3" onfocus="ui.pinDigitFocus(event);">
+                                </div>
+                                <label for="fldPinEntry" style="margin-top:7px;">Enter Pin</label>
+                            </div>
+                        </div>
+                        <div id="divPasswordSecurity" style="display:none;">
+                            <div class="field-group">
+                                <input id="fldUsername" name="username" type="text" data-bind="security.username" length=32 placeholder="Username">
+                                <label for="fldUsername">Username</label>
+                            </div>
+                            <div class="field-group">
+                                <input id="fldPassword" name="password" type="password" data-bind="security.password" length=32 placeholder="Password">
+                                <label for="fldPassword">Password</label>
+                            </div>
+                            <div class="field-group">
+                                <input id="fldReenterPassword" name="password" type="password" data-bind="security.repeatpassword" length=32 placeholder="Re-enter Password">
+                                <label for="fldRenterPassword">Re-enter Password</label>
+                            </div>
+                        </div>
+                        <div class="button-container">
+                            <button id="btnLogin" type="button" value="Submit" onclick="general.saveSecurity();">
+                                Save Security
+                            </button>
+                        </div>
+                    </div>
+                    <div id="divFirmware" class="subtab-content" style="display:none;">
+                        <div style="font-size:17px;">
+                            <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;margin-top:-27px;">Firmware:</span>
+                            <span id="spanFwVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
+                        </div>
+                        <div style="font-size:17px;">
+                            <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;">Application:</span>
+                            <span id="spanAppVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
                         </div>
 
-                    </form>
+                        <div class="button-container">
+                            <button id="btnUpdateFirmware" type="button" onclick="firmware.updateFirmware();">
+                                Update Firmware
+                            </button>
+                            <button id="btnUpdateApplication" type="button" onclick="firmware.updateApplication();">
+                                Update Application
+                            </button>
+                            <button id="btnReloadApplication" type="button" onclick="general.reload();">
+                                Refresh Cache
+                            </button>
+                            <div class="button-container" style="text-align:center;">
+                                <button id="btnBackup" style="width:47%;display:inline-block;" type="button" onclick="firmware.backup();">
+                                    Backup
+                                </button>
+                                <button id="btnRestore" style="width:47%;display:inline-block;" type="button" onclick="firmware.restore();">
+                                    Restore
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div id="divEthernetMode" style="display:none;">
-                    <form method="post" action="/ethernet">
-                        <div class="field-group">
-                            <select id="selETHBoardType" name="ethBoardType" placeholder="Board Type" style="width:100%;" onchange="wifi.onETHBoardTypeChanged(this);"></select>
-                            <label for="selETHBoardType">Board Type</label>
+                <div id="divNetworkSettings" style="display:none;">
+                    <div class="subtab-container"><span class="selected" data-grpid="divNetAdapter">Adapter</span><span data-grpid="divDHCP">DHCP/Static IP</span><span data-grpid="divMQTT">MQTT</span></div>
+                    <div id="divNetAdapter" class="subtab-content">
+                        <div class="field-group" style="vertical-align:middle;color:#00bcd4;margin-top:-24px;margin-bottom:18px;">
+                            <input id="cbHardwired" name="hardwired" data-bind="ethernet.hardwired" type="checkbox" style="display:inline-block;" onclick="wifi.useEthernetClicked();" />
+                            <label for="cbHardwired" style="display:inline-block;cursor:pointer;">Use Ethernet</label>
+                            <div id="divFallbackWireless" style="display:inline-block;padding-left:7px;">
+                                <input id="cbFallbackWireless" name="fallbackwireless" data-bind="wirelessFallback" type="checkbox" style="display:inline-block;" />
+                                <label for="cbFallbackWireless" style="display:inline-block;cursor:pointer;">Fallback to Wireless</label>
+                            </div>
                         </div>
-                        <div id="divETHSettings">
-                            <div class="field-group" style="width:30%;margin-right:7px;display:inline-block;">
-                                <select id="selETHPhyType" name="ethphytype" placeholder="PHY Type" style="width:100%;"></select>
-                                <label for="selETHPhyType">PHY Chip Type</label>
-                            </div>
-                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
-                                <select id="selETHAddress" name="address" placeholder="Address" style="width:100%;"></select>
-                                <label for="selETHAddress">Address</label>
-                            </div>
-                            <div class="field-group" style="width:30%;display:inline-block;margin-right:7px;">
-                                <select id="selETHClkMode" name="clkmode" placeholder="Clock Mode" style="width:100%;"></select>
-                                <label for="selETHClkMode">Clock Mode</label>
-                            </div>
-                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
-                                <select id="selETHPWRPin" name="pwr" placeholder="Power Pin" style="width:100%;"></select>
-                                <label for="selETHPWRPin">Power Pin</label>
-                            </div>
-                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
-                                <select id="selETHMDCPin" name="mdc" placeholder="MDC Pin" style="width:100%;"></select>
-                                <label for="selETHPMDCPin">MDC Pin</label>
-                            </div>
-                            <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
-                                <select id="selETHMDIOPin" name="mdc" placeholder="MDIO Pin" style="width:100%;"></select>
-                                <label for="selETHMDIOPin">MDIO Pin</label>
-                            </div>
-                            <hr />
+                        <div id="divWiFiMode">
+                            <form method="post" action="/scan">
+                                <div id="divAps" data-lastloaded="0" style="border-radius:5px;border:solid 1px #00bcd4;margin-bottom:-10px;"></div>
+                                <div class="button-container"><button id="btnScanAPs" type="button" onclick="wifi.loadAPs();">Scan</button></div>
+                                <div class="field-group">
+                                    <input id="fldSsid" name="ssid" type="text" data-bind="wifi.ssid" length=32 placeholder="SSID">
+                                    <label for="fldSsid">Network SSID</label>
+                                </div>
+                                <div class="field-group">
+                                    <input id="fldPassphrase" name="passphrase" type="password" data-bind="wifi.passphrase" length=32 placeholder="Passphrase">
+                                    <label for="fldPassphrase">Passphrase</label>
+                                </div>
+
+                            </form>
                         </div>
+                        <div id="divEthernetMode" style="display:none;">
+                            <div class="field-group">
+                                <select id="selETHBoardType" name="ethBoardType" placeholder="Board Type" data-datatype="int" data-bind="ethernet.boardType" style="width:100%;" onchange="wifi.onETHBoardTypeChanged(this);"></select>
+                                <label for="selETHBoardType">Board Type</label>
+                            </div>
+                            <div id="divETHSettings">
+                                <div class="field-group" style="width:40%;margin-right:7px;display:inline-block;">
+                                    <select id="selETHPhyType" name="ethphytype" placeholder="PHY Type" data-datatype="int" data-bind="ethernet.phyType" style="width:100%;"></select>
+                                    <label for="selETHPhyType">PHY Chip Type</label>
+                                </div>
+                                <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
+                                    <select id="selETHAddress" name="address" placeholder="Address" data-datatype="int" data-bind="ethernet.phyAddress" style="width:100%;"></select>
+                                    <label for="selETHAddress">Address</label>
+                                </div>
+                                <div class="field-group" style="width:30%;display:inline-block;margin-right:7px;">
+                                    <select id="selETHClkMode" name="clkmode" placeholder="Clock Mode" data-datatype="int" data-bind="ethernet.CLKMode" style="width:100%;"></select>
+                                    <label for="selETHClkMode">Clock Mode</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;">
+                                    <select id="selETHPWRPin" name="pwr" placeholder="Power Pin" data-datatype="int" data-bind="ethernet.PWRPin" style="width:100%;"></select>
+                                    <label for="selETHPWRPin">Power Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;">
+                                    <select id="selETHMDCPin" name="mdc" placeholder="MDC Pin" data-datatype="int" data-bind="ethernet.MDCPin" style="width:100%;"></select>
+                                    <label for="selETHPMDCPin">MDC Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;">
+                                    <select id="selETHMDIOPin" name="mdio" placeholder="MDIO Pin" data-datatype="int" data-bind="ethernet.MDIOPin" style="width:100%;"></select>
+                                    <label for="selETHMDIOPin">MDIO Pin</label>
+                                </div>
+                                <hr />
+                            </div>
+                        </div>
+                        <div class="button-container">
+                            <button id="btnSaveNetwork" type="button" onclick="wifi.saveNetwork();">
+                                Save Adapter
+                            </button>
+                        </div>
+                    </div>
+                    <div id="divDHCP" class="subtab-content" style="display:none;">
                         <div class="field-group">
-                            <input id="cbUseDHCP" name="dhcp" type="checkbox" style="display:inline-block;" onclick="wifi.onDHCPClicked(this);" checked="checked" />
+                            <input id="cbUseDHCP" name="dhcp" type="checkbox" data-bind="ip.dhcp" style="display:inline-block;" onclick="wifi.onDHCPClicked(this);" checked="checked" />
                             <label for="cbUseDHCP" style="display:inline-block;cursor:pointer;">Acquire IP Address automatically (DHCP)</label>
                         </div>
                         <div id="divStaticIP" style="display:none;">
                             <div class="field-group">
-                                <input id="fldIPAddress" name="staticIP" type="text" length=32 placeholder="0.0.0.0">
+                                <input id="fldIPAddress" name="staticIP" type="text" data-bind="ip.ip" length=32 placeholder="0.0.0.0">
                                 <label for="fldIPAddress">Static IP Address</label>
                             </div>
                             <div class="field-group">
-                                <input id="fldSubnetMask" name="subnet" type="text" length=32 placeholder="0.0.0.0">
+                                <input id="fldSubnetMask" name="subnet" type="text" data-bind="ip.subnet" length=32 placeholder="0.0.0.0">
                                 <label for="fldSubnetMask">Subnet Mask</label>
                             </div>
                             <div class="field-group">
-                                <input id="fldGateway" name="gateway" type="text" length=32 placeholder="0.0.0.0">
+                                <input id="fldGateway" name="gateway" type="text" data-bind="ip.gateway" length=32 placeholder="0.0.0.0">
                                 <label for="fldGateway">Gateway</label>
                             </div>
                             <div class="field-group">
-                                <input id="fldDNS1" name="dns1" type="text" length=32 placeholder="0.0.0.0">
+                                <input id="fldDNS1" name="dns1" type="text" data-bind="ip.dns1" length=32 placeholder="0.0.0.0">
                                 <label for="fldDNS1">Domain Name Server 1</label>
                             </div>
                             <div class="field-group">
-                                <input id="fldDNS2" name="dns2" type="text" length=32 placeholder="0.0.0.0">
+                                <input id="fldDNS2" name="dns2" type="text" data-bind="ip.dns2" length=32 placeholder="0.0.0.0">
                                 <label for="fldDNS2">Domain Name Server 2</label>
                             </div>
-
-
                         </div>
-                    </form>
+                        <div style="color:#00bcd4;">* Settings will not take effect until the ESPSomfy RTS device is rebooted</div>
+                        <div class="button-container">
+                            <button id="btnSaveIPSettings" type="button" onclick="wifi.saveIPSettings();">
+                                Save IP Settings
+                            </button>
+                        </div>
+
+                    </div>
+                    <div id="divMQTT" class="subtab-content" style="display:none;">
+                        <div class="field-group" style="vertical-align:middle;">
+                            <input id="cbMqttEnabled" name="mqtt-enabled" type="checkbox" data-bind="mqtt.enabled" style="display:inline-block;" />
+                            <label for="cbMqttEnabled" style="display:inline-block;cursor:pointer;">Enable MQTT client</label>
+                        </div>
+                        <div class="field-group1" style="white-space:nowrap;">
+                            <select name="mqtt-protocol" data-bind="mqtt.protocol" style="width:54px;">
+                                <option>MQTT</option>
+                                <option>MQTTS</option>
+                            </select>
+                            <span style="">://</span>
+                            <input name="mqtt-host" type="text" length=32 placeholder="Host" data-bind="mqtt.hostname" style="width:calc(100% - 137px);">
+                            <span>:</span>
+                            <input name="mqtt-port" type="text" length=5 placeholder="Port" data-bind="mqtt.port" data-datatype="int" style="width:50px;">
+                        </div>
+                        <div class="field-group">
+                            <input id="fldMqttUsername" name="mqtt-username" type="text" data-bind="mqtt.username" length=32 placeholder="Username">
+                            <label for="fldMqttUsername">Username</label>
+                        </div>
+                        <div class="field-group">
+                            <input id="fldMqttPassword" name="mqtt-password" type="text" length=64 data-bind="mqtt.password" placeholder="Password">
+                            <label for="fldMqttPassword">Password</label>
+                        </div>
+                        <div class="field-group">
+                            <input id="fldMqttTopic" name="mqtt-topic" type="text" length=64 data-bind="mqtt.rootTopic" placeholder="Root Topic">
+                            <label for="fldMqttTopic">Root Topic</label>
+                        </div>
+
+                        <div class="button-container">
+                            <button id="btnConnectMQTT" type="button" onclick="mqtt.connectMQTT();">Save MQTT Settings</button>
+                        </div>
+                    </div>
                 </div>
-                <form method="post" action="/wifi" style="margin-top:8px;">
-                    <div class="button-container">
-                        <button id="btnSaveNetwork" type="button" onclick="wifi.saveNetwork();">
-                            Save
-                        </button>
-                    </div>
-                </form>
-
-            </fieldset>
-            <fieldset id="fsMQTTSettings" style="display:none;">
-                <legend>MQTT Settings</legend>
-                <form method="post" action="/mqtt">
-                    <div class="field-group" style="vertical-align:middle;">
-                        <input id="cbMqttEnabled" name="mqtt-enabled" type="checkbox" style="display:inline-block;" />
-                        <label for="cbMqttEnabled" style="display:inline-block;cursor:pointer;">Enable MQTT client</label>
-                    </div>
-                    <div class="field-group1" style="white-space:nowrap;">
-                        <select name="mqtt-protocol" style="width:54px;">
-                            <option>MQTT</option>
-                            <option>MQTTS</option>
-                        </select>
-                        <span style="">://</span>
-                        <input name="mqtt-host" type="text" length=32 placeholder="Host" style="width:calc(100% - 137px);">
-                        <span>:</span>
-                        <input name="mqtt-port" type="text" length=5 placeholder="Port" style="width:50px;">
-                    </div>
-                    <div class="field-group">
-                        <input id="fldMqttUsername" name="mqtt-username" type="text" length=32 placeholder="Username">
-                        <label for="fldMqttUsername">Username</label>
-                    </div>
-                    <div class="field-group">
-                        <input id="fldMqttPassword" name="mqtt-password" type="text" length=64 placeholder="Password">
-                        <label for="fldMqttPassword">Password</label>
-                    </div>
-                    <div class="field-group">
-                        <input id="fldMqttTopic" name="mqtt-topic" type="text" length=64 placeholder="Root Topic">
-                        <label for="fldMqttTopic">Root Topic</label>
-                    </div>
-
-                    <div class="button-container">
-                        <button id="btnConnectMQTT" type="button" onclick="mqtt.connectMQTT();">Save</button>
-                    </div>
-                </form>
-            </fieldset>
-            <fieldset id="fsSomfySettings" style="display:none;">
-                <legend>Somfy Settings</legend>
-                <div id="somfyMain">
-                    <form method="post" action="/radioSettings">
-                        <hr />
-                        <div id="divShadeSection">
-                            <div id="divShadeList" style="overflow-y: auto; max-height: 400px; padding-top: 2px; padding-bottom: 2px;min-height:127px;"></div>
+                <div id="divSomfySettings" style="display:none;">
+                    <div class="subtab-container"><span class="selected" data-grpid="divSomfyMotors">Shades</span><span data-grpid="divSomfyGroups">Groups</span></div>
+                    <div id="divSomfyMotors" class="subtab-content" style="padding-top:10px;">
+                        <div id="divShadeListContainer">
+                            <div id="divShadeList" class="edit-motorlist"></div>
                             <div class="button-container">
                                 <button id="btnAddShade" type="button" onclick="somfy.openEditShade();">
                                     Add Shade
                                 </button>
-                                <button id="btnConfigTransceiver" type="button" onclick="somfy.openConfigTransceiver();">
-                                    Configure Transceiver
-                                </button>
-
                             </div>
                         </div>
-                    </form>
-                </div>
-                <div id="somfyShade" style="width:100%;display:none;">
-                    <form method="post" action="/shadesettings">
-                        <div style="display:inline-block;float:right;position:relative;margin-top:-14px;"><span id="spanShadeId">*</span>/<span id="spanMaxShades">5</span></div>
-                        <div class="field-group" style="padding:0px;">
-                            <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
-                                <select id="selShadeProto" name="proto" style="width:100%;">
-                                    <option value="0">RTS</option>
-                                    <option value="1">RTW</option>
-                                    <option value="2">RTV</option>
-                                </select>
-                                <label for="selShadeBitLength">Protocol</label>
+                        <div id="somfyShade" style="width:100%;display:none;">
+                            <div style="display:inline-block;float:right;position:relative;"><span id="spanShadeId">*</span>/<span id="spanMaxShades">5</span></div>
+                            <div class="field-group" style="padding:0px;">
+                                <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
+                                    <select id="selShadeProto" name="proto" data-bind="proto" data-datatype="int" style="width:100%;">
+                                        <option value="0">RTS</option>
+                                        <option value="1">RTW</option>
+                                    </select>
+                                    <label for="selShadeProto">Protocol</label>
+                                </div>
+                                <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
+                                    <select id="selShadeBitLength" name="bitLength" data-bind="bitLength" data-datatype="int" style="width:100%;" onchange="somfy.onShadeBitLengthChanged(this);">
+                                        <option value="56">56-BIT</option>
+                                        <option value="80">80-BIT</option>
+                                    </select>
+                                    <label for="selShadeBitLength">Bit Length</label>
+                                </div>
                             </div>
-                            <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
-                                <select id="selShadeBitLength" name="bitLength" style="width:100%;" onchange="somfy.onShadeBitLengthChanged(this);">
-                                    <option value="56">56-BIT</option>
-                                    <option value="80">80-BIT</option>
-                                </select>
-                                <label for="selShadeBitLength">Bit Length</label>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="field-group" style="width:127px;display:inline-block;margin-top:-10px;float:left;">
-                                <div class="field-group">
-                                    <div class="field-group" style="margin-top:-10px;">
-                                        <select id="selShadeType" name="shadeType" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
-                                            <option value="0">Roller Shade</option>
-                                            <option value="4">Shutter</option>
-                                            <option value="1">Blind</option>
-                                            <option value="2">Drapery</option>
-                                            <option value="3">Awning</option>
-                                        </select>
-                                        <label for="selShadeType">Type</label>
+                            <div>
+                                <div class="field-group" style="width:127px;display:inline-block;margin-top:-10px;float:left;">
+                                    <div class="field-group">
+                                        <div class="field-group" style="margin-top:-10px;">
+                                            <select id="selShadeType" name="shadeType" data-bind="shadeType" data-datatype="int" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
+                                                <option value="0">Roller Shade</option>
+                                                <option value="4">Shutter</option>
+                                                <option value="1">Blind</option>
+                                                <option value="2">Drapery</option>
+                                                <option value="3">Awning</option>
+                                            </select>
+                                            <label for="selShadeType">Type</label>
+                                        </div>
+                                        <div class="field-group" style="margin-top:-15px;">
+                                            <input id="fldShadeAddress" name="shadeAddress" data-bind="remoteAddress" data-datatype="int" type="number" length=5 placeholder="Address" style="width:100%;text-align:right;">
+                                            <label for="fldShadeAddress">Remote Address</label>
+                                        </div>
                                     </div>
-                                    <div class="field-group" style="margin-top:-15px;">
-                                        <input id="fldShadeAddress" name="shadeAddress" type="number" length=5 placeholder="Address" style="width:100%;text-align:right;">
-                                        <label for="fldShadeAddress">Remote Address</label>
+                                </div>
+                                <div id="divSomfyButtons" style="float:right;margin-top:10px;position:relative">
+                                    <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
+                                    <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
+                                    <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
+                                    <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                                </div>
+                            </div>
+                            <div class="field-group" style="padding:0px;">
+                                <input id="fldShadeName" name="shadeName" data-bind="name" type="text" length=20 placeholder="Name">
+                                <label for="fldShadeName">Name</label>
+                            </div>
+                            <div style="margin-top:-10px;">
+                                <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;margin-top:-10px;">
+                                    <input id="fldShadeUpTime" name="shadeUpTime" data-bind="upTime" data-datatype="int" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
+                                    <label for="fldShadeUpTime">Up Time (ms)</label>
+                                </div>
+                                <div class="field-group" style="display:inline-block;max-width:127px;">
+                                    <input id="fldShadeDownTime" name="shadeDownTime" type="number" data-bind="downTime" data-datatype="int" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
+                                    <label for="fldShadeDownTime">Down Time (ms)</label>
+                                </div>
+                            </div>
+                            <div id="divTiltSettings" style="display:none;margin-top:-10px;">
+                                <div class="field-group" style="display:inline-block; margin-right:17px;width:127px;vertical-align:middle;">
+                                    <select id="selTiltType" name="tiltType" data-bind="tiltType" data-datatype="int" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
+                                        <option value="0">None</option>
+                                        <option value="1">Tilt Motor</option>
+                                        <option value="2">Integrated</option>
+                                    </select>
+                                    <label for="selTiltType" style="cursor:pointer;">Tilt Type</label>
+                                </div>
+                                <div class="field-group" style="display:inline-block;width:127px;vertical-align:middle;">
+                                    <input id="fldTiltTime" name="shadeTiltTime" type="number" data-bind="tiltTime" data-datatype="int" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
+                                    <label for="fldTiltTime">Tilt Time (ms)</label>
+                                </div>
+                            </div>
+                            <div id="divStepSettings" style="display:none;">
+                                <div class="field-group">
+                                    <input id="slidStepSize" name="stepSize" type="range" min="1" max="1000" step="1" data-bind="stepSize" data-datatype="int" style="width:100%;" oninput="somfy.stepSizeChanged(this);" />
+                                    <label for="slidStepSize" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
+                                        <span>Step Size (smaller)</span>
+                                        <span style="float:right;display:inline-block;margin-right:7px;">
+                                            <span id="spanStepSize" data-bind="stepSize" data-datatype="int" data-fmttype="number" data-fmtmask="#,##0" style="color:black;"></span><span>(larger)</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div style="margin-top:-10px;">
+                                <div class="field-group">
+                                    <input id="cbFlipCommands" name="flipCommands" data-bind="flipCommands" type="checkbox" style="" />
+                                    <label for="cbFlipCommands" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Commands</label>
+                                </div>
+                            </div>
+                            <div style="margin-top:-10px;">
+                                <div class="field-group">
+                                    <input id="cbFlipPosition" name="flipPos" data-bind="flipPosition" type="checkbox" style="" />
+                                    <label for="cbFlipPosition" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Position (expressed in % of open)</label>
+                                </div>
+                            </div>
+                            <div class="button-container" style="text-align:center;">
+                                <button id="btnPairShade" type="button" onclick="somfy.pairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
+                                    Pair Shade
+                                </button>
+                                <button id="btnUnpairShade" type="button" onclick="somfy.unpairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
+                                    Unpair Shade
+                                </button>
+                                <button id="btnSetRollingCode" type="button" onclick="somfy.openSetRollingCode(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
+                                    Set Rolling Code
+                                </button>
+                            </div>
+                            <div class="button-container" style="margin-top:-10px;padding-left:7px;padding-right:7px;">
+                                <button id="btnSaveShade" type="button" onclick="somfy.saveShade();">
+                                    Save Shade
+                                </button>
+                            </div>
+                            <hr />
+                            <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:177px;padding-top:2px;padding-bottom:2px;"></div>
+                            <div class="button-container">
+                                <button id="btnLinkRemote" type="button" onclick="somfy.linkRemote(parseInt(document.getElementById('spanShadeId').innerText, 10));">
+                                    Link Remote
+                                </button>
+                                <button id="btnBtnShadeGoBack" type="button" onclick="somfy.showEditShade(false);">
+                                    Done
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="divSomfyGroups" class="subtab-content" style="display:none;padding-top:10px;">
+                        <div id="divGroupListContainer">
+                            <div id="divGroupList" class="edit-grouplist"></div>
+                            <div class="button-container">
+                                <button id="btnAddShade" type="button" onclick="somfy.openEditGroup();">
+                                    Add Group
+                                </button>
+                            </div>
+                        </div>
+                        <div id="somfyGroup" style="width:100%;display:none;">
+                            <div style="display:inline-block;float:right;position:relative;"><span id="spanGroupId">*</span>/<span id="spanMaxGroups">5</span></div>
+                            <div class="field-group" style="padding:0px;">
+                                <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
+                                    <select id="selGroupProto" name="proto" data-bind="proto" data-datatype="int" style="width:100%;">
+                                        <option value="0">RTS</option>
+                                        <option value="1">RTW</option>
+                                        <option value="2">RTV</option>
+                                    </select>
+                                    <label for="selGroupProto">Protocol</label>
+                                </div>
+                                <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
+                                    <select id="selGroupBitLength" name="bitLength" data-bind="bitLength" data-datatype="int" style="width:100%;">
+                                        <option value="56">56-BIT</option>
+                                        <option value="80">80-BIT</option>
+                                    </select>
+                                    <label for="selGroupBitLength">Bit Length</label>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="field-group" style="width:127px;display:inline-block;margin-top:-10px;float:left;">
+                                    <input id="fldShadeAddress" name="shadeAddress" data-bind="remoteAddress" data-datatype="int" type="number" length=5 placeholder="Address" style="width:100%;text-align:right;">
+                                    <label for="fldShadeAddress">Remote Address</label>
+                                </div>
+                                <div>
+                                    <div id="divSomfyGroupButtons" style="float:right;margin-top:-32px;position:relative">
+                                        <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
+                                        <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
+                                        <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
                                     </div>
                                 </div>
                             </div>
-                            <div id="divSomfyButtons" style="float:right;margin-top:10px;position:relative">
-                                <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
-                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
-                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
-                                <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                            <div class="field-group" style="padding:0px;">
+                                <input id="fldGroupName" name="groupName" data-bind="name" type="text" length=20 placeholder="Name">
+                                <label for="fldGroupName">Name</label>
+                            </div>
+                            <div class="button-container" style="margin-top:-10px;padding-left:7px;padding-right:7px;">
+                                <button id="btnSaveGroup" type="button" onclick="somfy.saveGroup();">
+                                    Save Group
+                                </button>
+                            </div>
+                            <hr />
+                            <div id="divLinkedShadeList" style="overflow-y:auto;max-height:177px;padding-top:2px;padding-bottom:2px;"></div>
+                            <div class="button-container">
+                                <button id="btnLinkShade" type="button" onclick="somfy.linkGroupShade(parseInt(document.getElementById('spanGroupId').innerText, 10));">
+                                    Link Shade
+                                </button>
+                                <button id="btnGroupGoBack" type="button" onclick="somfy.showEditGroup(false);">
+                                    Done
+                                </button>
                             </div>
                         </div>
-                        <div class="field-group" style="padding:0px;">
-                            <input id="fldShadeName" name="shadeName" type="text" length=20 placeholder="Name">
-                            <label for="fldShadeName">Name</label>
+
+                    </div>
+
+                </div>
+                <div id="divRadioSettings" style="display:none;">
+                    <div class="subtab-container"><span class="selected" data-grpid="divTransceiverSettings">Transceiver</span><span data-grpid="divFrameLog">Logs</span></div>
+                    <div id="divTransceiverSettings" class="subtab-content">
+                        <div class="field-group" style="display:inline-block;margin-right:7px;width:77px;">
+                            <label for="selRadioProto">Protocol</label>
+                            <select id="selRadioProto" name="radioType" data-bind="transceiver.config.proto" data-datatype="int" style="width:77px;">
+                                <option value="0">RTS</option>
+                                <option value="1">RTW</option>
+                                <option value="2">RTV</option>
+                            </select>
                         </div>
-                        <div style="margin-top:-10px;">
-                            <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;margin-top:-10px;">
-                                <input id="fldShadeUpTime" name="shadeUpTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
-                                <label for="fldShadeUpTime">Up Time (ms)</label>
+                        <div class="field-group" style="display:inline-block;width:77px;">
+                            <label for="selRadioType">Radio</label>
+                            <select id="selRadioType" name="radioType" data-bind="transceiver.config.type" data-datatype="int" style="width:77px;">
+                                <option value="none" selected>None</option>
+                                <option value="56">56-BIT</option>
+                                <option value="80">80-BIT</option>
+                            </select>
+                        </div>
+                        <div class="field-group" style="vertical-align:middle;margin-left:7px;float:right;display:inline-block;width:auto;">
+                            <input id="cbEnableRadio" name="enableRadio" type="checkbox" data-bind="transceiver.config.enabled" style="display:inline-block;" />
+                            <label for="cbEnableRadio" style="display:inline-block;cursor:pointer;">Enable Radio</label>
+                        </div>
+                        <div class="field-group1" style="margin-top:-20px;white-space:nowrap">
+                            <div class="field-group radioPins">
+                                <select id="selTransSCKPin" name="transSCK" data-bind="transceiver.config.SCKPin" data-datatype="int"></select>
+                                <label for="selTransSCKPin">SCLK</label>
                             </div>
-                            <div class="field-group" style="display:inline-block;max-width:127px;">
-                                <input id="fldShadeDownTime" name="shadeDownTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
-                                <label for="fldShadeDownTime">Down Time (ms)</label>
+                            <div class="field-group radioPins">
+                                <select id="selTransCSNPin" name="transCSN" data-bind="transceiver.config.CSNPin" data-datatype="int"></select>
+                                <label for="selTransCSNPin">CSN</label>
+                            </div>
+                            <div class="field-group radioPins">
+                                <select id="selTransMOSIPin" name="transMOSI" data-bind="transceiver.config.MOSIPin" data-datatype="int"></select>
+                                <label for="selTransMOSIPin">MOSI</label>
+                            </div>
+                            <div class="field-group radioPins">
+                                <select id="selTransMISOPin" name="transMISO" data-bind="transceiver.config.MISOPin" data-datatype="int"></select>
+                                <label for="selTransMISOPin">MISO</label>
                             </div>
                         </div>
-                        <div id="divTiltSettings" style="display:none;margin-top:-10px;">
-                            <div class="field-group" style="display:inline-block; margin-right:17px;width:127px;vertical-align:middle;">
-                                <select id="selTiltType" name="tiltType" style="width:100%;" onchange="somfy.onShadeTypeChanged(this);">
-                                    <option value="0">None</option>
-                                    <option value="1">Tilt Motor</option>
-                                    <option value="2">Integrated</option>
-                                </select>
-                                <label for="selTiltType" style="cursor:pointer;">Tilt Type</label>
+                        <div class="field-group1" style="margin-top:-20px;">
+                            <div class="field-group radioPins">
+                                <select id="selTransTXPin" name="transTX" data-bind="transceiver.config.TXPin" data-datatype="int"></select>
+                                <label for="selTransTXPin">TX</label>
                             </div>
-                            <div class="field-group" style="display:inline-block;width:127px;vertical-align:middle;">
-                                <input id="fldTiltTime" name="shadeTiltTime" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
-                                <label for="fldTiltTime">Tilt Time (ms)</label>
+                            <div class="field-group radioPins">
+                                <select id="selTransRXPin" name="transRX" data-bind="transceiver.config.RXPin" data-datatype="int"></select>
+                                <label for="selTransRXPin">RX</label>
                             </div>
                         </div>
-                        <div id="divStepSettings" style="display:none;">
+                        <div class="field-group" style="display:inline-block;width:auto;min-width:247px;margin-top:-20px;vertical-align:top;">
                             <div class="field-group">
-                                <input id="slidStepSize" name="stepSize" type="range" min="1" max="1000" step="1" style="width:100%;" oninput="somfy.stepSizeChanged(this);" />
-                                <label for="slidStepSize" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
-                                    <span>Step Size (smaller)</span>
+                                <input id="slidFrequency" name="frequency" type="range" min="433330" max="434399" step="1" style="width:100%;" data-bind="transceiver.config.frequency" data-datatype="float" data-mult="1000" oninput="somfy.frequencyChanged(this);" />
+                                <label for="slidFrequency" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
+                                    <span>Base Frequency </span>
                                     <span style="float:right;display:inline-block;margin-right:7px;">
-                                        <span id="spanStepSize" style="color:black;"></span><span>(larger)</span>
+                                        <span id="spanFrequency" style="color:black;" data-bind="transceiver.config.frequency" data-datatype="float" data-fmttype="number" data-fmtmask="#,###.000"></span><span>MHz</span>
                                     </span>
                                 </label>
                             </div>
-                        </div>
-                        <div style="margin-top:-10px;">
-                            <div class="field-group">
-                                <input id="cbFlipCommands" name="flipCommands" type="checkbox" style="" />
-                                <label for="cbFlipCommands" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Commands</label>
+                            <div class="field-group" style="margin-top:-10px;">
+                                <input id="slidRxBandwidth" name="rxBandwidth" type="range" min="5803" max="81250" step="1" style="width:100%;" data-bind="transceiver.config.rxBandwidth" data-setonly="true" data-datatype="float" data-mult="100" oninput="somfy.rxBandwidthChanged(this);" />
+                                <label for="slidRxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
+                                    <span>RX Bandwidth </span>
+                                    <span style="float:right;display:inline-block;margin-right:7px;">
+                                        <span id="spanRxBandwidth" style="color:black;" data-bind="transceiver.config.rxBandwidth" data-datatype="float" data-fmttype="number" data-fmtmask="#,###.00"></span><span>kHz</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="field-group" style="margin-top:-10px;">
+                                <input id="slidDeviation" name="deviation" type="range" min="158" max="38085" step="1" style="width:100%;" data-bind="transceiver.config.deviation" data-setonly="true" data-datatype="float" data-mult="100" oninput="somfy.deviationChanged(this);" />
+                                <label for="slidDeviation" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>Frequency Deviation </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanDeviation" data-bind="transceiver.config.deviation" data-datatype="float" data-fmttype="number" data-fmtmask="#,###.00" style="color:black;"></span><span>kHz</span></span></label>
+                            </div>
+                            <div class="field-group" style="margin-top:-10px;">
+                                <input id="slidTxPower" name="txPower" type="range" min="0" max="10" step="1" style="width:100%;" data-bind="transceiver.config.txPower" data-datatype="index" data-setonly="true" data-values="[-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12]" oninput="somfy.txPowerChanged(this);" />
+                                <label for="slidTxPower" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>TX Power </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanTxPower" data-bind="transceiver.config.txPower" data-datatype="int" data-fmttype="number" data-fmtmask="#,###" style="color:black;"></span><span>dBm</span></span></label>
                             </div>
                         </div>
-                        <div style="margin-top:-10px;">
-                            <div class="field-group">
-                                <input id="cbFlipPosition" name="flipPos" type="checkbox" style="" />
-                                <label for="cbFlipPosition" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Position (expressed in % of open)</label>
-                            </div>
-                        </div>
-                        <div class="button-container" style="text-align:center;">
-                            <button id="btnPairShade" type="button" onclick="somfy.pairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
-                                Pair Shade
-                            </button>
-                            <button id="btnUnpairShade" type="button" onclick="somfy.unpairShade(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
-                                Unpair Shade
-                            </button>
-                            <button id="btnSetRollingCode" type="button" onclick="somfy.openSetRollingCode(parseInt(document.getElementById('spanShadeId').innerText, 10));" style="display:inline-block;width:47%;">
-                                Set Rolling Code
-                            </button>
-                        </div>
-                        <div class="button-container" style="margin-top:-10px;padding-left:7px;padding-right:7px;">
-                            <button id="btnSaveShade" type="button" onclick="somfy.saveShade();">
-                                Save Shade
-                            </button>
-                        </div>
-                        <hr />
-                        <div id="divLinkedRemoteList" style="overflow-y:auto;max-height:177px;padding-top:2px;padding-bottom:2px;"></div>
-                        <div class="button-container">
-                            <button id="btnLinkRemote" type="button" onclick="somfy.linkRemote(parseInt(document.getElementById('spanShadeId').innerText, 10));">
-                                Link Remote
-                            </button>
-                            <button id="btnBtnShadeGoBack" type="button" onclick="somfy.closeEditShade();">
-                                Done
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                <div id="somfyTransceiver" style="display:none;position:relative;">
-                    <form>
-                        <div id="divRadioSettings" name="divRadioSettings" class="field-group1" style="display:block;position:relative">
-                            <div class="field-group" style="display:inline-block;margin-right:7px;">
-                                <label for="selRadioProto">Protocol</label>
-                                <select id="selRadioProto" name="radioType" style="width:77px;">
-                                    <option value="0">RTS</option>
-                                    <option value="1">RTW</option>
-                                    <option value="2">RTV</option>
-                                </select>
-                            </div>
-                            <div class="field-group" style="display:inline-block;">
-                                <label for="selRadioType">Radio</label>
-                                <select id="selRadioType" name="radioType" style="width:77px;">
-                                    <option value="none" selected>None</option>
-                                    <option value="56">56-BIT</option>
-                                    <option value="80">80-BIT</option>
-                                </select>
-                            </div>
-                            <div class="field-group" style="vertical-align:middle;margin-left:7px;float:right;">
-                                <input id="cbEnableRadio" name="enableRadio" type="checkbox" style="display:inline-block;" />
-                                <label for="cbEnableRadio" style="display:inline-block;cursor:pointer;">Enable Radio</label>
-                            </div>
-
-                            <div class="field-group1" style="margin-top:-20px;white-space:nowrap">
-                                <div class="field-group radioPins">
-                                    <select id="selTransSCKPin" name="transSCK"></select>
-                                    <label for="selTransSCKPin">SCLK</label>
-                                </div>
-                                <div class="field-group radioPins">
-                                    <select id="selTransCSNPin" name="transCSN"></select>
-                                    <label for="selTransCSNPin">CSN</label>
-                                </div>
-                                <div class="field-group radioPins">
-                                    <select id="selTransMOSIPin" name="transMOSI"></select>
-                                    <label for="selTransMOSIPin">MOSI</label>
-                                </div>
-                                <div class="field-group radioPins">
-                                    <select id="selTransMISOPin" name="transMISO"></select>
-                                    <label for="selTransMISOPin">MISO</label>
-                                </div>
-                            </div>
-                            <div class="field-group1" style="margin-top:-20px;">
-                                <div class="field-group radioPins">
-                                    <select id="selTransTXPin" name="transTX"></select>
-                                    <label for="selTransTXPin">TX</label>
-                                </div>
-                                <div class="field-group radioPins">
-                                    <select id="selTransRXPin" name="transRX"></select>
-                                    <label for="selTransRXPin">RX</label>
-                                </div>
-                            </div>
-                            <div class="field-group" style="display:inline-block;width:auto;min-width:247px;margin-top:-20px;vertical-align:top;">
-                                <div class="field-group">
-                                    <input id="slidFrequency" name="frequency" type="range" min="433330" max="434399" step="1" style="width:100%;" oninput="somfy.frequencyChanged(this);" />
-                                    <label for="slidRxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
-                                        <span>Base Frequency </span>
-                                        <span style="float:right;display:inline-block;margin-right:7px;">
-                                            <span id="spanFrequency" style="color:black;"></span><span>MHz</span>
-                                        </span>
-                                    </label>
-                                </div>
-                                <div class="field-group" style="margin-top:-10px;">
-                                    <input id="slidRxBandwidth" name="rxBandwidth" type="range" min="5803" max="81250" step="1" style="width:100%;" oninput="somfy.rxBandwidthChanged(this);" />
-                                    <label for="slidRxBandwidth" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
-                                        <span>RX Bandwidth </span>
-                                        <span style="float:right;display:inline-block;margin-right:7px;">
-                                            <span id="spanRxBandwidth" style="color:black;"></span><span>kHz</span>
-                                        </span>
-                                    </label>
-                                </div>
-                                <div class="field-group" style="margin-top:-10px;">
-                                    <input id="slidDeviation" name="deviation" type="range" min="158" max="38085" step="1" style="width:100%;" oninput="somfy.deviationChanged(this);" />
-                                    <label for="slidDeviation" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>Frequency Deviation </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanDeviation" style="color:black;"></span><span>kHz</span></span></label>
-                                </div>
-                                <div class="field-group" style="margin-top:-10px;">
-                                    <input id="slidTxPower" name="txPower" type="range" min="0" max="10" step="1" style="width:100%;" oninput="somfy.txPowerChanged(this);" />
-                                    <label for="slidTxPower" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;"><span>TX Power </span><span style="float: right; display: inline-block; margin-right: 7px;"><span id="spanTxPower" style="color:black;"></span><span>dBm</span></span></label>
-                                </div>
-                            </div>
-                            <div style="display:inline-block;vertical-align:top;padding-left:14px;">
-                                <div class="field-group" style="">
-                                    <label style="display:block;width:100%;text-align:center;">RSSI: <span id="spanFrameCount" style="color:silver;">0</span></label>
-                                    <span id="spanRssi" name="rssi" style="display:block;font-size:32px;width:100%;text-align:center;">---</span>
-                                    <span style="display: block; color: #00bcd4;width:100%;text-align:center;">dBm</span>
-                                    <button id="btnReceiveLog" type="button" onclick="document.getElementById('divFrameLog').style.display = '';" style="padding-left:7px;padding-right:7px;">Logs</button>
-                                </div>
+                        <div style="display:inline-block;vertical-align:top;padding-left:14px;">
+                            <div class="field-group" style="">
+                                <label style="display:block;width:100%;text-align:center;">RSSI: <span id="spanFrameCount" style="color:silver;">0</span></label>
+                                <span id="spanRssi" name="rssi" style="display:block;font-size:32px;width:100%;text-align:center;">---</span>
+                                <span style="display: block; color: #00bcd4;width:100%;text-align:center;">dBm</span>
                             </div>
                         </div>
                         <div class="button-container">
                             <button id="btnSaveRadio" type="button" onclick="somfy.saveRadio();">
                                 Save Radio
                             </button>
-                            <button id="btnTransceiverGoBack" type="button" onclick="somfy.closeConfigTransceiver();">
-                                Done
-                            </button>
                         </div>
-                    </form>
+                    </div>
+                    <div id="divFrameLog" class="subtab-content frame-log" style="display:none;margin:0px;padding:0px;">
+                        <div class="frame-header"><span>Key</span><span>Address</span><span>Command</span><span>Code</span><span>RSSI</span><span>Bits</span><span style="text-align:center;width:77px;">Time</span></div>
+                        <div id="divFrames" class="frame-list"></div>
+                        <div class="button-container" style="text-align:center">
+                            <button type="button" class="btnCopyFrame" style="display:inline-block;width:44%;" onclick="somfy.framesToClipboard();">Copy</button>
+                            <button type="button" class="btnClearFrames" style="display:inline-block;width:44%;" onclick="document.getElementById('divFrames').innerHTML = ''; somfy.frames = [];">Clear</button>
+                        </div>
+                    </div>
                 </div>
-            </fieldset>
-            <fieldset id="fsUpdates" style="display:none;">
-                <legend>Software/Firmware Updates</legend>
-                <form method="post" action="/general" style="margin-top:8px;height:327px;">
-                    <div style="font-size:17px;">
-                        <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;margin-top:-27px;">Firmware:</span>
-                        <span id="spanFwVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
-                    </div>
-                    <div style="font-size:17px;">
-                        <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;">Application:</span>
-                        <span id="spanAppVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
-                    </div>
-
-                    <div class="button-container">
-                        <button id="btnUpdateFirmware" type="button" onclick="firmware.updateFirmware();">
-                            Update Firmware
-                        </button>
-                        <button id="btnUpdateApplication" type="button" onclick="firmware.updateApplication();">
-                            Update Application
-                        </button>
-                        <button id="btnReloadApplication" type="button" onclick="general.reload();">
-                            Refresh Cache
-                        </button>
-                        <div class="button-container" style="text-align:center;">
-                            <button id="btnBackup" style="width:47%;display:inline-block;" type="button" onclick="firmware.backup();">
-                                Backup
-                            </button>
-                            <button id="btnRestore" style="width:47%;display:inline-block;" type="button" onclick="firmware.restore();">
-                                Restore
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </fieldset>
-
-        </div>
-        <div id="divHomePnl" style="position:relative;">
-            <hr />
-            <div id="divShadeControls" style="min-height:130px;">
-
+            </div>
+            <div id="divHomePnl" style="position:relative;">
+                <hr />
+                <div id="divGroupControls"></div>
+                <div id="divShadeControls" style="min-height:130px;"></div>
             </div>
         </div>
-        <div id="divFrameLog" class="frame-log" style="display:none;">
-            <h1 style="text-align: center;padding:10px;"><span>Frame Logs</span><span class="button-outline" onclick="document.getElementById('divFrameLog').style.display = 'none';" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-x" style=""></i></span></span></h1>
-            <hr style="margin:0px;" />
-            <div class="frame-header"><span>Key</span><span>Address</span><span>Command</span><span>Code</span><span>RSSI</span><span>Bits</span><span style="text-align:center;width:77px;">Time</span></div>
-            <div id="divFrames" class="frame-list"></div>
-            <div class="button-container" style="text-align:center">
-                <button type="button" class="btnCopyFrame" style="display:inline-block;width:44%;" onclick="somfy.framesToClipboard();">Copy</button>
-                <button type="button" class="btnClearFrames" style="display:inline-block;width:44%;" onclick="document.getElementById('divFrames').innerHTML = ''; somfy.frames = [];">Clear</button>
+        <div id="divUnauthenticated">
+            <h1 style="text-align: center;"><img src="icon.png" style="width:127px;margin-left:1px;margin-top:-10px;" /></h1>
+            <input id="fldLoginPin" type="hidden" name="pin" />
+            <input id="fldLoginType" type="hidden" data-bind="type" data-datatype="int" />
+            <div id="divLoginPin" style="display:none;">
+                <div class="field-group" style="text-align:center;">
+                    <div id="fldPinEntry" style="display:inline-block;" onkeydown="ui.pinKeyPressed(event);">
+                        <input class="pin-digit" maxlength="1" data-bind="login.pin.d0" onfocus="ui.pinDigitFocus(event);">
+                        <input class="pin-digit" maxlength="1" data-bind="login.pin.d1" onfocus="ui.pinDigitFocus(event);">
+                        <input class="pin-digit" maxlength="1" data-bind="login.pin.d2" onfocus="ui.pinDigitFocus(event);">
+                        <input class="pin-digit" maxlength="1" data-bind="login.pin.d3" onfocus="ui.pinDigitFocus(event);">
+                    </div>
+                    <label for="fldPinEntry" style="margin-top:7px;">Enter Pin</label>
+                </div>
+            </div>
+            <div id="divLoginPassword" style="display:none;">
+                <div class="field-group">
+                    <input id="fldLoginUsername" name="username" type="text" data-bind="login.username" length=32 placeholder="Username"/>
+                    <label for="fldLoginUsername">Username</label>
+                </div>
+                <div class="field-group">
+                    <input id="fldLoginPassword" name="password" type="password" data-bind="login.password" length=32 placeholder="Password"/>
+                    <label for="fldLoginPassword">Password</label>
+                </div>
+            </div>
+            <div style="text-align:center;"><span id="spanLoginMessage" style="color:red"></span></div>
+            <div id="loginButtons" class="button-container" style="display:none;text-align:center;">
+                <button id="btnLogin" type="button" onclick="security.login();" style="display:inline-block;width:42%;">Login</button>
+                <button id="btnCancelLogin" type="button" onclick="security.cancelLogin();" style="display:none;width:42%;">Cancel</button>
             </div>
         </div>
-
     </div>
     <script type="text/javascript">
-        waitMessage(document.getElementById('divShadeControls'));
+        //ui.waitMessage(document.getElementById('divShadeControls'));
         let tabs = document.querySelectorAll('div.tab-container > span');
         tabs.forEach((tab) => {
             tab.addEventListener('click', (evt) => {
@@ -508,7 +629,16 @@
                         }
                     });
                     tab.classList.add('selected');
-                    if (tab.getAttribute('data-grpid') === 'fsWiFiSettings') {
+                    if (tab.getAttribute('data-grpid') !== 'divSomfySettings') {
+                        somfy.showEditShade(false);
+                        somfy.showEditGroup(false);
+                    }
+                    switch (tab.getAttribute('data-grpid')) {
+                        case 'divNetworkSettings':
+                            wifi.loadNetwork();
+                            break;
+                    }
+                    if (tab.getAttribute('data-grpid') === 'divNetworkSettings') {
                         // Only load the networks if we need them.
                         //if(new Date().getTime() - parseInt(document.getElementById('divAps').getAttribute('data-lastloaded'), 10) > 60000)
                         //    wifi.loadAPs();
@@ -521,10 +651,26 @@
 
             });
         });
-        (async () => {
-            await initSockets();
-        })();
-        //initSockets();
+        document.querySelectorAll('.subtab-container > span').forEach((tab) => { tab.addEventListener('click', (evt) => { ui.selectTab(evt.srcElement); }) });
+        (async () => { await init(); })();
+        /*
+        security.init();
+        //(async () => { await general.init(); })();
+        general.init();
+        wifi.init();
+        somfy.init();
+        mqtt.init();
+        firmware.init();
+        */
+        /*
+        let o = {
+            general: { hostname: 'hostname', ntpServer: 'pool.ntp.org', posixZone: '<-10>10', ssdpBroadcast: true }
+
+        }
+        */
+        //ui.toElement(document.getElementById('divContainer'), o);
+        //console.log(ui.fromElement(document.getElementById('divContainer')));
+        //(async () => { await initSockets(); })();
     </script>
 </body>
 </html>

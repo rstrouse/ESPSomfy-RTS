@@ -1,0 +1,112 @@
+﻿.container {
+    margin: 0 auto;
+    max-width: 450px;
+    padding: 20px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+    background-color: #ffffff;
+    user-select: none;
+    position: relative;
+    border-radius: 27px;
+}
+.main.container {
+    min-height:327px;
+}
+
+.header-message {
+    text-align: center;
+    background: gainsboro;
+    color: gray;
+    margin-bottom: 7px;
+    text-transform: uppercase;
+    font-weight: bold;
+    padding: 4px;
+    border-radius: 5px;
+}
+.inst-overlay {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: flex-start;
+    position: absolute;
+    border-radius: 27px;
+    background: gray;
+    opacity: .9;
+    padding: 10px;
+    font-size: 20px;
+    height: auto;
+    min-height: 100%;
+    top: 0px;
+    left: 0px;
+    color: white;
+}
+.edit-grouplist,
+.edit-motorlist {
+    overflow-y: auto;
+    max-height: 400px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-height: 147px;
+}
+.prompt-message .sub-message {
+    font-size: 17px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+.prompt-message .prompt-text {
+    text-align:center;
+}
+.promp-message > .inner-error,
+.error-message > .inner-error {
+    width:100%;
+}
+
+.wizard[data-stepid="1"] .wizard-step:not([data-stepid="1"]) { display: none; }
+.wizard[data-stepid="2"] .wizard-step:not([data-stepid="2"]) { display: none; }
+.wizard[data-stepid="3"] .wizard-step:not([data-stepid="3"]) { display: none; }
+.wizard[data-stepid="4"] .wizard-step:not([data-stepid="4"]) { display: none; }
+.wizard[data-stepid="5"] .wizard-step:not([data-stepid="5"]) { display: none; }
+.wizard[data-stepid="6"] .wizard-step:not([data-stepid="6"]) { display: none; }
+.wizard[data-stepid="7"] .wizard-step:not([data-stepid="7"]) { display: none; }
+
+.somfyGroup,
+.somfyShade {
+    text-align: center;
+    padding-bottom: 4px;
+    display: inline-table;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+    .linked-shade > div,
+    .linked-shade > span,
+    .somfyGroup > div,
+    .somfyGroup > span,
+    .somfyShade > div,
+    .somfyShade > span {
+        display: table-cell;
+        padding-left:4px;
+        padding-right:4px;
+    }
+.linked-shade {
+    width: 100%;
+    padding-bottom: 4px;
+    display: inline-table;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+    .linked-shade > .linkedshade-name { width: 100%; }
+.pin-digit {
+    margin: 0 0.3rem;
+    padding: 0.5rem;
+    border: 1px solid #00bcd4;
+    border-radius:5px;
+    width: 50px;
+    height: 50px;
+    text-align: center;
+    font-size: 3rem;
+}
+.login-content {
+    display: block;
+    padding: 25px;
+    position: relative;
+}
+

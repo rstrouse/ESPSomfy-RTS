@@ -10,8 +10,10 @@
 
 struct config_header_t {
   uint8_t version = 1;
-  uint16_t recordSize = 0;
-  uint16_t records = 0;
+  uint8_t shadeRecordSize = 0;
+  uint8_t shadeRecords = 0;
+  uint8_t groupRecordSize = 0;
+  uint8_t groupRecords = 0;
   uint8_t length = 0;
 };
 class ConfigFile {
@@ -51,6 +53,7 @@ class ConfigFile {
 class ShadeConfigFile : public ConfigFile {
   protected:
     bool writeShadeRecord(SomfyShade *shade);
+    bool writeGroupRecord(SomfyGroup *group);
   public:
     static bool getAppVersion(appver_t &ver);
     static bool exists();
@@ -60,7 +63,7 @@ class ShadeConfigFile : public ConfigFile {
     bool save(SomfyShadeController *sofmy);
     bool loadFile(SomfyShadeController *somfy, const char *filename = "/shades.cfg");
     void end();
-    bool seekRecordById(uint8_t id);
+    //bool seekRecordById(uint8_t id);
     bool validate();
 };
 #endif

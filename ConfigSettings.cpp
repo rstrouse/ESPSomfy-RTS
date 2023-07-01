@@ -66,6 +66,8 @@ bool ConfigSettings::begin() {
     (uint16_t)((chipId >> 8) & 0xff),
     (uint16_t)chipId & 0xff);
   this->load();
+  this->Security.begin();
+  this->IP.begin();
   this->WIFI.begin();
   this->Ethernet.begin();
   this->NTP.begin();
@@ -106,6 +108,7 @@ bool ConfigSettings::toJSON(JsonObject &obj) {
   obj["connType"] = static_cast<uint8_t>(this->connType);
   return true;
 }
+bool ConfigSettings::requiresAuth() { return this->Security.type != security_types::None; }
 bool ConfigSettings::fromJSON(JsonObject &obj) {
     if(obj.containsKey("ssdpBroadcast")) this->ssdpBroadcast = obj["ssdpBroadcast"];
     if(obj.containsKey("hostname")) this->parseValueString(obj, "hostname", this->hostname, sizeof(this->hostname));
@@ -113,6 +116,7 @@ bool ConfigSettings::fromJSON(JsonObject &obj) {
     return true;
 }
 void ConfigSettings::print() {
+  this->Security.print();
   Serial.printf("Connection Type: %u\n", (unsigned int) this->connType);
   this->NTP.print();
   if(this->connType == conn_types::wifi || this->connType == conn_types::unset) this->WIFI.print();
@@ -226,8 +230,125 @@ bool NTPSettings::apply() {
   setenv("TZ", this->posixZone, 1);
   return true;
 }
-WifiSettings::WifiSettings() {}
+IPSettings::IPSettings() {}
+bool IPSettings::begin() {
+  this->load();
+  return true;
+}
+bool IPSettings::fromJSON(JsonObject &obj) {
+  if(obj.containsKey("dhcp")) this->dhcp = obj["dhcp"];
+  this->parseIPAddress(obj, "ip", &this->ip);
+  this->parseIPAddress(obj, "gateway", &this->gateway);
+  this->parseIPAddress(obj, "subnet", &this->subnet);
+  this->parseIPAddress(obj, "dns1", &this->dns1);
+  this->parseIPAddress(obj, "dns2", &this->dns2);
+  return true;
+}
+bool IPSettings::toJSON(JsonObject &obj) {
+  IPAddress ipEmpty(0,0,0,0);
+  obj["dhcp"] = this->dhcp;
+  obj["ip"] = this->ip == ipEmpty ? "" : this->ip.toString();
+  obj["gateway"] = this->gateway == ipEmpty ? "" : this->gateway.toString();
+  obj["subnet"] = this->subnet == ipEmpty ? "" : this->subnet.toString();
+  obj["dns1"] = this->dns1 == ipEmpty ? "" : this->dns1.toString();
+  obj["dns2"] = this->dns2 == ipEmpty ? "" : this->dns2.toString();
+  return true;  
+}
+bool IPSettings::save() {
+  pref.begin("IP");
+  pref.clear();
+  pref.putBool("dhcp", this->dhcp);
+  pref.putString("ip", this->ip.toString());
+  pref.putString("gateway", this->gateway.toString());
+  pref.putString("subnet", this->subnet.toString());
+  pref.putString("dns1", this->dns1.toString());
+  pref.putString("dns2", this->dns2.toString());
+  pref.end();
+  return true;
+}
+bool IPSettings::load() {
+  pref.begin("IP");
+  this->dhcp = pref.getBool("dhcp", true);
+  char buff[16];
+  if(pref.isKey("ip")) {
+    pref.getString("ip", buff, sizeof(buff));
+    this->ip.fromString(buff);
+  }
+  if(pref.isKey("gateway")) {
+    pref.getString("gateway", buff, sizeof(buff));
+    this->gateway.fromString(buff);
+  }
+  if(pref.isKey("subnet")) {
+    pref.getString("subnet", buff, sizeof(buff));
+    this->subnet.fromString(buff);
+  }
+  if(pref.isKey("dns1")) {
+    pref.getString("dns1", buff, sizeof(buff));
+    this->dns1.fromString(buff);
+  }
+  if(pref.isKey("dns2")) {
+    pref.getString("dns2", buff, sizeof(buff));
+    this->dns2.fromString(buff);
+  }
+  pref.end();
+  return true;
+}
+bool SecuritySettings::begin() {
+  this->load();
+  return true;
+}
+bool SecuritySettings::fromJSON(JsonObject &obj) {
+  if(obj.containsKey("type")) this->type = static_cast<security_types>(obj["type"].as<uint8_t>());
+  this->parseValueString(obj, "username", this->username, sizeof(this->username));
+  this->parseValueString(obj, "password", this->password, sizeof(this->password));
+  this->parseValueString(obj, "pin", this->pin, sizeof(this->pin));
+  if(obj.containsKey("permissions")) this->permissions = obj["permissions"];
+  return true;
+}
+bool SecuritySettings::toJSON(JsonObject &obj) {
+  IPAddress ipEmpty(0,0,0,0);
+  obj["type"] = static_cast<uint8_t>(this->type);
+  obj["username"] = this->username;
+  obj["password"] = this->password;
+  obj["pin"] = this->pin;
+  obj["permissions"] = this->permissions;
+  return true;  
+}
+bool SecuritySettings::save() {
+  pref.begin("SEC");
+  pref.clear();
+  pref.putChar("type", static_cast<uint8_t>(this->type));
+  pref.putString("username", this->username);
+  pref.putString("password", this->password);
+  pref.putString("pin", this->pin);
+  pref.putChar("permissions", this->permissions);
+  pref.end();
+  return true;
+}
+bool SecuritySettings::load() {
+  pref.begin("SEC");
+  this->type = static_cast<security_types>(pref.getChar("type", 0));
+  if(pref.isKey("username")) pref.getString("username", this->username, sizeof(this->username));
+  if(pref.isKey("password")) pref.getString("password", this->password, sizeof(this->password));
+  if(pref.isKey("pin")) pref.getString("pin", this->pin, sizeof(this->pin));
+  if(pref.isKey("permissions")) this->permissions = pref.getChar("permissions", this->permissions);
+  pref.end();
+  return true;
+}
+void SecuritySettings::print() {
+  Serial.print("SECURITY   Type:");
+  Serial.print(static_cast<uint8_t>(this->type));
+  Serial.print(" Username:[");
+  Serial.print(this->username);
+  Serial.print("] Password:[");
+  Serial.print(this->password);
+  Serial.print("] Pin:[");
+  Serial.print(this->pin);
+  Serial.print("] Permissions:");
+  Serial.println(this->permissions);
+}
 
+WifiSettings::WifiSettings() {}
 bool WifiSettings::begin() {
   this->load();
   return true;
@@ -318,7 +439,6 @@ bool EthernetSettings::begin() {
   return true;
 }
 bool EthernetSettings::fromJSON(JsonObject &obj) {
-  if(obj.containsKey("dhcp")) this->dhcp = obj["dhcp"];
   if(obj.containsKey("boardType")) this->boardType = obj["boardType"];
   if(obj.containsKey("phyAddress")) this->phyAddress = obj["phyAddress"];
   if(obj.containsKey("CLKMode")) this->CLKMode = static_cast<eth_clock_mode_t>(obj["CLKMode"]);
@@ -326,33 +446,21 @@ bool EthernetSettings::fromJSON(JsonObject &obj) {
   if(obj.containsKey("PWRPin")) this->PWRPin = obj["PWRPin"];
   if(obj.containsKey("MDCPin")) this->MDCPin = obj["MDCPin"];
   if(obj.containsKey("MDIOPin")) this->MDIOPin = obj["MDIOPin"];
-  this->parseIPAddress(obj, "ip", &this->ip);
-  this->parseIPAddress(obj, "gateway", &this->gateway);
-  this->parseIPAddress(obj, "subnet", &this->subnet);
-  this->parseIPAddress(obj, "dns1", &this->dns1);
-  this->parseIPAddress(obj, "dns2", &this->dns2);
   return true;
 }
 bool EthernetSettings::toJSON(JsonObject &obj) {
   obj["boardType"] = this->boardType;
   obj["phyAddress"] = this->phyAddress;
-  obj["dhcp"] = this->dhcp;
   obj["CLKMode"] = static_cast<uint8_t>(this->CLKMode);
   obj["phyType"] = static_cast<uint8_t>(this->phyType);
   obj["PWRPin"] = this->PWRPin;
   obj["MDCPin"] = this->MDCPin;
   obj["MDIOPin"] = this->MDIOPin;
-  obj["ip"] = this->ip.toString();
-  obj["gateway"] = this->gateway.toString();
-  obj["subnet"] = this->subnet.toString();
-  obj["dns1"] = this->dns1.toString();
-  obj["dns2"] = this->dns2.toString();
   return true;
 }
 bool EthernetSettings::save() {
   pref.begin("ETH");
   pref.clear();
-  pref.putBool("dhcp", this->dhcp);
   pref.putChar("boardType", this->boardType);
   pref.putChar("phyAddress", this->phyAddress);
   pref.putChar("phyType", static_cast<uint8_t>(this->phyType));
@@ -360,17 +468,11 @@ bool EthernetSettings::save() {
   pref.putChar("PWRPin", this->PWRPin);
   pref.putChar("MDCPin", this->MDCPin);
   pref.putChar("MDIOPin", this->MDIOPin);
-  pref.putString("ip", this->ip.toString());
-  pref.putString("gateway", this->gateway.toString());
-  pref.putString("subnet", this->subnet.toString());
-  pref.putString("dns1", this->dns1.toString());
-  pref.putString("dns2", this->dns2.toString());
   pref.end();
   return true;
 }
 bool EthernetSettings::load() {
   pref.begin("ETH");
-  this->dhcp = pref.getBool("dhcp", true);
   this->boardType = pref.getChar("boardType", this->boardType);
   this->phyType = static_cast<eth_phy_type_t>(pref.getChar("phyType", ETH_PHY_LAN8720));
   this->CLKMode = static_cast<eth_clock_mode_t>(pref.getChar("CLKMode", ETH_CLOCK_GPIO0_IN));
@@ -378,30 +480,10 @@ bool EthernetSettings::load() {
   this->PWRPin = pref.getChar("PWRPin", this->PWRPin);
   this->MDCPin = pref.getChar("MDCPin", this->MDCPin);
   this->MDIOPin = pref.getChar("MDIOPin", this->MDIOPin);
-  
-  char buff[16];
-  pref.getString("ip", buff, sizeof(buff));
-  this->ip.fromString(buff);
-  pref.getString("gateway", buff, sizeof(buff));
-  this->gateway.fromString(buff);
-  pref.getString("subnet", buff, sizeof(buff));
-  this->subnet.fromString(buff);
-  pref.getString("dns1", buff, sizeof(buff));
-  this->dns1.fromString(buff);
-  pref.getString("dns2", buff, sizeof(buff));
-  this->dns2.fromString(buff);
   pref.end();
   return true;
 }
 void EthernetSettings::print() {
   Serial.println("Ethernet Settings");
   Serial.printf("Board:%d PHYType:%d CLK:%d ADDR:%d PWR:%d MDC:%d MDIO:%d\n", this->boardType, this->phyType, this->CLKMode, this->phyAddress, this->PWRPin, this->MDCPin, this->MDIOPin);
-  Serial.print("   GATEWAY: ");
-  Serial.println(this->gateway);
-  Serial.print("   SUBNET: ");
-  Serial.println(this->subnet);
-  Serial.print("   DNS1: ");
-  Serial.println(this->dns1);
-  Serial.print("   DNS2: ");
-  Serial.println(this->dns2);
 }

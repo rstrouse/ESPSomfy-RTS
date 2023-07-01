@@ -440,6 +440,14 @@ SomfyShade *SomfyShadeController::findShadeByRemoteAddress(uint32_t address) {
   }
   return nullptr;
 }
+SomfyGroup *SomfyShadeController::findGroupByRemoteAddress(uint32_t address) {
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    SomfyGroup &group = this->groups[i];
+    if(group.getRemoteAddress() == address) return &group;
+  }
+  return nullptr;
+}
+
 bool SomfyShadeController::loadLegacy() {
   Serial.println("Loading Legacy shades using NVS");
   pref.begin("Shades", true);
@@ -554,6 +562,12 @@ SomfyShade * SomfyShadeController::getShadeById(uint8_t shadeId) {
   }
   return nullptr;
 }
+SomfyGroup * SomfyShadeController::getGroupById(uint8_t groupId) {
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    if(this->groups[i].getGroupId() == groupId) return &this->groups[i];
+  }
+  return nullptr;
+}
 void SomfyShade::clear() {
   this->setShadeId(255);
   this->setRemoteAddress(0);
@@ -599,6 +613,10 @@ void SomfyShade::clear() {
   this->tiltTime = 7000;
   this->stepSize = 100;
 }
+void SomfyGroup::clear() {
+  this->setGroupId(255);
+  this->setRemoteAddress(0);
+}
 bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
   // Check to see if the remote is already linked. If it is
   // just return true after setting the rolling code
@@ -627,6 +645,22 @@ bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
         pref.end();
       }
       this->commit();
+      return true;
+    }
+  }
+  return false;
+}
+bool SomfyGroup::linkShade(uint8_t shadeId) {
+  // Check to see if the shade is already linked. If it is just return true
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    if(this->linkedShades[i] == shadeId) {
+      return true;
+    }
+  }
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    if(this->linkedShades[i] == 0) {
+      this->linkedShades[i] = shadeId;
+      somfy.commit();
       return true;
     }
   }
@@ -694,7 +728,30 @@ bool SomfyShade::unlinkRemote(uint32_t address) {
   }
   return false;
 }
+bool SomfyGroup::unlinkShade(uint8_t shadeId) {
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    if(this->linkedShades[i] == shadeId) {
+      this->linkedShades[i] = 0;
+      somfy.commit();
+      return true;
+    }
+  }
+  return false;
+}
+bool SomfyGroup::hasShadeId(uint8_t shadeId) {
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    if(this->linkedShades[i] == shadeId) return true;
+  }
+  return false;
+}
 bool SomfyShade::isAtTarget() { return this->currentPos == this->target && this->currentTiltPos == this->tiltTarget; }
+bool SomfyShade::isInGroup() {
+  if(this->getShadeId() == 255) return false;
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    if(somfy.groups[i].getGroupId() != 255 && somfy.groups[i].hasShadeId(this->getShadeId())) return true;
+  }
+  return false;
+}
 void SomfyShade::checkMovement() {
   const uint64_t curTime = millis();
   const bool sunFlag = this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag);
@@ -1096,7 +1153,6 @@ void SomfyShade::publish() {
   }
 }
 void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
-int8_t SomfyShade::transformPosition(float fpos) { return static_cast<int8_t>(this->flipPosition && fpos >= 0.00f ? floor(100.0f - fpos) : floor(fpos)); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
   char buf[420];
   if(this->tiltType != tilt_types::none)
@@ -1114,12 +1170,16 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
     char topic[32];
+    snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
+    mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
     snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->currentPos));
     snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
     mqtt.publish(topic, this->direction);
     snprintf(topic, sizeof(topic), "shades/%u/target", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->target));
+    snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
+    mqtt.publish(topic, this->getRemoteAddress());
     snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
     mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
@@ -1148,6 +1208,40 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
     }
   }
 }
+void SomfyGroup::emitState(const char *evt) { this->emitState(255, evt); }
+void SomfyGroup::emitState(uint8_t num, const char *evt) {
+  ClientSocketEvent e(evt);
+  char buf[30];
+  snprintf(buf, sizeof(buf), "{\"groupId\":%d,", this->groupId);
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), "\"remoteAddress\":%d,", this->getRemoteAddress());
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), "\"name\":\"%s\",", this->name);
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), "\"shades\":[");
+  e.appendMessage(buf);
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    if(this->linkedShades[i] != 255) {
+      snprintf(buf, sizeof(buf), "%s%d", i != 0 ? "," : "", this->linkedShades[i]);
+      e.appendMessage(buf);
+    }
+  }
+  e.appendMessage("]}");
+  if(num >= 255) sockEmit.sendToClients(&e);
+  else sockEmit.sendToClient(num, &e);
+  if(mqtt.connected()) {
+    char topic[32];
+    snprintf(topic, sizeof(topic), "groups/%u/type", this->groupId);
+    mqtt.publish(topic, static_cast<uint8_t>(this->groupType));
+    snprintf(topic, sizeof(topic), "groups/%u/remoteAddress", this->groupId);
+    mqtt.publish(topic, this->getRemoteAddress());
+    snprintf(topic, sizeof(topic), "groups/%u/lastRollingCode", this->groupId);
+    mqtt.publish(topic, this->lastRollingCode);
+    snprintf(topic, sizeof(topic), "groups/%u/direction", this->groupId);
+    mqtt.publish(topic, this->direction);
+  }
+}
+int8_t SomfyShade::transformPosition(float fpos) { return static_cast<int8_t>(this->flipPosition && fpos >= 0.00f ? floor(100.0f - fpos) : floor(fpos)); }
 bool SomfyShade::isIdle() { return this->direction == 0 && this->tiltDirection == 0; }
 void SomfyShade::processWaitingFrame() {
   if(this->shadeId == 255) {
@@ -1355,19 +1449,15 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::SunFlag:
       {
         const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
-
         this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
-
         if (!isWindy)
         {
           const bool isSunny = this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny);
-
           if (isSunny && this->sunDone)
             this->target = this->myPos >= 0 ? this->myPos : 100.0f;
           else if (!isSunny && this->noSunDone)
             this->target = 0.0f;
         }
-
         somfy.isDirty = true;
         this->emitState();
       }
@@ -1462,6 +1552,85 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;
   }
   //if(dir == 0 && this->tiltType == tilt_types::tiltmotor && this->tiltDirection != 0) this->setTiltMovement(0);
+  this->setMovement(dir);
+}
+void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
+  // The reason why we are processing all frames here is so
+  // any linked remotes that may happen to be on the same ESPSomfy RTS
+  // device can trigger the appropriate actions.
+  if(this->shadeId == 255) return; 
+  const uint64_t curTime = millis();
+  int8_t dir = 0;
+  this->moveStart = this->tiltStart = curTime;
+  this->startPos = this->currentPos;
+  this->startTiltPos = this->currentTiltPos;
+  // If the command is coming from a remote then we are aborting all these positioning operations.
+  switch(cmd) {
+    case somfy_commands::Up:
+      if(this->tiltType == tilt_types::tiltmotor) {
+        if(repeat >= TILT_REPEATS)
+          this->tiltTarget = 0.0f;
+        else
+          this->target = 0.0f;
+      }
+      else
+        this->target = this->tiltTarget = 0.0f;
+      break;
+    case somfy_commands::Down:
+      if (!this->windLast || (curTime - this->windLast) >= SOMFY_NO_WIND_REMOTE_TIMEOUT) {
+        if(this->tiltType == tilt_types::tiltmotor) {
+          if(repeat >= TILT_REPEATS)
+            this->tiltTarget = 100.0f;
+          else
+            this->target = 100.0f;
+        }
+        else {
+            this->target = 100.0f;
+            if(this->tiltType != tilt_types::none) this->tiltTarget = 100.0f;
+        }
+      }
+      break;
+    case somfy_commands::My:
+      if(this->isIdle()) {
+          if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->tiltTarget = this->myTiltPos;
+          if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
+      }
+      else {
+        this->target = this->currentPos;
+        this->tiltTarget = this->currentTiltPos;
+      }
+      break;
+    case somfy_commands::StepUp:
+      // With the step commands and integrated shades
+      // the motor must tilt in the direction first then move
+      // so we have to calculate the target with this in mind.
+      if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
+        if(this->tiltTime == 0 || this->stepSize == 0) return;
+        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+      }
+      else if(this->currentPos > 0.0f) {
+        if(this->downTime == 0 || this->stepSize == 0) return;
+        this->target = max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize)))));
+      }
+      break;
+    case somfy_commands::StepDown:
+      dir = 1;
+      // With the step commands and integrated shades
+      // the motor must tilt in the direction first then move
+      // so we have to calculate the target with this in mind.
+      if(this->tiltType == tilt_types::integrated && this->currentTiltPos < 100.0f) {
+        if(this->tiltTime == 0 || this->stepSize == 0) return;
+        this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+      }
+      else if(this->currentPos < 100.0f) {
+        if(this->downTime == 0 || this->stepSize == 0) return;
+        this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize)))));
+      }
+      break;
+    default:
+      dir = 0;
+      break;
+  }
   this->setMovement(dir);
 }
 void SomfyShade::setTiltMovement(int8_t dir) {
@@ -1617,6 +1786,32 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     SomfyRemote::sendCommand(cmd, repeat);
   }
 }
+void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
+  // This sendCommand function will always be called externally. sendCommand at the remote level
+  // is expected to be called internally when the motor needs commanded.
+  if(this->bitLength == 0) this->bitLength = somfy.transceiver.config.type;
+  SomfyRemote::sendCommand(cmd, repeat);
+  switch(cmd) {
+    case somfy_commands::My:
+      this->direction = 0;
+      break;
+    case somfy_commands::Up:
+      this->direction = -1;
+      break;
+    case somfy_commands::Down:
+      this->direction = 1;
+      break;
+  }
+  this->emitState();
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    if(this->linkedShades[i] != 0) {
+      SomfyShade * shade = somfy.getShadeById(this->linkedShades[i]);
+      if(shade) shade->processInternalCommand(cmd, repeat);
+    }
+  }
+  
+}
+
 void SomfyShade::sendTiltCommand(somfy_commands cmd) {
   if(cmd == somfy_commands::Up) {
     SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : 1);
@@ -1718,6 +1913,7 @@ bool SomfyShade::save() {
   this->commit();
   return true;
 }
+bool SomfyGroup::save() { somfy.commit(); return true; }
 bool SomfyShade::fromJSON(JsonObject &obj) {
   if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
   if(obj.containsKey("upTime")) this->upTime = obj["upTime"];
@@ -1775,6 +1971,18 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
   if(obj.containsKey("flags")) this->flags = obj["flags"];
   return true;
 }
+bool SomfyShade::toJSONRef(JsonObject &obj) {
+  obj["shadeId"] = this->getShadeId();
+  obj["name"] = this->name;
+  obj["remoteAddress"] = this->m_remoteAddress;
+  obj["paired"] = this->paired;
+  obj["shadeType"] = static_cast<uint8_t>(this->shadeType);
+  obj["bitLength"] = this->bitLength;
+  obj["proto"] = static_cast<uint8_t>(this->proto);
+  obj["flags"] = this->flags;
+  SomfyRemote::toJSON(obj);
+  return true;
+}
 bool SomfyShade::toJSON(JsonObject &obj) {
   //Serial.print("Serializing Shade:");
   //Serial.print(this->getShadeId());
@@ -1806,6 +2014,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["flags"] = this->flags;
   obj["flipCommands"] = this->flipCommands;
   obj["flipPosition"] = this->flipPosition;
+  obj["inGroup"] = this->isInGroup();
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -1848,7 +2057,7 @@ bool SomfyGroup::toJSON(JsonObject &obj) {
       SomfyShade *shade = somfy.getShadeById(shadeId);
       if(shade) {
         JsonObject lsd = arr.createNestedObject();
-        shade->toJSON(lsd);
+        shade->toJSONRef(lsd);
       }
     }
   }
@@ -1908,6 +2117,26 @@ uint8_t SomfyShadeController::getNextShadeId() {
   }
   return 255;
 }
+uint8_t SomfyShadeController::getNextGroupId() {
+  // There is no shortcut for this since the deletion of
+  // a group in the middle makes all of this very difficult.
+  for(uint8_t i = 1; i < SOMFY_MAX_GROUPS - 1; i++) {
+    bool id_exists = false;
+    for(uint8_t j = 0; j < SOMFY_MAX_GROUPS; j++) {
+      SomfyGroup *group = &this->groups[j];
+      if(group->getGroupId() == i) {
+        id_exists = true;
+        break;
+      }
+    }
+    if(!id_exists) {
+      Serial.print("Got next Group Id:");
+      Serial.print(i);
+      return i;
+    }
+  }
+  return 255;
+}
 uint8_t SomfyShadeController::shadeCount() {
   uint8_t count = 0;
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
@@ -1915,19 +2144,27 @@ uint8_t SomfyShadeController::shadeCount() {
   }
   return count;
 }
-uint32_t SomfyShadeController::getNextRemoteAddress(uint8_t shadeId) {
-  uint32_t address = this->startingAddress + shadeId;
+uint8_t SomfyShadeController::groupCount() {
+  uint8_t count = 0;
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    if(this->groups[i].getGroupId() != 255) count++;
+  }
+  return count;
+}
+uint32_t SomfyShadeController::getNextRemoteAddress(uint8_t id) {
+  uint32_t address = this->startingAddress + id;
   uint8_t i = 0;
+  // The assumption here is that the max number of groups will
+  // always be less than or equal to the max number of shades.
   while(i < SOMFY_MAX_SHADES) {
-    if(this->shades[i].getShadeId() != 255) {
-      if(this->shades[i].getRemoteAddress() == address) {
-        address++;
-        i = 0; // Start over we cannot share addresses.
-      }
-      else i++;
+    if((i < SOMFY_MAX_SHADES && this->shades[i].getShadeId() != 255 && this->shades[i].getRemoteAddress() == address) ||
+      (i < SOMFY_MAX_GROUPS && this->groups[i].getGroupId() != 255 && this->groups[i].getRemoteAddress() == address)) {
+      address++;
+      i = 0; // Start over we cannot share addresses.
     }
     else i++;
   }
+  i = 0;
   return address;
 }
 SomfyShade *SomfyShadeController::addShade(JsonObject &obj) {
@@ -1998,6 +2235,29 @@ SomfyShade *SomfyShadeController::addShade() {
     }
   }
   return shade;
+}
+SomfyGroup *SomfyShadeController::addGroup(JsonObject &obj) {
+  SomfyGroup *group = this->addGroup();
+  if(group) {
+    group->fromJSON(obj);
+    group->save();
+    group->emitState("groupAdded");
+  }
+  return group;
+}
+SomfyGroup *SomfyShadeController::addGroup() {
+  uint8_t groupId = this->getNextGroupId();
+  // So the next shade id will be the first one we run into with an id of 255 so
+  // if it gets deleted in the middle then it will get the first slot that is empty.
+  // There is no apparent way around this.  In the future we might actually add an indexer
+  // to it for sorting later.
+  if(groupId == 255) return nullptr;
+  SomfyGroup *group = &this->groups[groupId - 1];
+  if(group) {
+    group->setGroupId(groupId);
+    this->isDirty = true;
+  }
+  return group;
 }
 somfy_commands SomfyRemote::transformCommand(somfy_commands cmd) {
   if(this->flipCommands) {
@@ -2092,6 +2352,17 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
   this->commit();
   return true;
 }
+bool SomfyShadeController::deleteGroup(uint8_t groupId) {
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    if(this->groups[i].getGroupId() == groupId) {
+      shades[i].emitState("groupRemoved");
+      this->groups[i].clear();
+    }
+  }
+  this->commit();
+  return true;
+}
+
 bool SomfyShadeController::loadShadesFile(const char *filename) { return ShadeConfigFile::load(this, filename); }
 uint16_t SomfyRemote::getNextRollingCode() {
   pref.begin("ShadeCodes");
@@ -2113,16 +2384,26 @@ uint16_t SomfyRemote::setRollingCode(uint16_t code) {
 }
 bool SomfyShadeController::toJSON(DynamicJsonDocument &doc) {
   doc["maxShades"] = SOMFY_MAX_SHADES;
+  doc["maxGroups"] = SOMFY_MAX_GROUPS;
+  doc["maxGroupedShades"] = SOMFY_MAX_GROUPED_SHADES;
   doc["maxLinkedRemotes"] = SOMFY_MAX_LINKED_REMOTES;
   doc["startingAddress"] = this->startingAddress;
   JsonObject objRadio = doc.createNestedObject("transceiver");
   this->transceiver.toJSON(objRadio);
-  JsonArray arr = doc.createNestedArray("shades");
+  JsonArray arrShades = doc.createNestedArray("shades");
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade *shade = &this->shades[i];
     if(shade->getShadeId() != 255) {
-      JsonObject oshade = arr.createNestedObject();
+      JsonObject oshade = arrShades.createNestedObject();
       shade->toJSON(oshade);
+    }
+  }
+  JsonArray arrGroups = doc.createNestedArray("groups");
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    SomfyGroup *group = &this->groups[i];
+    if(group->getGroupId() != 255) {
+      JsonObject ogroup = arrGroups.createNestedObject();
+      group->toJSON(ogroup);
     }
   }
   return true;
@@ -2133,16 +2414,28 @@ bool SomfyShadeController::toJSON(JsonObject &obj) {
   obj["startingAddress"] = this->startingAddress;
   JsonObject oradio = obj.createNestedObject("transceiver");
   this->transceiver.toJSON(oradio);
-  JsonArray arr = obj.createNestedArray("shades");
-  this->toJSON(arr);
+  JsonArray arrShades = obj.createNestedArray("shades");
+  this->toJSONShades(arrShades);
+  JsonArray arrGroups = obj.createNestedArray("groups");
+  this->toJSONGroups(arrGroups);
   return true;
 }
-bool SomfyShadeController::toJSON(JsonArray &arr) {
+bool SomfyShadeController::toJSONShades(JsonArray &arr) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade &shade = this->shades[i];
     if(shade.getShadeId() != 255) {
       JsonObject oshade = arr.createNestedObject();
       shade.toJSON(oshade);
+    }
+  }
+  return true;
+}
+bool SomfyShadeController::toJSONGroups(JsonArray &arr) {
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    SomfyGroup &group = this->groups[i];
+    if(group.getGroupId() != 255) {
+      JsonObject ogroup = arr.createNestedObject();
+      group.toJSON(ogroup);
     }
   }
   return true;
@@ -2183,7 +2476,6 @@ static const uint32_t tempo_if_gap = 30415;  // Gap between frames
 static int16_t  bitMin = SYMBOL * TOLERANCE_MIN;
 static somfy_rx_t somfy_rx;
 static somfy_rx_queue_t rx_queue;
-
 bool somfy_tx_queue_t::pop(somfy_tx_t *tx) {
   // Read the oldest index.
   for(int8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
@@ -2232,7 +2524,6 @@ void somfy_rx_queue_t::init() {
   memset(&this->index[0], 0xFF, MAX_RX_BUFFER);
   this->length = 0;
 }
-
 bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
   // Read off the data from the oldest index.
   //Serial.println("Popping RX Queue");
@@ -2328,7 +2619,6 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
     delayMicroseconds(30415);
   */
 }
-
 void RECEIVE_ATTR Transceiver::handleReceive() {
     static unsigned long last_time = 0;
     const long time = micros();

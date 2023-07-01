@@ -46,6 +46,9 @@ enum class somfy_commands : byte {
     // Command extensions for 80 bit frames
     StepUp = 0x8B
 };
+enum class group_types : byte {
+  channel = 0x00
+};
 enum class shade_types : byte {
   roller = 0x00,
   blind = 0x01,
@@ -227,6 +230,7 @@ class SomfyShade : public SomfyRemote {
     float myTiltPos = -1.0f;
     SomfyLinkedRemote linkedRemotes[SOMFY_MAX_LINKED_REMOTES];
     bool paired = false;
+    bool toJSONRef(JsonObject &obj);
     bool fromJSON(JsonObject &obj);
     bool toJSON(JsonObject &obj) override;
     char name[21] = "";
@@ -238,8 +242,10 @@ class SomfyShade : public SomfyRemote {
     uint16_t stepSize = 100;
     bool save();
     bool isIdle();
+    bool isInGroup();
     void checkMovement();
     void processFrame(somfy_frame_t &frame, bool internal = false);
+    void processInternalCommand(somfy_commands cmd, uint8_t repeat = 1);
     void setTiltMovement(int8_t dir);
     void setMovement(int8_t dir);
     void setTarget(float target);
@@ -267,12 +273,22 @@ class SomfyGroup : public SomfyRemote {
   protected:
     uint8_t groupId = 255;
   public:
+    group_types groupType = group_types::channel;
+    int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
     char name[21] = "";
     uint8_t linkedShades[SOMFY_MAX_GROUPED_SHADES];
     void setGroupId(uint8_t id) { groupId = id; }
     uint8_t getGroupId() { return groupId; }
+    bool save();
+    void clear();
     bool fromJSON(JsonObject &obj);
     bool toJSON(JsonObject &obj);
+    bool linkShade(uint8_t shadeId);
+    bool unlinkShade(uint8_t shadeId);
+    bool hasShadeId(uint8_t shadeId);
+    void emitState(const char *evt = "groupState");
+    void emitState(uint8_t num, const char *evt = "groupState");
+    void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
 };
 struct transceiver_config_t {
     bool printBuffer = false;
@@ -280,8 +296,8 @@ struct transceiver_config_t {
     uint8_t type = 56;                // 56 or 80 bit protocol.
     radio_proto proto = radio_proto::RTS;
     uint8_t SCKPin = 18;
-    uint8_t TXPin = 12;
-    uint8_t RXPin = 13;
+    uint8_t TXPin = 13;
+    uint8_t RXPin = 12;
     uint8_t MOSIPin = 23;
     uint8_t MISOPin = 19;
     uint8_t CSNPin = 5;
@@ -381,22 +397,31 @@ class SomfyShadeController {
     bool isDirty = false;
     uint32_t startingAddress;
     uint8_t getNextShadeId();
+    uint8_t getNextGroupId();
     uint32_t getNextRemoteAddress(uint8_t shadeId);
     SomfyShadeController();
     Transceiver transceiver;
     SomfyShade *addShade();
     SomfyShade *addShade(JsonObject &obj);
+    SomfyGroup *addGroup();
+    SomfyGroup *addGroup(JsonObject &obj);
     bool deleteShade(uint8_t shadeId);
+    bool deleteGroup(uint8_t groupId);
     bool begin();
     void loop();
     void end();
     SomfyShade shades[SOMFY_MAX_SHADES];
+    SomfyGroup groups[SOMFY_MAX_GROUPS];
     bool toJSON(DynamicJsonDocument &doc);
-    bool toJSON(JsonArray &arr);
     bool toJSON(JsonObject &obj);
+    bool toJSONShades(JsonArray &arr);
+    bool toJSONGroups(JsonArray &arr);
     uint8_t shadeCount();
+    uint8_t groupCount();
     SomfyShade * getShadeById(uint8_t shadeId);
+    SomfyGroup * getGroupById(uint8_t groupId);
     SomfyShade * findShadeByRemoteAddress(uint32_t address);
+    SomfyGroup * findGroupByRemoteAddress(uint32_t address);
     void sendFrame(somfy_frame_t &frame, uint8_t repeats = 0);
     void processFrame(somfy_frame_t &frame, bool internal = false);
     void emitState(uint8_t num = 255);

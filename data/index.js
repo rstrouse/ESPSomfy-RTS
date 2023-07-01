@@ -12,6 +12,52 @@ Date.prototype.toJSON = function () {
     let tzMin = (Math.abs(tz) % 60).fmt('00');
     return `${this.getFullYear()}-${(this.getMonth() + 1).fmt('00')}-${this.getDate().fmt('00')}T${this.getHours().fmt('00')}:${this.getMinutes().fmt('00')}:${this.getSeconds().fmt('00')}.${this.getMilliseconds().fmt('000')}${sign}${tzHrs}${tzMin}`;
 };
+Date.prototype.fmt = function (fmtMask, emptyMask) {
+    if (fmtMask.match(/[hHmt]/g) !== null) { if (this.isDateTimeEmpty()) return typeof (emptyMask) !== 'undefined' ? emptyMask : ''; }
+    if (fmtMask.match(/[Mdy]/g) !== null) { if (this.isDateEmpty()) return typeof (emptyMask) !== 'undefined' ? emptyMask : ''; }
+    let formatted = (typeof (fmtMask) !== 'undefined' && fmtMask !== null) ? fmtMask : 'MM-dd-yyyy HH:mm:ss';
+    let letters = 'dMyHhmst'.split('');
+    let temp = [];
+    let count = 0;
+    let regexA;
+    let regexB = /\[(\d+)\]/;
+    let year = this.getFullYear().toString();
+    let formats = {
+        d: this.getDate().toString(),
+        dd: this.getDate().toString().padStart(2, '00'),
+        ddd: this.getDay() >= 0 ? formatType.DAYS[this.getDay()].substring(0, 3) : '',
+        dddd: this.getDay() >= 0 ? formatType.DAYS[this.getDay()] : '',
+        M: (this.getMonth() + 1).toString(),
+        MM: (this.getMonth() + 1).toString().padStart(2, '00'),
+        MMM: this.getMonth() >= 0 ? formatType.MONTHS[this.getMonth()].substring(0, 3) : '',
+        MMMM: this.getMonth() >= 0 ? formatType.MONTHS[this.getMonth()] : '',
+        y: year.charAt(2) === '0' ? year.charAt(4) : year.substring(2, 4),
+        yy: year.substring(2, 4),
+        yyyy: year,
+        H: this.getHours().toString(),
+        HH: this.getHours().toString().padStart(2, '00'),
+        h: this.getHours() === 0 ? '12' : (this.getHours() > 12) ? Math.abs(this.getHours() - 12).toString() : this.getHours().toString(),
+        hh: this.getHours() === 0 ? '12' : (this.getHours() > 12) ? Math.abs(this.getHours() - 12).toString().padStart(2, '00') : this.getHours().toString().padStart(2, '00'),
+        m: this.getMinutes().toString(),
+        mm: this.getMinutes().toString().padStart(2, '00'),
+        s: this.getSeconds().toString(),
+        ss: this.getSeconds().toString().padStart(2, '00'),
+        t: (this.getHours() < 12 || this.getHours() === 24) ? 'a' : 'p',
+        tt: (this.getHours() < 12 || this.getHours() === 24) ? 'am' : 'pm'
+    };
+    for (let i = 0; i < letters.length; i++) {
+        regexA = new RegExp('(' + letters[i] + '+)');
+        while (regexA.test(formatted)) {
+            temp[count] = RegExp.$1;
+            formatted = formatted.replace(RegExp.$1, '[' + count + ']');
+            count++;
+        }
+    }
+    while (regexB.test(formatted))
+        formatted = formatted.replace(regexB, formats[temp[RegExp.$1]]);
+    //console.log({ formatted: formatted, fmtMask: fmtMask });
+    return formatted;
+};
 Number.prototype.round = function (dec) { return Number(Math.round(this + 'e' + dec) + 'e-' + dec); };
 Number.prototype.fmt = function (format, empty) {
     if (isNaN(this)) return empty || '';
@@ -103,6 +149,8 @@ Number.prototype.fmt = function (format, empty) {
     if (rd.length === 0 && rw.length === 0) return '';
     return pfx + rw + rd + sfx;
 };
+var baseUrl = window.location.protocol === 'file:' ? 'http://ESPSomfyRTS' : '';
+//var baseUrl = '';
 function makeBool(val) {
     if (typeof (val) === 'boolean') return val;
     if (typeof (val) === 'undefined') return false;
@@ -125,109 +173,255 @@ function makeBool(val) {
     }
     return false;
 }
-function waitMessage(el) {
-    let div = document.createElement('div');
-    div.innerHTML = '<div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
-    div.classList.add('waitoverlay');
-    el.appendChild(div);
-    return div;
-}
-function clearErrors() {
-    let errors = document.querySelectorAll('div.errorMessage');
-    if (errors && errors.length > 0) errors.forEach((el) => { el.remove(); });
-}
-function serviceError(el, err) {
-    let msg = '';
-    if (typeof err === 'string' && err.startsWith('{')) {
-        let e = JSON.parse(err);
-        if (typeof e !== 'undefined' && typeof e.desc === 'string') msg = e.desc;
-        else msg = err;
-    }
-    else if (typeof err === 'string') {
-        msg = err;
-    }
-    else if (typeof err === 'number') {
-        switch (err) {
-            case 404:
-                msg = `404: Service not found`;
-                break;
-            default:
-                msg = `${err}: Network HTTP Error`;
-                break;
-        }
-    }
-    else if (typeof err !== 'undefined') {
-        console.log(err);
-        if (typeof err.desc === 'string') msg = typeof err.desc !== 'undefined' ? err.desc : err.message;
-    }
-    return errorMessage(el, msg);
-}
-function errorMessage(el, msg) {
-    let div = document.createElement('div');
-    div.innerHTML = '<div class="innerError">' + msg + '</div><button type="button" onclick="clearErrors();">Close</button></div>';
-    div.classList.add('errorMessage');
-    el.appendChild(div);
-    return div;
-}
-function socketError(el, msg) {
-    let div = document.createElement('div');
-    div.innerHTML = '<div id="divSocketAttempts" style="position:absolute;width:100%;left:0px;padding-right:24px;text-align:right;top:0px;font-size:18px;"><span>Attempts: </span><span id="spanSocketAttempts"></span></div><div class="innerError"><div>Could not connect to server</div><hr></hr><div style="font-size:.7em">' + msg + '</div></div>';
-    div.classList.add('errorMessage');
-    div.classList.add('socket-error');
-    el.appendChild(div);
-    return div;
-}
-function promptMessage(el, msg, onYes) {
-    let div = document.createElement('div');
-    div.innerHTML = '<div class="innerError">' + msg + '</div><button id="btnYes" type="button">Yes</button><button type="button" onclick="clearErrors();">No</button></div>';
-    div.classList.add('errorMessage');
-    el.appendChild(div);
-    div.querySelector('#btnYes').addEventListener('click', onYes);
-    return div;
-}
+var httpStatusText = {
+    '200': 'OK',
+    '201': 'Created',
+    '202': 'Accepted',
+    '203': 'Non-Authoritative Information',
+    '204': 'No Content',
+    '205': 'Reset Content',
+    '206': 'Partial Content',
+    '300': 'Multiple Choices',
+    '301': 'Moved Permanently',
+    '302': 'Found',
+    '303': 'See Other',
+    '304': 'Not Modified',
+    '305': 'Use Proxy',
+    '306': 'Unused',
+    '307': 'Temporary Redirect',
+    '400': 'Bad Request',
+    '401': 'Unauthorized',
+    '402': 'Payment Required',
+    '403': 'Forbidden',
+    '404': 'Not Found',
+    '405': 'Method Not Allowed',
+    '406': 'Not Acceptable',
+    '407': 'Proxy Authentication Required',
+    '408': 'Request Timeout',
+    '409': 'Conflict',
+    '410': 'Gone',
+    '411': 'Length Required',
+    '412': 'Precondition Required',
+    '413': 'Request Entry Too Large',
+    '414': 'Request-URI Too Long',
+    '415': 'Unsupported Media Type',
+    '416': 'Requested Range Not Satisfiable',
+    '417': 'Expectation Failed',
+    '418': 'I\'m a teapot',
+    '429': 'Too Many Requests',
+    '500': 'Internal Server Error',
+    '501': 'Not Implemented',
+    '502': 'Bad Gateway',
+    '503': 'Service Unavailable',
+    '504': 'Gateway Timeout',
+    '505': 'HTTP Version Not Supported'
+};
 function getJSON(url, cb) {
     let xhr = new XMLHttpRequest();
     console.log({ get: url });
-    xhr.open('GET', url, true);
+    xhr.open('GET', baseUrl.length > 0 ? `${baseUrl}${url}` : url, true);
+    xhr.setRequestHeader('apikey', security.apiKey);
     xhr.responseType = 'json';
     xhr.onload = () => {
         let status = xhr.status;
-        cb(status === 200 ? null : status, xhr.response);
+        if (status !== 200) {
+            let err = xhr.response || {};
+            err.htmlError = status;
+            err.service = `GET ${url}`;
+            if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+            cb(xhr.response, null);
+        }
+        else {
+            cb(null, xhr.response);
+        }
     };
     xhr.onerror = (evt) => {
-        cb(xhr.status || 500, xhr.statusText);
+        let err = {
+            htmlError: xhr.status || 500,
+            service: `GET ${url}`
+        };
+        if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+        cb(err, null);
     };
+    xhr.send();
+}
+function getJSONSync(url, cb) {
+    let overlay = ui.waitMessage(document.getElementById('divContainer'));
+    let xhr = new XMLHttpRequest();
+    console.log({ get: url });
+    xhr.responseType = 'json';
+    xhr.onload = () => {
+        let status = xhr.status;
+        if (status !== 200) {
+            let err = xhr.response || {};
+            err.htmlError = status;
+            err.service = `GET ${url}`;
+            if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+            cb(xhr.response, null);
+        }
+        else {
+            cb(null, xhr.response);
+        }
+        if (typeof overlay !== 'undefined') overlay.remove();
+    };
+    xhr.onerror = (evt) => {
+        let err = {
+            htmlError: xhr.status || 500,
+            service: `GET ${url}`
+        };
+        if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+        cb(err, null);
+        if (typeof overlay !== 'undefined') overlay.remove();
+    };
+    xhr.onabort = (evt) => {
+        console.log('Aborted');
+        if (typeof overlay !== 'undefined') overlay.remove();
+    };
+    xhr.open('GET', baseUrl.length > 0 ? `${baseUrl}${url}` : url, true);
+    xhr.setRequestHeader('apikey', security.apiKey);
     xhr.send();
 }
 function getText(url, cb) {
     let xhr = new XMLHttpRequest();
     console.log({ get: url });
-    xhr.open('GET', url, true);
+    xhr.open('GET', baseUrl.length > 0 ? `${baseUrl}${url}` : url, true);
+    xhr.setRequestHeader('apikey', security.apiKey);
     xhr.responseType = 'text';
     xhr.onload = () => {
         let status = xhr.status;
-        cb(status === 200 ? null : status, xhr.responseText);
+        if (status !== 200) {
+            let err = xhr.response || {};
+            err.htmlError = status;
+            err.service = `GET ${url}`;
+            if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+            cb(err, null);
+        }
+        else
+            cb(null, xhr.response);
     };
     xhr.onerror = (evt) => {
-        cb(xhr.status || 500, xhr.statusText);
+        let err = {
+            htmlError: xhr.status || 500,
+            service: `GET ${url}`
+        };
+        if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+        cb(err, null);
     };
     xhr.send();
+}
+function postJSONSync(url, data, cb) {
+    let overlay = ui.waitMessage(document.getElementById('divContainer'));
+    try {
+        let xhr = new XMLHttpRequest();
+        console.log({ post: url, data: data });
+        let fd = new FormData();
+        for (let name in data) {
+            fd.append(name, data[name]);
+        }
+        xhr.open('POST', baseUrl.length > 0 ? `${baseUrl}${url}` : url, true);
+        xhr.responseType = 'json';
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.setRequestHeader('apikey', security.apiKey);
+        xhr.onload = () => {
+            let status = xhr.status;
+            console.log(xhr);
+            if (status !== 200) {
+                let err = xhr.response || {};
+                err.htmlError = status;
+                err.service = `POST ${url}`;
+                err.data = data;
+                if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+                cb(err, null);
+            }
+            else {
+                cb(null, xhr.response);
+            }
+            overlay.remove();
+        };
+        xhr.onerror = (evt) => {
+            console.log(xhr);
+            let err = {
+                htmlError: xhr.status || 500,
+                service: `POST ${url}`
+            };
+            if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+            cb(err, null);
+            overlay.remove();
+        };
+        xhr.send(fd);
+    } catch (err) { ui.serviceError(document.getElementById('divContainer'), err); }
 }
 function putJSON(url, data, cb) {
     let xhr = new XMLHttpRequest();
     console.log({ put: url, data: data });
-    xhr.open('PUT', url, true);
+    xhr.open('PUT', baseUrl.length > 0 ? `${baseUrl}${url}` : url, true);
     xhr.responseType = 'json';
     xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
     xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('apikey', security.apiKey);
     xhr.onload = () => {
         let status = xhr.status;
-        cb(status === 200 ? null : status, xhr.response);
+        if (status !== 200) {
+            let err = xhr.response || {};
+            err.htmlError = status;
+            err.service = `PUT ${url}`;
+            err.data = data;
+            if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+            cb(err, null);
+        }
+        else {
+            cb(null, xhr.response);
+        }
     };
     xhr.onerror = (evt) => {
-        cb(xhr.status || 500, xhr.statusText);
+        console.log(xhr);
+        let err = {
+            htmlError: xhr.status || 500,
+            service: `PUT ${url}`
+        };
+        if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+        cb(err, null);
     };
     xhr.send(JSON.stringify(data));
+}
+function putJSONSync(url, data, cb) {
+    let overlay = ui.waitMessage(document.getElementById('divContainer'));
+    try {
+        let xhr = new XMLHttpRequest();
+        console.log({ put: url, data: data });
+        //xhr.open('PUT', url, true);
+        xhr.open('PUT', baseUrl.length > 0 ? `${baseUrl}${url}` : url, true);
+        xhr.responseType = 'json';
+        xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.setRequestHeader('apikey', security.apiKey);
+        xhr.onload = () => {
+            let status = xhr.status;
+            if (status !== 200) {
+                let err = xhr.response || {};
+                err.htmlError = status;
+                err.service = `PUT ${url}`;
+                err.data = data;
+                if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+                cb(err, null);
+            }
+            else {
+                cb(null, xhr.response);
+            }
+            overlay.remove();
+        };
+        xhr.onerror = (evt) => {
+            console.log(xhr);
+            let err = {
+                htmlError: xhr.status || 500,
+                service: `PUT ${url}`
+            };
+            if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+            cb(err, null);
+            overlay.remove();
+        };
+        xhr.send(JSON.stringify(data));
+    } catch (err) { ui.serviceError(document.getElementById('divContainer'), err); }
 }
 var socket;
 var tConnect = null;
@@ -245,9 +439,10 @@ async function initSockets() {
     for (let i = 0; i < wms.length; i++) {
         wms[i].remove();
     }
-    waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
+    ui.waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
+    let host = window.location.protocol === 'file:' ? 'ESPSomfyRTS' : window.location.hostname;
     try {
-        socket = new WebSocket(`ws://${window.location.hostname}:8080/`);
+        socket = new WebSocket(`ws://${host}:8080/`);
         socket.onmessage = (evt) => {
             if (evt.data.startsWith('42')) {
                 let ndx = evt.data.indexOf(',');
@@ -315,10 +510,14 @@ async function initSockets() {
             }
             else {
                 (async () => {
-                    await general.init();
-                    await somfy.init();
+                    await general.loadGeneral();
+                    await wifi.loadNetwork();
+                    await somfy.loadSomfy();
+
+                    //await general.init();
+                    //await somfy.init();
                     await mqtt.init();
-                    await wifi.init();
+                    //await wifi.init();
                 })();
             }
         };
@@ -326,7 +525,7 @@ async function initSockets() {
             wifi.procWifiStrength({ ssid: '', channel: -1, strength: -100 });
             wifi.procEthernet({ connected: '', speed: 0, fullduplex: false });
             if (document.getElementsByClassName('socket-wait').length === 0)
-                waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
+                ui.waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
             if (evt.wasClean) {
                 console.log({ msg: 'close-clean', evt: evt });
                 connectFailed = 0;
@@ -346,7 +545,7 @@ async function initSockets() {
                         console.log(`Initial socket did not connect try again (server was busy and timed out ${connectFailed} times)`);
                         tConnect = setTimeout(async () => { await reopenSocket(); }, timeout);
                         if (connectFailed === 5) {
-                            socketError(document.getElementById('divContainer'), 'Too many clients connected.  A maximum of 5 clients may be connected at any one time.  Close some connections to the ESP Somfy RTS device to proceed.');
+                            ui.socketError('Too many clients connected.  A maximum of 5 clients may be connected at any one time.  Close some connections to the ESP Somfy RTS device to proceed.');
                         }
                         let spanAttempts = document.getElementById('spanSocketAttempts');
                         if (spanAttempts) spanAttempts.innerHTML = connectFailed.fmt("#,##0");
@@ -377,22 +576,637 @@ async function reopenSocket() {
     tConnect = null;
     await initSockets();
 }
-class General {
-    appVersion = 'v1.7.3';
-    reloadApp = false;
+async function init() {
+    await security.init();
+    general.init();
+    wifi.init();
+    somfy.init();
+    mqtt.init();
+    firmware.init();
+}
+class UIBinder {
+    setValue(el, val) {
+        if (el instanceof HTMLInputElement) {
+            switch (el.type.toLowerCase()) {
+                case 'checkbox':
+                    el.checked = makeBool(val);
+                    break;
+                case 'range':
+                    let dt = el.getAttribute('data-datatype');
+                    let mult = parseInt(el.getAttribute('data-mult') || 1, 10);
+                    switch (dt) {
+                        // We always range with integers
+                        case 'float':
+                            el.value = Math.round(parseInt(val * mult, 10));
+                            break;
+                        case 'index':
+                            let ivals = JSON.parse(el.getAttribute('data-values'));
+                            for (let i = 0; i < ivals.length; i++) {
+                                if (ivals[i].toString() === val.toString()) {
+                                    el.value = i;
+                                    break;
+                                }
+                            }
+                            break;
+                        default:
+                            el.value = parseInt(val, 10) * mult;
+                            break;
+                    }
+                    break;
+                default:
+                    el.value = val;
+                    break;
+            }
+        }
+        else if (el instanceof HTMLSelectElement) {
+            let ndx = 0;
+            for (let i = 0; i < el.options.length; i++) {
+                let opt = el.options[i];
+                if (opt.value === val.toString()) {
+                    ndx = i;
+                    break;
+                }
+            }
+            el.selectedIndex = ndx;
+        }
+        else if (el instanceof HTMLElement) el.innerHTML = val;
+    }
+    getValue(el, defVal) {
+        let val = defVal;
+        if (el instanceof HTMLInputElement) {
+            switch (el.type.toLowerCase()) {
+                case 'checkbox':
+                    val = el.checked;
+                    break;
+                case 'range':
+                    let dt = el.getAttribute('data-datatype');
+                    let mult = parseInt(el.getAttribute('data-mult') || 1, 10);
+                    switch (dt) {
+                        // We always range with integers
+                        case 'float':
+                            val = parseInt(el.value, 10) / mult;
+                            break;
+                        case 'index':
+                            let ivals = JSON.parse(el.getAttribute('data-values'));
+                            val = ivals[parseInt(el.value, 10)];
+                            break;
+                        default:
+                            val = parseInt(el.value / mult, 10);
+                            break;
+                    }
+                    break;
+                default:
+                    val = el.value;
+                    break;
+            }
+        }
+        else if (el instanceof HTMLSelectElement) val = el.value;
+        else if (el instanceof HTMLElement) val = el.innerHTML;
+        return val;
+    }
+    toElement(el, val) {
+        let flds = el.querySelectorAll('*[data-bind]');
+        flds.forEach((fld) => {
+            let prop = fld.getAttribute('data-bind');
+            let arr = prop.split('.');
+            let tval = val;
+            for (let i = 0; i < arr.length; i++) {
+                var s = arr[i];
+                if (typeof s === 'undefined' || !s) continue;
+                let ndx = s.indexOf('[');
+                if (ndx !== -1) {
+                    ndx = parseInt(s.substring(ndx + 1, s.indexOf(']') - 1), 10);
+                    s = s.substring(0, ndx - 1);
+                }
+                tval = tval[s];
+                if (typeof tval === 'undefined') break;
+                if (ndx >= 0) tval = tval[ndx];
+            }
+            if (typeof tval !== 'undefined') {
+                if (typeof fld.val === 'function') this.val(tval);
+                else {
+                    switch (fld.getAttribute('data-fmttype')) {
+                        case 'time':
+                            {
+                                var dt = new Date();
+                                dt.setHours(0, 0, 0);
+                                dt.addMinutes(tval);
+                                tval = dt.fmt(fld.getAttribute('data-fmtmask'), fld.getAttribute('data-fmtempty') || '');
+                            }
+                            break;
+                        case 'date':
+                        case 'datetime':
+                            {
+                                let dt = new Date(tval);
+                                tval = dt.fmt(fld.getAttribute('data-fmtmask'), fld.getAttribute('data-fmtempty') || '');
+                            }
+                            break;
+                        case 'number':
+                            if (typeof tval !== 'number') tval = parseFloat(tval);
+                            tval = tval.fmt(fld.getAttribute('data-fmtmask'), fld.getAttribute('data-fmtempty') || '');
+                            break;
+                        case 'duration':
+                            tval = dataBinder.formatDuration(tval, $this.attr('data-fmtmask'));
+                            break;
+                    }
+                    this.setValue(fld, tval);
+                }
+            }
+        });
+    }
+    fromElement(el, obj, arrayRef) {
+        if (typeof arrayRef === 'undefined' || arrayRef === null) arrayRef = [];
+        if (typeof obj === 'undefined' || obj === null) obj = {};
+        if (typeof el.getAttribute('data-bind') !== 'undefined') this._bindValue(obj, el, this.getValue(el), arrayRef);
+        let flds = el.querySelectorAll('*[data-bind]');
+        flds.forEach((fld) => {
+            if (!makeBool(fld.getAttribute('data-setonly')))
+                this._bindValue(obj, fld, this.getValue(fld), arrayRef);
+        });
+        return obj;
+    }
+    parseNumber(val) {
+        if (val === null) return;
+        if (typeof val === 'undefined') return val;
+        if (typeof val === 'number') return val;
+        if (typeof val.getMonth === 'function') return val.getTime();
+        var tval = val.replace(/[^0-9\.\-]+/g, '');
+        return tval.indexOf('.') !== -1 ? parseFloat(tval) : parseInt(tval, 10);
+    };
+    _bindValue(obj, el, val, arrayRef) {
+        var binding = el.getAttribute('data-bind');
+        var dataType = el.getAttribute('data-datatype');
+        if (binding && binding.length > 0) {
+            var sRef = '';
+            var arr = binding.split('.');
+            var t = obj;
+            for (var i = 0; i < arr.length - 1; i++) {
+                let s = arr[i];
+                if (typeof s === 'undefined' || s.length === 0) continue;
+                sRef += ('.' + s);
+                var ndx = s.lastIndexOf('[');
+                if (ndx !== -1) {
+                    var v = s.substring(0, ndx);
+                    var ndxEnd = s.lastIndexOf(']');
+                    var ord = parseInt(s.substring(ndx + 1, ndxEnd), 10);
+                    if (isNaN(ord)) ord = 0;
+                    if (typeof arrayRef[sRef] === 'undefined') {
+                        if (typeof t[v] === 'undefined') {
+                            t[v] = new Array();
+                            t[v].push(new Object());
+                            t = t[v][0];
+                            arrayRef[sRef] = ord;
+                        }
+                        else {
+                            k = arrayRef[sRef];
+                            if (typeof k === 'undefined') {
+                                a = t[v];
+                                k = a.length;
+                                arrayRef[sRef] = k;
+                                a.push(new Object());
+                                t = a[k];
+                            }
+                            else
+                                t = t[v][k];
+                        }
+                    }
+                    else {
+                        k = arrayRef[sRef];
+                        if (typeof k === 'undefined') {
+                            a = t[v];
+                            k = a.length;
+                            arrayRef[sRef] = k;
+                            a.push(new Object());
+                            t = a[k];
+                        }
+                        else
+                            t = t[v][k];
+                    }
+                }
+                else if (typeof t[s] === 'undefined') {
+                    t[s] = new Object();
+                    t = t[s];
+                }
+                else
+                    t = t[s];
+            }
+            if (typeof dataType === 'undefined') dataType = 'string';
+            t[arr[arr.length - 1]] = this.parseValue(val, dataType);
+        }
+    }
+    parseValue(val, dataType) {
+        switch (dataType) {
+            case 'int':
+                return Math.floor(this.parseNumber(val));
+            case 'uint':
+                return Math.abs(this.parseNumber(val));
+            case 'float':
+            case 'real':
+            case 'double':
+            case 'decimal':
+            case 'number':
+                return this.parseNumber(val);
+            case 'date':
+                if (typeof val === 'string') return Date.parseISO(val);
+                else if (typeof val === 'number') return new Date(number);
+                else if (typeof val.getMonth === 'function') return val;
+                return undefined;
+            case 'time':
+                var dt = new Date();
+                if (typeof val === 'number') {
+                    dt.setHours(0, 0, 0);
+                    dt.addMinutes(tval);
+                    return dt;
+                }
+                else if (typeof val === 'string' && val.indexOf(':') !== -1) {
+                    var n = val.lastIndexOf(':');
+                    var min = this.parseNumber(val.substring(n));
+                    var nsp = val.substring(0, n).lastIndexOf(' ') + 1;
+                    var hrs = this.parseNumber(val.substring(nsp, n));
+                    dt.setHours(0, 0, 0);
+                    if (hrs <= 12 && val.substring(n).indexOf('p')) hrs += 12;
+                    dt.addMinutes(hrs * 60 + min);
+                    return dt;
+                }
+                break;
+            case 'duration':
+                if (typeof val === 'number') return val;
+                return Math.floor(this.parseNumber(val));
+            default:
+                return val;
+        }
+    }
+    formatValue(val, dataType, fmtMask, emptyMask) {
+        var v = this.parseValue(val, dataType);
+        if (typeof v === 'undefined') return emptyMask || '';
+        switch (dataType) {
+            case 'int':
+            case 'uint':
+            case 'float':
+            case 'real':
+            case 'double':
+            case 'decimal':
+            case 'number':
+                return v.fmt(fmtMask, emptyMask || '');
+            case 'time':
+            case 'date':
+            case 'dateTime':
+                return v.fmt(fmtMask, emptyMask || '');
+        }
+        return v;
+    }
+    waitMessage(el) {
+        let div = document.createElement('div');
+        div.innerHTML = '<div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>';
+        div.classList.add('wait-overlay');
+        if (typeof el === 'undefined') el = document.getElementById('divContainer');
+        el.appendChild(div);
+        return div;
+    }
+    serviceError(el, err) {
+        if (arguments.length === 1) {
+            err = el;
+            el = document.getElementById('divContainer');
+        }
+        let msg = '';
+        if (typeof err === 'string' && err.startsWith('{')) {
+            let e = JSON.parse(err);
+            if (typeof e !== 'undefined' && typeof e.desc === 'string') msg = e.desc;
+            else msg = err;
+        }
+        else if (typeof err === 'string') msg = err;
+        else if (typeof err === 'number') {
+            switch (err) {
+                case 404:
+                    msg = `404: Service not found`;
+                    break;
+                default:
+                    msg = `${err}: Service Error`;
+                    break;
+            }
+        }
+        else if (typeof err !== 'undefined') {
+            if (typeof err.desc === 'string') msg = typeof err.desc !== 'undefined' ? err.desc : err.message;
+        }
+        console.log(err);
+        let div = this.errorMessage(`${err.htmlError || 500}:Service Error`);
+        let sub = div.querySelector('.sub-message');
+        sub.innerHTML = `<div><label>Service:</label>${err.service}</div><div style="font-size:22px;">${msg}</div>`;
+        return div;
+    }
+    socketError(el, msg) {
+        if (arguments.length === 1) {
+            msg = el;
+            el = document.getElementById('divContainer');
+        }
+        let div = document.createElement('div');
+        div.innerHTML = '<div id="divSocketAttempts" style="position:absolute;width:100%;left:0px;padding-right:24px;text-align:right;top:0px;font-size:18px;"><span>Attempts: </span><span id="spanSocketAttempts"></span></div><div class="inner-error"><div>Could not connect to server</div><hr></hr><div style="font-size:.7em">' + msg + '</div></div>';
+        div.classList.add('error-message');
+        div.classList.add('socket-error');
+        div.classList.add('message-overlay');
+        el.appendChild(div);
+        return div;
+    }
+    errorMessage(el, msg) {
+        if (arguments.length === 1) {
+            msg = el;
+            el = document.getElementById('divContainer');
+        }
+        let div = document.createElement('div');
+        div.innerHTML = '<div class="inner-error">' + msg + '</div><div class="sub-message"></div><button type="button" onclick="ui.clearErrors();">Close</button></div>';
+        div.classList.add('error-message');
+        div.classList.add('message-overlay');
+        el.appendChild(div);
+        return div;
+    }
+    promptMessage(el, msg, onYes) {
+        if (arguments.length === 2) {
+            onYes = msg;
+            msg = el;
+            el = document.getElementById('divContainer');
+        }
+        let div = document.createElement('div');
+        div.innerHTML = '<div class="prompt-text">' + msg + '</div><div class="sub-message"></div><div class="button-container"><button id="btnYes" type="button">Yes</button><button type="button" onclick="ui.clearErrors();">No</button></div></div>';
+        div.classList.add('prompt-message');
+        div.classList.add('message-overlay');
+        el.appendChild(div);
+        div.querySelector('#btnYes').addEventListener('click', onYes);
+        return div;
+    }
+    clearErrors() {
+        let errors = document.querySelectorAll('div.message-overlay');
+        if (errors && errors.length > 0) errors.forEach((el) => { el.remove(); });
+    }
+    selectTab(elTab) {
+        for (let tab of elTab.parentElement.children) {
+            if (tab.classList.contains('selected')) tab.classList.remove('selected');
+            document.getElementById(tab.getAttribute('data-grpid')).style.display = 'none';
+        }
+        if (!elTab.classList.contains('selected')) elTab.classList.add('selected');
+        document.getElementById(elTab.getAttribute('data-grpid')).style.display = '';
+    }
+    wizSetPrevStep(el) { this.wizSetStep(el, Math.max(this.wizCurrentStep(el) - 1, 1)); }
+    wizSetNextStep(el) { this.wizSetStep(el, this.wizCurrentStep(el) + 1); }
+    wizSetStep(el, step) {
+        let curr = this.wizCurrentStep(el);
+        let max = parseInt(el.getAttribute('data-maxsteps'), 10);
+        if (!isNaN(max)) {
+            let next = el.querySelector(`#btnNextStep`);
+            if (next) next.style.display = max < step ? 'inline-block' : 'none';
+        }
+        let prev = el.querySelector(`#btnPrevStep`);
+        if (prev) prev.style.display = step <= 1 ? 'none' : 'inline-block';
+        if (curr !== step) {
+            el.setAttribute('data-stepid', step);
+            let evt = new CustomEvent('stepchanged', { detail: { oldStep: curr, newStep: step }, bubbles: true, cancelable: true, composed: false });
+            el.dispatchEvent(evt);
+        }
+    }
+    wizCurrentStep(el) { return parseInt(el.getAttribute('data-stepid') || 1, 10); }
+    pinKeyPressed(evt) {
+        let parent = evt.srcElement.parentElement;
+        let digits = parent.querySelectorAll('.pin-digit');
+        switch (evt.key) {
+            case 'Backspace':
+                setTimeout(() => {
+                    // Focus to the previous element.
+                    for (let i = 0; i < digits.length; i++) {
+                        if (digits[i] === evt.srcElement && i > 0) {
+                            digits[i - 1].focus();
+                            break;
+                        }
+                    }
+                }, 0);
+                return;
+            case 'ArrowLeft':
+                setTimeout(() => {
+                    for (let i = 0; i < digits.length; i++) {
+                        if (digits[i] === evt.srcElement && i > 0) {
+                            digits[i - 1].focus();
+                        }
+                    }
+                });
+                return;
+            case 'CapsLock':
+            case 'Control':
+            case 'Shift':
+            case 'Enter':
+            case 'Tab':
+                return;
+            case 'ArrowRight':
+                if (evt.srcElement.value !== '') {
+                    setTimeout(() => {
+                        for (let i = 0; i < digits.length; i++) {
+                            if (digits[i] === evt.srcElement && i < digits.length - 1) {
+                                digits[i + 1].focus();
+                            }
+                        }
+                    });
+                }
+                return;
+            default:
+                if (evt.srcElement.value !== '') evt.srcElement.value = '';
+                setTimeout(() => {
+                    let e = new CustomEvent('digitentered', { detail: {}, bubbles: true, cancelable: true, composed: false });
+                    evt.srcElement.dispatchEvent(e);
+                }, 100);
+                break;
+        }
+        setTimeout(() => {
+            // Focus to the first empty element.
+            for (let i = 0; i < digits.length; i++) {
+                if (digits[i].value === '') {
+                    if (digits[i] !== evt.srcElement) digits[i].focus();
+                    break;
+                }
+            }
+        }, 0);
+
+    }
+    pinDigitFocus(evt) {
+        // Find the first empty digit and place the cursor there.
+        if (evt.srcElement.value !== '') return;
+        let parent = evt.srcElement.parentElement;
+        let digits = parent.querySelectorAll('.pin-digit');
+        for (let i = 0; i < digits.length; i++) {
+            if (digits[i].value === '') {
+                if (digits[i] !== evt.srcElement) digits[i].focus();
+                break;
+            }
+        }
+    }
+    isConfigOpen() { return (window.getComputedStyle(document.getElementById('divConfigPnl')).display !== 'none'); }
+    setConfigPanel() {
+        if (this.isConfigOpen()) return;
+        let divCfg = document.getElementById('divConfigPnl');
+        let divHome = document.getElementById('divHomePnl');
+        divHome.style.display = 'none';
+        divCfg.style.display = '';
+        document.getElementById('icoConfig').className = 'icss-home';
+        if (sockIsOpen) socket.send('join:0');
+        let overlay = ui.waitMessage(document.getElementById('divSecurityOptions'));
+        overlay.style.borderRadius = '5px';
+        getJSON('/getSecurity', (err, security) => {
+            console.log(security);
+            general.setSecurityConfig(security);
+            overlay.remove();
+        });
+    }
+    setHomePanel() {
+        if (!this.isConfigOpen()) return;
+        let divCfg = document.getElementById('divConfigPnl');
+        let divHome = document.getElementById('divHomePnl');
+        divHome.style.display = '';
+        divCfg.style.display = 'none';
+        document.getElementById('icoConfig').className = 'icss-gear';
+        if (sockIsOpen) socket.send('leave:0');
+        general.setSecurityConfig({ type: 0, username: '', password: '', pin: '', permissions: 0 });
+    }
+    toggleConfig() {
+        if (this.isConfigOpen())
+            this.setHomePanel();
+        else {
+            if (!security.authenticated && security.type !== 0) {
+                document.getElementById('divContainer').addEventListener('afterlogin', (evt) => {
+                    if (security.authenticated) this.setConfigPanel();
+                }, { once: true });
+                security.authUser();
+            }
+            else this.setConfigPanel();
+        }
+        somfy.showEditShade(false);
+    }
+}
+var ui = new UIBinder();
+
+class Security {
+    type = 0;
+    authenticated = false;
+    apiKey = '';
+    permissions = 0;
     async init() {
+        let fld = document.getElementById('divUnauthenticated').querySelector('.pin-digit[data-bind="security.pin.d0"]');
+        document.getElementById('divUnauthenticated').querySelector('.pin-digit[data-bind="login.pin.d3"]').addEventListener('digitentered', (evt) => {
+            security.login();
+        });
+        await this.loadContext();
+        if (this.type === 0 || (this.permissions & 0x01) === 0x01) { // No login required or only the config is protected.
+            if (typeof socket === 'undefined' || !socket) (async () => { await initSockets(); })();
+            //ui.setMode(mode);
+            document.getElementById('divUnauthenticated').style.display = 'none';
+            document.getElementById('divAuthenticated').style.display = '';
+            document.getElementById('divContainer').setAttribute('data-auth', true);
+        }
+    }
+    async loadContext() {
+        let pnl = document.getElementById('divUnauthenticated');
+        pnl.querySelector('#loginButtons').style.display = 'none';
+        pnl.querySelector('#divLoginPassword').style.display = 'none';
+        pnl.querySelector('#divLoginPin').style.display = 'none';
+        await new Promise((resolve, reject) => {
+            getJSONSync('/loginContext', (err, ctx) => {
+                pnl.querySelector('#loginButtons').style.display = '';
+                resolve();
+                if (err) ui.serviceError(err);
+                else {
+                    this.type = ctx.type;
+                    this.permissions = ctx.permissions;
+                    switch (ctx.type) {
+                        case 1:
+                            pnl.querySelector('#divLoginPin').style.display = '';
+                            pnl.querySelector('#divLoginPassword').style.display = 'none';
+                            pnl.querySelector('.pin-digit[data-bind="login.pin.d0"]').focus();
+                            break;
+                        case 2:
+                            pnl.querySelector('#divLoginPassword').style.display = '';
+                            pnl.querySelector('#divLoginPin').style.display = 'none';
+                            pnl.querySelector('#fldLoginUsername').focus();
+                            break;
+                    }
+                    pnl.querySelector('#fldLoginType').value = ctx.type;
+                }
+            });
+        });
+    }
+    authUser() {
+        document.getElementById('divAuthenticated').style.display = 'none';
+        document.getElementById('divUnauthenticated').style.display = '';
+        this.loadContext();
+        document.getElementById('btnCancelLogin').style.display = 'inline-block';
+    }
+    cancelLogin() {
+        let evt = new CustomEvent('afterlogin', { detail: { authenticated: this.authenticated } });
+        document.getElementById('divAuthenticated').style.display = '';
+        document.getElementById('divUnauthenticated').style.display = 'none';
+        document.getElementById('divContainer').dispatchEvent(evt);
+    }
+    login() {
+        console.log('Logging in...');
+        let pnl = document.getElementById('divUnauthenticated');
+        let msg = pnl.querySelector('#spanLoginMessage');
+        msg.innerHTML = '';
+        let sec = ui.fromElement(pnl).login;
+        let pin = '';
+        for (let i = 0; i < 4; i++) {
+            pin += sec.pin[`d${i}`];
+        }
+        if (pin.length !== 4) return;
+        sec.pin = pin;
+        console.log(sec);
+        putJSONSync('/login', sec, (err, log) => {
+            if (err) ui.serviceError(err);
+            else {
+                console.log(log);
+                if (log.success) {
+                    if (typeof socket === 'undefined' || !socket) (async () => { await initSockets(); })();
+                    //ui.setMode(mode);
+
+                    document.getElementById('divUnauthenticated').style.display = 'none';
+                    document.getElementById('divAuthenticated').style.display = '';
+                    document.getElementById('divContainer').setAttribute('data-auth', true);
+                    this.apiKey = log.apiKey;
+                    this.authenticated = true;
+                    let evt = new CustomEvent('afterlogin', { detail: { authenticated: true } });
+                    document.getElementById('divContainer').dispatchEvent(evt);
+                }
+                else
+                    msg.innerHTML = log.msg;
+            }
+        });
+    }
+}
+var security = new Security();
+
+class General {
+    initialized = false;
+    appVersion = 'v2.0.0';
+    reloadApp = false;
+    init() {
+        if (this.initialized) return;
         this.setAppVersion();
         this.setTimeZones();
-        this.loadGeneral();
-        if (sockIsOpen && this.isConfigOpen()) socket.send('join:0');
-    };
+        if (sockIsOpen && ui.isConfigOpen()) socket.send('join:0');
+        ui.toElement(document.getElementById('divSystemSettings'), { general: { hostname: 'ESPSomfyRTS', username: '', password: '', posixZone: 'UTC0', ntpServer: 'pool.ntp.org' } });
+        this.initialized = true;
+    }
+    getCookie(cname) {
+        let n = cname + '=';
+        let cookies = document.cookie.split(';');
+        console.log(cookies);
+        for (let i = 0; i < cookies.length; i++) {
+            let c = cookies[i];
+            while (c.charAt(0) === ' ') c = c.substring(0);
+            if (c.indexOf(n) === 0) return c.substring(n.length, c.length);
+        }
+        return '';
+    }
     reload() {
         let addMetaTag = (name, content) => {
             let meta = document.createElement('meta');
             meta.httpEquiv = name;
             meta.content = content;
             document.getElementsByTagName('head')[0].appendChild(meta);
-        }
+        };
         addMetaTag('pragma', 'no-cache');
         addMetaTag('expires', '0');
         addMetaTag('cache-control', 'no-cache');
@@ -501,33 +1315,45 @@ class General {
     { city: 'Pacific/Norfolk', code: '<+11>-11<+12>,M10.1.0,M4.1.0/3' }
     ];
     loadGeneral() {
-        let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
-        getJSON('/modulesettings', (err, settings) => {
-            overlay.remove();
+        let pnl = document.getElementById('divSystemOptions');
+        getJSONSync('/modulesettings', (err, settings) => {
             if (err) {
                 console.log(err);
             }
             else {
                 console.log(settings);
-                let dd = document.getElementById('selTimeZone');
-                for (let i = 0; i < dd.options.length; i++) {
-                    if (dd.options[i].value === settings.posixZone) {
-                        dd.selectedIndex = i;
-                        break;
-                    }
-                }
-                general.setAppVersion();
                 document.getElementById('spanFwVersion').innerText = settings.fwVersion;
-                document.getElementsByName('hostname')[0].value = settings.hostname;
-                document.getElementsByName('ntptimeserver')[0].value = settings.ntpServer;
-                document.getElementsByName('ssdpBroadcast')[0].checked = settings.ssdpBroadcast;
-                document.getElementById('fldSsid').value = settings.ssid;
-                document.getElementById('fldPassphrase').value = settings.passphrase;
+                general.setAppVersion();
+                ui.toElement(pnl, { general: settings });
             }
         });
-
-    };
-    setAppVersion() { document.getElementById('spanAppVersion').innerText = this.appVersion; };
+    }
+    loadLogin() {
+        getJSONSync('/loginContext', (err, ctx) => {
+            if (err) ui.serviceError(err);
+            else {
+                console.log(ctx);
+                let pnl = document.getElementById('divContainer');
+                pnl.setAttribute('data-securitytype', ctx.type);
+                let fld;
+                switch (ctx.type) {
+                    case 1:
+                        document.getElementById('divPinSecurity').style.display = '';
+                        fld = document.getElementById('divPinSecurity').querySelector('.pin-digit[data-bind="security.pin.d0"]');
+                        document.getElementById('divPinSecurity').querySelector('.pin-digit[data-bind="security.pin.d3"]').addEventListener('digitentered', (evt) => {
+                            general.login();
+                        });
+                        break;
+                    case 2:
+                        document.getElementById('divPasswordSecurity').style.display = '';
+                        fld = document.getElementById('fldUsername');
+                        break;
+                }
+                if (fld) fld.focus();
+            }
+        });
+    }
+    setAppVersion() { document.getElementById('spanAppVersion').innerText = this.appVersion; }
     setTimeZones() {
         let dd = document.getElementById('selTimeZone');
         dd.length = 0;
@@ -541,76 +1367,133 @@ class General {
         }
         dd.value = 'UTC0';
         console.log(`Max TZ:${maxLength}`);
-    };
+    }
     setGeneral() {
         let valid = true;
-        let obj = {
-            hostname: document.getElementsByName('hostname')[0].value,
-            posixZone: document.getElementById('selTimeZone').value,
-            ntpServer: document.getElementsByName('ntptimeserver')[0].value,
-            ssdpBroadcast: document.getElementsByName('ssdpBroadcast')[0].checked
-        }
-        console.log(obj);
+        let pnl = document.getElementById('divSystemSettings');
+        let obj = ui.fromElement(pnl).general;
         if (typeof obj.hostname === 'undefined' || !obj.hostname || obj.hostname === '') {
-            errorMessage(document.getElementById('fsGeneralSettings'), 'You must supply a valid host name.');
+            ui.errorMessage(pnl, 'You must supply a valid host name.');
             valid = false;
         }
         if (valid && !/^[a-zA-Z0-9-]+$/.test(obj.hostname)) {
-            errorMessage(document.getElementById('fsGeneralSettings'), 'The host name must only include numbers, letters, or dash.');
+            ui.errorMessage(pnl, 'The host name must only include numbers, letters, or dash.');
             valid = false;
         }
         if (valid && obj.hostname.length > 32) {
-            errorMessage(document.getElementById('fsGeneralSettings'), 'The host name can only be up to 32 characters long.');
+            ui.errorMessage(pnl, 'The host name can only be up to 32 characters long.');
             valid = false;
         }
         if (valid) {
-            if (document.getElementById('btnSaveGeneral').classList.contains('disabled')) return;
-            document.getElementById('btnSaveGeneral').classList.add('disabled');
-            let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
-            putJSON('/setgeneral', obj, (err, response) => {
-                overlay.remove();
-                document.getElementById('btnSaveGeneral').classList.remove('disabled');
+            putJSONSync('/setgeneral', obj, (err, response) => {
+                if (err) ui.serviceError(err);
                 console.log(response);
             });
         }
-    };
+    }
+    setSecurityConfig(security) {
+        // We need to transform the security object so that it can be set to the configuration.
+        let obj = {
+            security: {
+                type: security.type, username: security.username, password: security.password,
+                permissions: { configOnly: makeBool(security.permissions & 0x01) },
+                pin: {
+                    d0: security.pin[0],
+                    d1: security.pin[1],
+                    d2: security.pin[2],
+                    d3: security.pin[3]
+                }
+            }
+        };
+        ui.toElement(document.getElementById('divSecurityOptions'), obj);
+        this.onSecurityTypeChanged();
+    }
     rebootDevice() {
-        promptMessage(document.getElementById('fsGeneralSettings'), 'Are you sure you want to reboot the device?', () => {
-            socket.close(3000, 'reboot');
-            let overlay = waitMessage(document.getElementById('fsGeneralSettings'));
-            putJSON('/reboot', {}, (err, response) => {
-                overlay.remove();
+        ui.promptMessage(document.getElementById('divContainer'), 'Are you sure you want to reboot the device?', () => {
+            if(typeof socket !== 'undefined') socket.close(3000, 'reboot');
+            putJSONSync('/reboot', {}, (err, response) => {
                 document.getElementById('btnSaveGeneral').classList.remove('disabled');
                 console.log(response);
             });
-            clearErrors();
+            ui.clearErrors();
         });
-    };
-    isConfigOpen() {
-        let divCfg = document.getElementById('divConfigPnl');
-        return (window.getComputedStyle(divCfg).display !== 'none');
-    };
-    toggleConfig() {
-        let divCfg = document.getElementById('divConfigPnl');
-        let divHome = document.getElementById('divHomePnl');
-        if (window.getComputedStyle(divCfg).display === 'none') {
-            divHome.style.display = 'none';
-            divCfg.style.display = '';
-            document.getElementById('icoConfig').className = 'icss-home';
-            if (sockIsOpen) socket.send('join:0');
+    }
+    onSecurityTypeChanged() {
+        let pnl = document.getElementById('divSecurityOptions');
+        let sec = ui.fromElement(pnl).security;
+        switch (sec.type) {
+            case 0:
+                pnl.querySelector('#divPermissions').style.display = 'none';
+                pnl.querySelector('#divPinSecurity').style.display = 'none';
+                pnl.querySelector('#divPasswordSecurity').style.display = 'none';
+                break;
+            case 1:
+                pnl.querySelector('#divPermissions').style.display = '';
+                pnl.querySelector('#divPinSecurity').style.display = '';
+                pnl.querySelector('#divPasswordSecurity').style.display = 'none';
+                break;
+            case 2:
+                pnl.querySelector('#divPermissions').style.display = '';
+                pnl.querySelector('#divPinSecurity').style.display = 'none';
+                pnl.querySelector('#divPasswordSecurity').style.display = '';
+                break;
+
         }
-        else {
-            divHome.style.display = '';
-            divCfg.style.display = 'none';
-            document.getElementById('icoConfig').className = 'icss-gear';
-            if (sockIsOpen) socket.send('leave:0');
-       }
-        somfy.closeEditShade();
-        somfy.closeConfigTransceiver();
-    };
-};
+    }
+    saveSecurity() {
+        let security = ui.fromElement(document.getElementById('divSecurityOptions')).security;
+        console.log(security);
+        let sec = { type: security.type, username: security.username, password: security.password, pin: '', perm: 0 };
+        // Pin entry.
+        for (let i = 0; i < 4; i++) {
+            sec.pin += security.pin[`d${i}`];
+        }
+        sec.permissions |= security.permissions.configOnly ? 0x01 : 0x00;
+        let confirm = '';
+        console.log(sec);
+        if (security.type === 1) { // Pin Entry
+            // Make sure our pin is 4 digits.
+            if (sec.pin.length !== 4) {
+                ui.errorMessage('Invalid Pin').querySelector('.sub-message').innerHTML = 'Pins must be exactly 4 alpha-numeric values in length.  Please enter a complete pin.';
+                return;
+            }
+            confirm = '<p>Please keep your PIN safe and above all remember it.  The only way to recover a lost PIN is to completely reload the onboarding firmware which will wipe out your configuration.</p><p>Have you stored your PIN in a safe place?</p>'
+        }
+        else if (security.type === 2) { // Password
+            if (sec.username.length === 0) {
+                ui.errorMessage('No Username Provided').querySelector('.sub-message').innerHTML = 'You must provide a username for password security.';
+                return;
+            }
+            if (sec.password.length === 0) {
+                ui.errorMessage('No Password Provided').querySelector('.sub-message').innerHTML = 'You must provide a password for password security.';
+                return;
+            }
+            if (security.repeatpassword.length === 0) {
+                ui.errorMessage('Re-enter Password').querySelector('.sub-message').innerHTML = 'You must re-enter the password in the Re-enter Password field.';
+                return;
+            }
+            if (sec.password !== security.repeatpassword) {
+                ui.errorMessage('Passwords do not Match').querySelector('.sub-message').innerHTML = 'Please re-enter the password exactly as you typed it in the Re-enter Password field.';
+                return;
+            }
+            confirm = '<p>Please keep your password safe and above all remember it.  The only way to recover a password is to completely reload the onboarding firmware which will wipe out your configuration.</p><p>Have you stored your username and password in a safe place?</p>'
+        }
+        let prompt = ui.promptMessage('Confirm Security', () => {
+            putJSONSync('/saveSecurity', sec, (err, objApiKey) => {
+                prompt.remove();
+                if (err) ui.serviceError(err);
+                else {
+                    console.log(objApiKey);
+                }
+            });
+        });
+        prompt.querySelector('.sub-message').innerHTML = confirm;
+
+    }
+}
 var general = new General();
 class Wifi {
+    initialized = false;
     ethBoardTypes = [{ val: 0, label: 'Custom Config' },
     { val: 1, label: 'WT32-ETH01', clk: 0, ct: 0, addr: 1, pwr: 16, mdc: 23, mdio: 18 },
     { val: 2, label: 'Olimex ESP32-POE', clk: 3, ct: 0, addr: 0, pwr: 12, mdc: 23, mdio: 18 },
@@ -623,6 +1506,7 @@ class Wifi {
     ethPhyTypes = [{ val: 0, label: 'LAN8720' }, { val: 1, label: 'TLK110' }, { val: 2, label: 'RTL8201' }, { val: 3, label: 'DP83848' }, { val: 4, label: 'DM9051' }, { val: 5, label: 'KZ8081' }];
     init() {
         document.getElementById("divNetworkStrength").innerHTML = this.displaySignal(-100);
+        if (this.initialized) return;
         let addr = [];
         this.loadETHDropdown(document.getElementById('selETHClkMode'), this.ethClockModes);
         this.loadETHDropdown(document.getElementById('selETHPhyType'), this.ethPhyTypes);
@@ -632,10 +1516,13 @@ class Wifi {
         this.loadETHPins(document.getElementById('selETHPWRPin'), 'power');
         this.loadETHPins(document.getElementById('selETHMDCPin'), 'mdc', 23);
         this.loadETHPins(document.getElementById('selETHMDIOPin'), 'mdio', 18);
-        if (typeof document.querySelector('div.tab-container > span.selected[data-grpid="fsWiFiSettings"]') !== 'undefined') {
-            this.loadNetwork();
-        }
-    };
+        ui.toElement(document.getElementById('divNetAdapter'), {
+            wifi: {ssid:'', passphrase:''},
+            ethernet: { boardType: 1, wirelessFallback: false, dhcp: true, dns1: '', dns2: '', ip: '', gateway: '' }
+        });
+        this.onETHBoardTypeChanged(document.getElementById('selETHBoardType'));
+        this.initialized = true;
+    }
     loadETHPins(sel, type, selected) {
         let arr = [];
         switch (type) {
@@ -647,14 +1534,14 @@ class Wifi {
             arr.push({ val: i, label: `GPIO ${i}` });
         }
         this.loadETHDropdown(sel, arr, selected);
-    };
+    }
     loadETHDropdown(sel, arr, selected) {
         while (sel.firstChild) sel.removeChild(sel.firstChild);
         for (let i = 0; i < arr.length; i++) {
             let elem = arr[i];
             sel.options[sel.options.length] = new Option(elem.label, elem.val, elem.val === selected, elem.val === selected);
         }
-    };
+    }
     onETHBoardTypeChanged(sel) {
         let type = this.ethBoardTypes.find(elem => parseInt(sel.value, 10) === elem.val);
         if (typeof type !== 'undefined') {
@@ -667,34 +1554,19 @@ class Wifi {
             if (typeof type.mdio !== 'undefined') document.getElementById('selETHMDIOPin').value = type.mdio;
             document.getElementById('divETHSettings').style.display = type.val === 0 ? '' : 'none';
         }
-    };
-    onDHCPClicked(cb) { document.getElementById('divStaticIP').style.display = cb.checked ? 'none' : ''; };
+    }
+    onDHCPClicked(cb) { document.getElementById('divStaticIP').style.display = cb.checked ? 'none' : ''; }
     loadNetwork() {
-        let overlay = waitMessage(document.getElementById('fsWiFiSettings'));
-        getJSON('/networksettings', (err, settings) => {
-            overlay.remove();
+        let pnl = document.getElementById('divNetAdapter');
+        getJSONSync('/networksettings', (err, settings) => {
             console.log(settings);
             if (err) {
-                serviceError(document.getElementById('fsWiFiSettings'), err);
+                ui.serviceError(err);
             }
             else {
-                document.getElementById('fldSsid').value = settings.wifi.ssid;
-                document.getElementById('fldPassphrase').value = settings.wifi.passphrase;
-                document.getElementById('selETHBoardType').value = settings.ethernet.boardType;
-                document.getElementById('cbUseDHCP').checked = settings.ethernet.dhcp;
                 document.getElementById('cbHardwired').checked = settings.connType >= 2;
                 document.getElementById('cbFallbackWireless').checked = settings.connType === 3;
-                document.getElementById('selETHPhyType').value = settings.ethernet.phyType;
-                document.getElementById('selETHAddress').value = settings.ethernet.phyAddress;
-                document.getElementById('selETHClkMode').value = settings.ethernet.CLKMode;
-                document.getElementById('selETHPWRPin').value = settings.ethernet.PWRPin;
-                document.getElementById('selETHMDCPin').value = settings.ethernet.MDCPin;
-                document.getElementById('selETHMDIOPin').value = settings.ethernet.MDIOPin;
-                document.getElementById('fldIPAddress').value = settings.ethernet.ip;
-                document.getElementById('fldSubnetMask').value = settings.ethernet.subnet;
-                document.getElementById('fldGateway').value = settings.ethernet.gateway;
-                document.getElementById('fldDNS1').value = settings.ethernet.dns1;
-                document.getElementById('fldDNS2').value = settings.ethernet.dns2;
+                ui.toElement(pnl, settings);
                 if (settings.connType >= 2) {
                     document.getElementById('divWiFiMode').style.display = 'none';
                     document.getElementById('divEthernetMode').style.display = '';
@@ -705,16 +1577,13 @@ class Wifi {
                     document.getElementById('divEthernetMode').style.display = 'none';
                     document.getElementById('divFallbackWireless').style.display = 'none';
                 }
-                if (settings.ethernet.boardType === 0) {
-                    document.getElementById('divETHSettings').style.display = '';
-                }
-                else {
-                    document.getElementById('divETHSettings').style.display = 'none';
-                }
+                document.getElementById('divETHSettings').style.display = settings.ethernet.boardType === 0 ? '' : 'none';
+                document.getElementById('divStaticIP').style.display = settings.ip.dhcp ? 'none' : '';
+                ui.toElement(document.getElementById('divDHCP'), settings);
             }
         });
 
-    };
+    }
     useEthernetClicked() {
         let useEthernet = document.getElementById('cbHardwired').checked;
         document.getElementById('divWiFiMode').style.display = useEthernet ? 'none' : '';
@@ -737,7 +1606,7 @@ class Wifi {
                 this.displayAPs(aps);
             }
         });
-    };
+    }
     displayAPs(aps) {
         let div = '';
         let nets = [];
@@ -764,7 +1633,7 @@ class Wifi {
         //document.getElementsByName('ssid')[0].value = aps.connected.name;
         //document.getElementsByName('passphrase')[0].value = aps.connected.passphrase;
         //this.procWifiStrength(aps.connected);
-    };
+    }
     selectSSID(el) {
         let obj = {
             name: el.querySelector('span.ssid').innerHTML,
@@ -774,7 +1643,7 @@ class Wifi {
         }
         console.log(obj);
         document.getElementsByName('ssid')[0].value = obj.name;
-    };
+    }
     calcWaveStrength(sig) {
         let wave = 0;
         if (sig > -90) wave++;
@@ -783,46 +1652,70 @@ class Wifi {
         if (sig > -67) wave++;
         if (sig > -30) wave++;
         return wave;
-    };
+    }
     displaySignal(sig) {
         return `<div class="signal waveStrength-${this.calcWaveStrength(sig)}"><div class="wv4 wave"><div class="wv3 wave"><div class="wv2 wave"><div class="wv1 wave"><div class="wv0 wave"></div></div></div></div></div></div>`;
-    };
-    saveNetwork() {
-        
-        let obj = {
-            connType: document.getElementById('cbHardwired').checked ?  document.getElementById('cbFallbackWireless').checked ? 3 : 2 : 1,
-            wifi: {},
-            ethernet: {}
-        };
-        if (obj.connType >= 2) {
-            // We are connecting to a LAN but we need the user to be sure about this since
-            // the information needs to be correct.  Incorrect settings can destroy the board.
-            obj.ethernet = {
-                boardType: parseInt(document.getElementById('selETHBoardType').value, 10),
-                phyType: parseInt(document.getElementById('selETHPhyType').value, 10),
-                phyAddress: parseInt(document.getElementById('selETHAddress').value, 10),
-                dhcp: document.getElementById('cbUseDHCP').checked,
-                CLKMode: parseInt(document.getElementById('selETHClkMode').value, 10),
-                PWRPin: parseInt(document.getElementById('selETHPWRPin').value, 10),
-                MDCPin: parseInt(document.getElementById('selETHMDCPin').value, 10),
-                MDIOPin: parseInt(document.getElementById('selETHMDIOPin').value, 10),
-                ip: document.getElementById('fldIPAddress').value,
-                subnet: document.getElementById('fldSubnetMask').value,
-                gateway: document.getElementById('fldGateway').value,
-                dns1: document.getElementById('fldDNS1').value,
-                dns2: document.getElementById('fldDNS2').value
+    }
+    saveIPSettings() {
+        let pnl = document.getElementById('divDHCP');
+        let obj = ui.fromElement(pnl).ip;
+        console.log(obj);
+        if (!obj.dhcp) {
+            let fnValidateIP = (addr) => { return /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(addr); };
+            if (typeof obj.ip !== 'string' || obj.ip.length === 0 || obj.ip === '0.0.0.0') {
+                ui.errorMessage('You must supply a valid IP address for the Static IP Address');
+                return;
             }
-
-
+            else if (!fnValidateIP(obj.ip)) {
+                ui.errorMessage('Invalid Static IP Address.  IP addresses are in the form XXX.XXX.XXX.XXX');
+                return;
+            }
+            if (typeof obj.subnet !== 'string' || obj.subnet.length === 0 || obj.subnet === '0.0.0.0') {
+                ui.errorMessage('You must supply a valid IP address for the Subnet Mask');
+                return;
+            }
+            else if (!fnValidateIP(obj.subnet)) {
+                ui.errorMessage('Invalid Subnet IP Address.  IP addresses are in the form XXX.XXX.XXX.XXX');
+                return;
+            }
+            if (typeof obj.gateway !== 'string' || obj.gateway.length === 0 || obj.gateway === '0.0.0.0') {
+                ui.errorMessage('You must supply a valid Gateway IP address');
+                return;
+            }
+            else if (!fnValidateIP(obj.gateway)) {
+                ui.errorMessage('Invalid Gateway IP Address.  IP addresses are in the form XXX.XXX.XXX.XXX');
+                return;
+            }
+            if (obj.dns1.length !== 0 && !fnValidateIP(obj.dns1)) {
+                ui.errorMessage('Invalid Domain Name Server 1 IP Address.  IP addresses are in the form XXX.XXX.XXX.XXX');
+                return;
+            }
+            if (obj.dns2.length !== 0 && !fnValidateIP(obj.dns2)) {
+                ui.errorMessage('Invalid Domain Name Server 2 IP Address.  IP addresses are in the form XXX.XXX.XXX.XXX');
+                return;
+            }
+        }
+        putJSONSync('/setIP', obj, (err, response) => {
+            if (err) {
+                ui.serviceError(err);
+            }
+            console.log(response);
+        });
+    }
+    saveNetwork() {
+        let pnl = document.getElementById('divNetAdapter');
+        let obj = ui.fromElement(pnl);
+        obj.connType = obj.ethernet.hardwired ? obj.ethernet.wirelessFallback ? 3 : 2 : 1;
+        console.log(obj);
+        if (obj.connType >= 2) {
             let boardType = this.ethBoardTypes.find(elem => obj.ethernet.boardType === elem.val);
             let phyType = this.ethPhyTypes.find(elem => obj.ethernet.phyType === elem.val);
             let clkMode = this.ethClockModes.find(elem => obj.ethernet.CLKMode === elem.val);
             let div = document.createElement('div');
-            let html = `<form id="frmSetLAN"><div id="divLanSettings" class="instructions" style="display:block;height:auto;min-height:100%">`;
-            html += '<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="background:yellow;padding:10px;display:inline-block;border-radius:5px;background:white;">BEWARE ... WARNING ... DANGER<span></div>';
-            html += '<hr style="width:100%;margin:0px;"></hr>';
+            let html = `<div id="divLanSettings" class="inst-overlay">`;
+            html += '<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="padding:10px;display:inline-block;width:100%;border-radius:5px;border-top-right-radius:17px;border-top-left-radius:17px;background:white;">BEWARE ... WARNING ... DANGER<span></div>';
             html += '<p style="font-size:14px;">Incorrect Ethernet settings can damage your ESP32.  Please verify the settings below and ensure they match the manufacturer spec sheet.</p>';
-            html += '<p style="font-size:14px;">If you are unsure do not press the Red button and press the Green button.  If any of the settings are incorrect please use the Custom Board type and set them to the correct values.';
+            html += '<p style="font-size:14px;margin-bottom:0px;">If you are unsure do not press the Red button and press the Green button.  If any of the settings are incorrect please use the Custom Board type and set them to the correct values.';
             html += '<hr/><div>';
             html += `<div class="eth-setting-line"><label>Board Type</label><span>${boardType.label} [${boardType.val}]</span></div>`;
             html += `<div class="eth-setting-line"><label>PHY Chip Type</label><span>${phyType.label} [${phyType.val}]</span></div>`;
@@ -834,31 +1727,25 @@ class Wifi {
             html += '</div>'
             html += `<div class="button-container">`
             html += `<button id="btnSaveEthernet" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;">Save Ethernet Settings</button>`
-            html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('frmSetLAN').remove();">Cancel</button>`
+            html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('divLanSettings').remove();">Cancel</button>`
             html += `</div><form>`;
             div.innerHTML = html;
             document.getElementById('divContainer').appendChild(div);
             div.querySelector('#btnSaveEthernet').addEventListener('click', (el, event) => {
                 console.log(obj);
-                document.getElementById('frmSetLAN').remove();
                 this.sendNetworkSettings(obj);
+                setTimeout(() => { div.remove(); }, 1);
             });
         }
         else {
-            obj.wifi = {
-                ssid: document.getElementsByName('ssid')[0].value,
-                passphrase: document.getElementsByName('passphrase')[0].value
-            };
             this.sendNetworkSettings(obj);
         }
     }
     sendNetworkSettings(obj) {
-        if (document.getElementById('btnSaveNetwork').classList.contains('disabled')) return;
-        document.getElementById('btnSaveNetwork').classList.add('disabled');
-        let overlay = waitMessage(document.getElementById('divContainer'));
-        putJSON('/setNetwork', obj, (err, response) => {
-            overlay.remove();
-            document.getElementById('btnSaveNetwork').classList.remove('disabled');
+        putJSONSync('/setNetwork', obj, (err, response) => {
+            if (err) {
+                ui.serviceError(err);
+            }
             console.log(response);
         });
     }
@@ -869,14 +1756,14 @@ class Wifi {
             ssid: document.getElementsByName('ssid')[0].value,
             passphrase: document.getElementsByName('passphrase')[0].value
         }
-        let overlay = waitMessage(document.getElementById('fsWiFiSettings'));
+        let overlay = ui.waitMessage(document.getElementById('divNetAdapter'));
         putJSON('/connectwifi', obj, (err, response) => {
             overlay.remove();
             document.getElementById('btnConnectWiFi').classList.remove('disabled');
             console.log(response);
 
         });
-    };
+    }
     procWifiStrength(strength) {
         let ssid = strength.ssid || strength.name;
         document.getElementById('spanNetworkSSID').innerHTML = !ssid || ssid === '' ? '-------------' : ssid;
@@ -899,90 +1786,52 @@ class Wifi {
 };
 var wifi = new Wifi();
 class Somfy {
+    initialized = false;
     frames = [];
-    async init() {
+    init() {
+        if (this.initialized) return;
         this.loadPins('inout', document.getElementById('selTransSCKPin'));
         this.loadPins('inout', document.getElementById('selTransCSNPin'));
         this.loadPins('inout', document.getElementById('selTransMOSIPin'));
         this.loadPins('input', document.getElementById('selTransMISOPin'));
         this.loadPins('out', document.getElementById('selTransTXPin'));
         this.loadPins('input', document.getElementById('selTransRXPin'));
-        this.loadSomfy();
+        //this.loadSomfy();
+        ui.toElement(document.getElementById('divTransceiverSettings'), {
+            transceiver: { config: { proto: 0, SCKPin: 18, CSNPin: 5, MOSIPin: 23, MISOPin: 19, TXPin: 12, RXPin: 13, frequency: 433.42, rxBandwidth: 97.96, type:56, deviation: 11.43, txPower: 10, enabled: false } }
+        });
+        this.initialized = true;
     }
     async loadSomfy() {
-        console.log(self);
-        let overlay = waitMessage(document.getElementById('fsSomfySettings'));
-        getJSON('/controller', (err, somfy) => {
-            overlay.remove();
+        getJSONSync('/controller', (err, somfy) => {
             if (err) {
                 console.log(err);
-                serviceError(document.getElementById('fsSomfySettings'), err);
+                ui.serviceError(err);
             }
             else {
                 console.log(somfy);
-                document.getElementById('selTransSCKPin').value = somfy.transceiver.config.SCKPin.toString();
-                document.getElementById('selTransCSNPin').value = somfy.transceiver.config.CSNPin.toString();
-                document.getElementById('selTransMOSIPin').value = somfy.transceiver.config.MOSIPin.toString();
-                document.getElementById('selTransMISOPin').value = somfy.transceiver.config.MISOPin.toString();
-                document.getElementById('selTransTXPin').value = somfy.transceiver.config.TXPin.toString();
-                document.getElementById('selTransRXPin').value = somfy.transceiver.config.RXPin.toString();
-                document.getElementById('selRadioType').value = somfy.transceiver.config.type;
-                document.getElementById('selRadioProto').value = somfy.transceiver.config.proto;
                 document.getElementById('spanMaxShades').innerText = somfy.maxShades;
-                document.getElementById('spanFrequency').innerText = (Math.round(somfy.transceiver.config.frequency * 1000) / 1000).fmt('#,##0.000');
-                document.getElementById('slidFrequency').value = Math.round(somfy.transceiver.config.frequency * 1000);
-                document.getElementById('spanRxBandwidth').innerText = (Math.round(somfy.transceiver.config.rxBandwidth * 100) / 100).fmt('#,##0.00');
-                document.getElementById('slidRxBandwidth').value = Math.round(somfy.transceiver.config.rxBandwidth * 100);
-                document.getElementById('spanTxPower').innerText = somfy.transceiver.config.txPower;
-                document.getElementById('spanDeviation').innerText = (Math.round(somfy.transceiver.config.deviation * 100) / 100).fmt('#,##0.00');
-                document.getElementById('slidDeviation').value = Math.round(somfy.transceiver.config.deviation * 100);
-                document.getElementsByName('enableRadio')[0].checked = somfy.transceiver.config.enabled;
+                document.getElementById('spanMaxGroups').innerText = somfy.maxGroups;
+                ui.toElement(document.getElementById('divTransceiverSettings'), somfy);
                 if (somfy.transceiver.config.radioInit) {
                     document.getElementById('divRadioError').style.display = 'none';
                 }
                 else {
                     document.getElementById('divRadioError').style.display = '';
                 }
-
-
-                let tx = document.getElementById('slidTxPower');
-                let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];
-                for (let i = lvls.length - 1; i >= 0; i--) {
-                    if (lvls[i] === somfy.transceiver.config.txPower) {
-                        tx.value = i;
-                    }
-                    else if (lvls[i < somfy.transceiver.config.txPower] < somfy.transceiver.txPower) {
-                        tx.value = i + 1;
-                    }
-                }
-
                 // Create the shades list.
                 this.setShadesList(somfy.shades);
+                this.setGroupsList(somfy.groups);
             }
         });
-    };
+    }
     saveRadio() {
         let valid = true;
         let getIntValue = (fld) => { return parseInt(document.getElementById(fld).value, 10); }
-        let obj = {
-            enabled: document.getElementsByName('enableRadio')[0].checked,
-            type: parseInt(document.getElementById('selRadioType').value, 10),
-            proto: parseInt(document.getElementById('selRadioProto').value, 10),
-            SCKPin: getIntValue('selTransSCKPin'),
-            CSNPin: getIntValue('selTransCSNPin'),
-            MOSIPin: getIntValue('selTransMOSIPin'),
-            MISOPin: getIntValue('selTransMISOPin'),
-            TXPin: getIntValue('selTransTXPin'),
-            RXPin: getIntValue('selTransRXPin'),
-            frequency: (Math.round(parseFloat(document.getElementById('spanFrequency').innerText) * 1000)) / 1000,
-            rxBandwidth: (Math.round(parseFloat(document.getElementById('spanRxBandwidth').innerText) * 100)) / 100,
-            txPower: parseInt(document.getElementById('spanTxPower').innerText, 10),
-            deviation: (Math.round(parseFloat(document.getElementById('spanDeviation').innerText) * 100)) / 100
-        };
-        console.log(obj);
+        let trans = ui.fromElement(document.getElementById('divTransceiverSettings')).transceiver;
         // Check to make sure we have a trans type.
-        if (typeof obj.type === 'undefined' || obj.type === '' || obj.type === 'none') {
-            errorMessage(document.getElementById('fsSomfySettings'), 'You must select a radio type.');
+        if (typeof trans.config.type === 'undefined' || trans.config.type === '' || trans.config.type === 'none') {
+            ui.errorMessage('You must select a radio type.');
             valid = false;
         }
         // Check to make sure no pins were duplicated and defined
@@ -990,14 +1839,14 @@ class Somfy {
             let fnValDup = (o, name) => {
                 let val = o[name];
                 if (typeof val === 'undefined' || isNaN(val)) {
-                    errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
+                    ui.errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
                     return false;
                 }
                 for (let s in o) {
                     if (s.endsWith('Pin') && s !== name) {
                         let sval = o[s];
                         if (typeof sval === 'undefined' || isNaN(sval)) {
-                            errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
+                            ui.errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
                             return false;
                         }
                         if (sval === val) {
@@ -1005,7 +1854,7 @@ class Somfy {
                                 (name === 'RXPin' && s === 'TXPin'))
                                 continue; // The RX and TX pins can share the same value.  In this instance the radio will only use GDO0.
                             else {
-                                errorMessage(document.getElementById('fsSomfySettings'), `The ${name.replace('Pin', '')} pin is duplicated by the ${s.replace('Pin', '')}.  All pin definitions must be unique`);
+                                ui.errorMessage(document.getElementById('fsSomfySettings'), `The ${name.replace('Pin', '')} pin is duplicated by the ${s.replace('Pin', '')}.  All pin definitions must be unique`);
                                 valid = false;
                                 return false;
                             }
@@ -1014,19 +1863,16 @@ class Somfy {
                 }
                 return true;
             };
-            if (valid) valid = fnValDup(obj, 'SCKPin');
-            if (valid) valid = fnValDup(obj, 'CSNPin');
-            if (valid) valid = fnValDup(obj, 'MOSIPin');
-            if (valid) valid = fnValDup(obj, 'MISOPin');
-            if (valid) valid = fnValDup(obj, 'TXPin');
-            if (valid) valid = fnValDup(obj, 'RXPin');
+            if (valid) valid = fnValDup(trans.config, 'SCKPin');
+            if (valid) valid = fnValDup(trans.config, 'CSNPin');
+            if (valid) valid = fnValDup(trans.config, 'MOSIPin');
+            if (valid) valid = fnValDup(trans.config, 'MISOPin');
+            if (valid) valid = fnValDup(trans.config, 'TXPin');
+            if (valid) valid = fnValDup(trans.config, 'RXPin');
             if (valid) {
-                let overlay = waitMessage(document.getElementById('fsSomfySettings'));
-                putJSON('/saveRadio', { config: obj }, (err, trans) => {
-                    overlay.remove();
-                    if (err) {
-                        serviceError(document.getElementById('fsSomfySettings'), err);
-                    }
+                putJSONSync('/saveRadio', trans, (err, trans) => {
+                    if (err) 
+                        ui.serviceError(err);
                     else {
                         document.getElementById('btnSaveRadio').classList.remove('disabled');
                         if (trans.config.radioInit) {
@@ -1179,7 +2025,52 @@ class Somfy {
                 }
             }, true);
         }
-    };
+    }
+    setGroupsList(groups) {
+        let divCfg = '';
+        let divCtl = '';
+        for (let i = 0; i < groups.length; i++) {
+            let group = groups[i];
+            divCfg += `<div class="somfyGroup" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
+            divCfg += `<div class="button-outline" onclick="somfy.openEditGroup(${group.groupId});"><i class="icss-edit"></i></div>`;
+            //divCfg += `<i class="Group-icon" data-position="${Group.position || 0}%"></i>`;
+            divCfg += `<span class="group-name">${group.name}</span>`;
+            divCfg += `<span class="group-address">${group.remoteAddress}</span>`;
+            divCfg += `<div class="button-outline" onclick="somfy.deleteGroup(${group.groupId});"><i class="icss-trash"></i></div>`;
+            divCfg += '</div>';
+
+            divCtl += `<div class="somfyGroupCtl" data-groupId="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
+            divCtl += `<div class="group-name">`;
+            divCtl += `<span class="groupctl-name">${group.name}</span>`;
+            divCtl += `<div class="groupctl-shades">`
+            for (let j = 0; j < group.linkedShades.length; j++) {
+                divCtl += '<span>';
+                if (j !== 0) divCtl += ', ';
+                divCtl += group.linkedShades[j].name;
+                divCtl += '</span>';
+            }
+            divCtl += '</div></div>';
+            divCtl += `<div class="groupctl-buttons">`;
+            divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-groupid="${group.groupId}"><i class="icss-somfy-up"></i></div>`;
+            divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-groupid="${group.groupId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
+            divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-groupid="${group.groupId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
+            divCtl += '</div></div>';
+        }
+        document.getElementById('divGroupList').innerHTML = divCfg;
+        let groupControls = document.getElementById('divGroupControls');
+        groupControls.innerHTML = divCtl;
+        // Attach the timer for setting the My Position for the Group.
+        let btns = groupControls.querySelectorAll('div.cmd-button');
+        for (let i = 0; i < btns.length; i++) {
+            btns[i].addEventListener('click', (event) => {
+                console.log(this);
+                console.log(event);
+                let cmd = event.currentTarget.getAttribute('data-cmd');
+                let groupId = parseInt(event.currentTarget.getAttribute('data-groupid'), 10);
+                this.sendGroupCommand(groupId, cmd);
+            }, true);
+        }
+    }
     closeShadePositioners() {
         let ctls = document.querySelectorAll('.shade-positioner');
         for (let i = 0; i < ctls.length; i++) {
@@ -1258,7 +2149,7 @@ class Somfy {
     }
     sendShadeMyPosition(shadeId, pos, tilt) {
         console.log(`Sending My Position for shade id ${shadeId} to ${pos} and ${tilt}`);
-        let overlay = waitMessage(document.getElementById('divContainer'));
+        let overlay = ui.waitMessage(document.getElementById('divContainer'));
         putJSON('/setMyPosition', { shadeId: shadeId, pos: pos, tilt: tilt }, (err, response) => {
             this.closeShadePositioners();
             overlay.remove();
@@ -1276,7 +2167,19 @@ class Somfy {
             divCfg += '</div>';
         }
         document.getElementById('divLinkedRemoteList').innerHTML = divCfg;
-    };
+    }
+    setLinkedShadesList(group) {
+        let divCfg = '';
+        for (let i = 0; i < group.linkedShades.length; i++) {
+            let shade = group.linkedShades[i];
+            divCfg += `<div class="linked-shade" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}">`;
+            divCfg += `<span class="linkedshade-name">${shade.name}</span>`;
+            divCfg += `<span class="linkedshade-address">${shade.remoteAddress}</span>`;
+            divCfg += `<div class="button-outline" onclick="somfy.unlinkGroupShade(${group.groupId}, ${shade.shadeId});"><i class="icss-trash"></i></div>`;
+            divCfg += '</div>';
+        }
+        document.getElementById('divLinkedShadeList').innerHTML = divCfg;
+    }
     loadPins(type, sel, opt) {
         while (sel.firstChild) sel.removeChild(sel.firstChild);
         for (let i = 0; i < 40; i++) {
@@ -1303,7 +2206,7 @@ class Somfy {
             }
             sel.options[sel.options.length] = new Option(`GPIO-${i > 9 ? i.toString() : '0' + i.toString()}`, i, typeof opt !== 'undefined' && opt === i);
         }
-    };
+    }
     procShadeState(state) {
         console.log(state);
         let icons = document.querySelectorAll(`.somfy-shade-icon[data-shadeid="${state.shadeId}"]`);
@@ -1342,7 +2245,7 @@ class Somfy {
             span = divs[i].querySelector('#spanMyTiltPos');
             if (span) span.innerHTML = typeof state.myTiltPos !== 'undefined' && state.myTiltPos >= 0 ? `${state.myTiltPos}%` : '---';
         }
-    };
+    }
     procRemoteFrame(frame) {
         console.log(frame);
         document.getElementById('spanRssi').innerHTML = frame.rssi;
@@ -1354,7 +2257,7 @@ class Somfy {
                 remoteAddress: frame.address,
                 rollingCode: frame.rcode
             };
-            let overlay = waitMessage(document.getElementById('divLinking'));
+            let overlay = ui.waitMessage(document.getElementById('divLinking'));
             putJSON('/linkRemote', obj, (err, shade) => {
                 console.log(shade);
                 overlay.remove();
@@ -1384,7 +2287,7 @@ class Somfy {
         row.innerHTML = html;
         frames.prepend(row);
         this.frames.push(frame);
-    };
+    }
     JSONPretty(obj, indent = 2) {
         if (Array.isArray(obj)) {
             let output = '[';
@@ -1421,14 +2324,6 @@ class Somfy {
             document.body.removeChild(dummy);
         }
     }
-    openConfigTransceiver() {
-        document.getElementById('somfyMain').style.display = 'none';
-        document.getElementById('somfyTransceiver').style.display = '';
-    };
-    closeConfigTransceiver() {
-        document.getElementById('somfyTransceiver').style.display = 'none';
-        document.getElementById('somfyMain').style.display = '';
-    };
     onShadeTypeChanged(el) {
         let sel = document.getElementById('selShadeType');
         let tilt = parseInt(document.getElementById('selTiltType').value, 10);
@@ -1467,41 +2362,35 @@ class Somfy {
         }
         document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
         document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
-    };
+    }
     onShadeBitLengthChanged(el) {
         document.getElementById('divStepSettings').style.display = parseInt(el.value, 10) === 80 ? '' : 'none';
     }
     openEditShade(shadeId) {
-        console.log('Opening Edit Shade');
         if (typeof shadeId === 'undefined') {
-            let overlay = waitMessage(document.getElementById('fsSomfySettings'));
-            getJSON('/getNextShade', (err, shade) => {
-                overlay.remove();
+            getJSONSync('/getNextShade', (err, shade) => {
+                document.getElementById('btnPairShade').style.display = 'none';
+                document.getElementById('btnUnpairShade').style.display = 'none';
+                document.getElementById('btnLinkRemote').style.display = 'none';
+                document.getElementById('btnSaveShade').innerText = 'Add Shade';
+                document.getElementById('spanShadeId').innerText = '*';
+                document.getElementById('divLinkedRemoteList').innerHTML = '';
+                document.getElementById('btnSetRollingCode').style.display = 'none';
+                document.getElementById('selShadeBitLength').value = 56;
+                document.getElementById('cbFlipCommands').value = false;
+                document.getElementById('cbFlipPosition').value = false;
+
                 if (err) {
-                    serviceError(document.getElementById('fsSomfySettings'), err);
+                    ui.serviceError(err);
                 }
                 else {
                     console.log(shade);
-                    document.getElementById('btnPairShade').style.display = 'none';
-                    document.getElementById('btnUnpairShade').style.display = 'none';
-                    document.getElementById('btnLinkRemote').style.display = 'none';
-                    document.getElementsByName('shadeUpTime')[0].value = 10000;
-                    document.getElementsByName('shadeDownTime')[0].value = 10000;
-                    document.getElementById('fldTiltTime').value = 7000;
-                    document.getElementById('somfyMain').style.display = 'none';
-                    document.getElementById('somfyShade').style.display = '';
-                    document.getElementById('btnSaveShade').innerText = 'Add Shade';
-                    document.getElementById('spanShadeId').innerText = '*';
-                    document.getElementsByName('shadeName')[0].value = '';
-                    document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
-                    document.getElementById('divLinkedRemoteList').innerHTML = '';
-                    document.getElementById('btnSetRollingCode').style.display = 'none';
-                    document.getElementById('selShadeBitLength').value = shade.bitLength || 56;
-                    document.getElementById('selShadeProto').value = shade.proto || 0;
-                    document.getElementById('slidStepSize').value = shade.stepSize || 100;
-                    document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
-                    document.getElementById('cbFlipCommands').value = shade.flipCommands || false;
-                    document.getElementById('cbFlipPosition').value = shade.flipPosition || false;
+                    shade.name = '';
+                    shade.downTime = shade.upTime = 10000;
+                    shade.tiltTime = 7000;
+                    shade.flipCommands = shade.flipPosition = false;
+                    ui.toElement(document.getElementById('somfyShade'), shade);
+                    this.showEditShade(true);
                 }
             });
         }
@@ -1514,29 +2403,16 @@ class Somfy {
 
             document.getElementById('btnSaveShade').innerText = 'Save Shade';
             document.getElementById('spanShadeId').innerText = shadeId;
-            let overlay = waitMessage(document.getElementById('fsSomfySettings'));
-            getJSON(`/shade?shadeId=${shadeId}`, (err, shade) => {
+            getJSONSync(`/shade?shadeId=${shadeId}`, (err, shade) => {
                 if (err) {
-                    serviceError(document.getElementById('fsSomfySettings'), err);
+                    ui.serviceError(err);
                 }
                 else {
-                    document.getElementById('somfyMain').style.display = 'none';
-                    document.getElementById('somfyShade').style.display = '';
+                    console.log(shade);
+                    ui.toElement(document.getElementById('somfyShade'), shade);
+                    this.showEditShade(true);
                     document.getElementById('btnSaveShade').style.display = 'inline-block';
                     document.getElementById('btnLinkRemote').style.display = '';
-                    document.getElementById('selShadeType').value = shade.shadeType;
-                    document.getElementById('selShadeBitLength').value = shade.bitLength;
-                    document.getElementById('selShadeProto').value = shade.proto;
-                    document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
-                    document.getElementsByName('shadeName')[0].value = shade.name;
-                    document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
-                    document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
-                    document.getElementById('slidStepSize').value = shade.stepSize;
-                    document.getElementById('spanStepSize').innerHTML = shade.stepSize.fmt('#,##0');
-                    document.getElementById('fldTiltTime').value = shade.tiltTime;
-                    document.getElementById('selTiltType').value = shade.tiltType;
-                    document.getElementById('cbFlipCommands').checked = shade.flipCommands;
-                    document.getElementById('cbFlipPosition').checked = shade.flipPosition;
                     this.onShadeTypeChanged(document.getElementById('selShadeType'));
                     let ico = document.getElementById('icoShade');
                     switch (shade.shadeType) {
@@ -1570,128 +2446,236 @@ class Somfy {
                     }
                     this.setLinkedRemotesList(shade);
                 }
-                overlay.remove();
             });
         }
-    };
-    closeEditShade() {
-        let el = document.getElementById('somfyShade');
-        if (el) el.style.display = 'none';
-        document.getElementById('somfyMain').style.display = '';
-        //document.getElementById('somfyShade').style.display = 'none';
-        el = document.getElementById('divLinking');
+    }
+    openEditGroup(groupId) {
+        document.getElementById('btnLinkShade').style.display = 'none';
+        if (typeof groupId === 'undefined') {
+            getJSONSync('/getNextGroup', (err, group) => {
+                document.getElementById('btnSaveGroup').innerText = 'Add Group';
+                document.getElementById('spanGroupId').innerText = '*';
+                document.getElementById('divLinkedShadeList').innerHTML = '';
+                //document.getElementById('btnSetRollingCode').style.display = 'none';
+                if (err) {
+                    ui.serviceError(err);
+                }
+                else {
+                    console.log(group);
+                    group.name = '';
+                    ui.toElement(document.getElementById('somfyGroup'), group);
+                    this.showEditGroup(true);
+                }
+            });
+        }
+        else {
+            // Load up an existing group.
+            document.getElementById('btnSaveGroup').style.display = 'none';
+            document.getElementById('btnSaveGroup').innerText = 'Save Group';
+            document.getElementById('spanGroupId').innerText = groupId;
+            getJSONSync(`/group?groupId=${groupId}`, (err, group) => {
+                if (err) {
+                    ui.serviceError(err);
+                }
+                else {
+                    console.log(group);
+                    ui.toElement(document.getElementById('somfyGroup'), group);
+                    this.showEditGroup(true);
+                    document.getElementById('btnSaveGroup').style.display = 'inline-block';
+                    document.getElementById('btnLinkShade').style.display = '';
+                    document.getElementById('btnSetRollingCode').style.display = 'inline-block';
+                    this.setLinkedShadesList(group);
+                }
+            });
+        }
+    }
+    showEditShade(bShow) {
+        let el = document.getElementById('divLinking');
         if (el) el.remove();
         el = document.getElementById('divPairing');
         if (el) el.remove();
-        el = document.getElementById('frmSetRollingCode');
+        el = document.getElementById('divRollingCode');
         if (el) el.remove();
-
-    };
+        el = document.getElementById('somfyShade');
+        if (el) el.style.display = bShow ? '' : 'none';
+        el = document.getElementById('divShadeListContainer');
+        if (el) el.style.display = bShow ? 'none' : '';
+    }
+    showEditGroup(bShow) {
+        let el = document.getElementById('divLinking');
+        if (el) el.remove();
+        el = document.getElementById('divPairing');
+        if (el) el.remove();
+        el = document.getElementById('divRollingCode');
+        if (el) el.remove();
+        el = document.getElementById('somfyGroup');
+        if (el) el.style.display = bShow ? '' : 'none';
+        el = document.getElementById('divGroupListContainer');
+        if (el) el.style.display = bShow ? 'none' : '';
+    }
     saveShade() {
         let shadeId = parseInt(document.getElementById('spanShadeId').innerText, 10);
-        let obj = {
-            remoteAddress: parseInt(document.getElementsByName('shadeAddress')[0].value, 10),
-            name: document.getElementsByName('shadeName')[0].value,
-            upTime: parseInt(document.getElementsByName('shadeUpTime')[0].value, 10),
-            downTime: parseInt(document.getElementsByName('shadeDownTime')[0].value, 10),
-            shadeType: parseInt(document.getElementById('selShadeType').value, 10),
-            tiltTime: parseInt(document.getElementById('fldTiltTime').value, 10),
-            bitLength: parseInt(document.getElementById('selShadeBitLength').value, 10) || 56,
-            proto: parseInt(document.getElementById('selShadeProto').value, 10) || 0,
-            stepSize: parseInt(document.getElementById('slidStepSize').value, 10) || 100,
-            flipCommands: document.getElementById('cbFlipCommands').checked,
-            flipPosition: document.getElementById('cbFlipPosition').checked
-        };
-        if (obj.shadeType === 1) {
-            obj.tiltType = parseInt(document.getElementById('selTiltType').value, 10);
-        }
-        else obj.tiltType = 0;
+        let obj = ui.fromElement(document.getElementById('somfyShade'));
         let valid = true;
         if (valid && (isNaN(obj.remoteAddress) || obj.remoteAddress < 1 || obj.remoteAddress > 16777215)) {
-            errorMessage(document.getElementById('fsSomfySettings'), 'The remote address must be a number between 1 and 16777215.  This number must be unique for all shades.');
+            ui.errorMessage(document.getElementById('fsSomfySettings'), 'The remote address must be a number between 1 and 16777215.  This number must be unique for all shades.');
             valid = false;
         }
         if (valid && (typeof obj.name !== 'string' || obj.name === '' || obj.name.length > 20)) {
-            errorMessage(document.getElementById('fsSomfySettings'), 'You must provide a name for the shade between 1 and 20 characters.');
+            ui.errorMessage(document.getElementById('fsSomfySettings'), 'You must provide a name for the shade between 1 and 20 characters.');
             valid = false;
         }
         if (valid && (isNaN(obj.upTime) || obj.upTime < 1 || obj.upTime > 4294967295)) {
-            errorMessage(document.getElementById('fsSomfySettings'), 'Up Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full closed to full open.');
+            ui.errorMessage(document.getElementById('fsSomfySettings'), 'Up Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full closed to full open.');
             valid = false;
         }
         if (valid && (isNaN(obj.downTime) || obj.downTime < 1 || obj.downTime > 4294967295)) {
-            errorMessage(document.getElementById('fsSomfySettings'), 'Down Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full open to full closed.');
+            ui.errorMessage(document.getElementById('fsSomfySettings'), 'Down Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full open to full closed.');
             valid = false;
         }
         if (valid) {
-            let overlay = waitMessage(document.getElementById('fsSomfySettings'));
             if (isNaN(shadeId) || shadeId >= 255) {
                 // We are adding.
-                putJSON('/addShade', obj, (err, shade) => {
-                    console.log(shade);
-                    document.getElementById('spanShadeId').innerText = shade.shadeId;
-                    document.getElementById('btnSaveShade').innerText = 'Save Shade';
-
-                    overlay.remove();
-                    document.getElementById('btnSaveShade').style.display = 'inline-block';
-                    document.getElementById('btnLinkRemote').style.display = '';
-                    if (shade.paired) {
-                        document.getElementById('btnUnpairShade').style.display = 'inline-block';
-                    }
+                putJSONSync('/addShade', obj, (err, shade) => {
+                    if (err) ui.serviceError(err);
                     else {
-                        document.getElementById('btnPairShade').style.display = 'inline-block';
+                        console.log(shade);
+                        document.getElementById('spanShadeId').innerText = shade.shadeId;
+                        document.getElementById('btnSaveShade').innerText = 'Save Shade';
+                        document.getElementById('btnSaveShade').style.display = 'inline-block';
+                        document.getElementById('btnLinkRemote').style.display = '';
+                        document.getElementById(shade.paired ? 'btnUnpairShade' : 'btnPairShade').style.display = 'inline-block';
+                        document.getElementById('btnSetRollingCode').style.display = 'inline-block';
+                        this.updateShadeList();
                     }
-                    document.getElementById('btnSetRollingCode').style.display = 'inline-block';
-
                 });
-
             }
             else {
                 obj.shadeId = shadeId;
-                console.log(obj);
-                putJSON('/saveShade', obj, (err, shade) => {
+                putJSONSync('/saveShade', obj, (err, shade) => {
+                    if (err) ui.serviceError(err);
+                    else this.updateShadeList();
                     console.log(shade);
-                    // We are updating.
-                    overlay.remove();
                 });
             }
-            this.updateShadeList();
         }
-    };
-    updateShadeList() {
-        let overlayCfg = waitMessage(document.getElementById('divShadeSection'));
-        let overlayControl = waitMessage(document.getElementById('divShadeControls'));
-        getJSON('/controller', (err, somfy) => {
-            overlayCfg.remove();
-            overlayControl.remove();
-            if (err) {
-                console.log(err);
-                serviceError(document.getElementById('fsSomfySettings'), err);
-            }
-            else {
-                console.log(somfy);
-                // Create the shades list.
-                this.setShadesList(somfy.shades);
-            }
-        });
-    };
-    deleteShade(shadeId) {
+    }
+    saveGroup() {
+        let groupId = parseInt(document.getElementById('spanGroupId').innerText, 10);
+        let obj = ui.fromElement(document.getElementById('somfyGroup'));
         let valid = true;
-        if (isNaN(shadeId) || shadeId >= 255 || shadeId <= 0) {
-            errorMessage(document.getElementById('fsSomfySettings'), 'A valid shade id was not supplied.');
+        if (valid && (isNaN(obj.remoteAddress) || obj.remoteAddress < 1 || obj.remoteAddress > 16777215)) {
+            ui.errorMessage('The remote address must be a number between 1 and 16777215.  This number must be unique for all shades.');
+            valid = false;
+        }
+        if (valid && (typeof obj.name !== 'string' || obj.name === '' || obj.name.length > 20)) {
+            ui.errorMessage('You must provide a name for the shade between 1 and 20 characters.');
             valid = false;
         }
         if (valid) {
-            promptMessage(document.getElementById('fsSomfySettings'), 'Are you sure you want to delete this shade?', () => {
-                clearErrors();
-                let overlay = waitMessage(document.getElementById('fsSomfySettings'));
-                putJSON('/deleteShade', { shadeId: shadeId }, (err, shade) => {
-                    overlay.remove();
-                    this.updateShadeList();
+            if (isNaN(groupId) || groupId >= 255) {
+                // We are adding.
+                putJSONSync('/addGroup', obj, (err, group) => {
+                    if (err) ui.serviceError(err);
+                    else {
+                        console.log(group);
+                        document.getElementById('spanGroupId').innerText = group.groupId;
+                        document.getElementById('btnSaveGroup').innerText = 'Save Group';
+                        document.getElementById('btnSaveGroup').style.display = 'inline-block';
+                        document.getElementById('btnLinkShade').style.display = '';
+                        //document.getElementById('btnSetRollingCode').style.display = 'inline-block';
+                        this.updateGroupList();
+                    }
                 });
+            }
+            else {
+                obj.groupId = groupId;
+                putJSONSync('/saveGroup', obj, (err, shade) => {
+                    if (err) ui.serviceError(err);
+                    else this.updateShadeList();
+                    console.log(shade);
+                });
+            }
+        }
+    }
+    updateShadeList() {
+        getJSONSync('/shades', (err, shades) => {
+            if (err) {
+                console.log(err);
+                ui.serviceError(err);
+            }
+            else {
+                console.log(shades);
+                // Create the shades list.
+                this.setShadesList(shades);
+            }
+        });
+    }
+    updateGroupList() {
+        getJSONSync('/groups', (err, groups) => {
+            if (err) {
+                console.log(err);
+                ui.serviceError(err);
+            }
+            else {
+                console.log(groups);
+                // Create the groups list.
+                this.setGroupsList(groups);
+            }
+        });
+    }
+    deleteShade(shadeId) {
+        let valid = true;
+        if (isNaN(shadeId) || shadeId >= 255 || shadeId <= 0) {
+            ui.errorMessage('A valid shade id was not supplied.');
+            valid = false;
+        }
+        if (valid) {
+            getJSONSync(`/shade?shadeId=${shadeId}`, (err, shade) => {
+                if (err) ui.serviceError(err);
+                else if (shade.inGroup) ui.errorMessage(`You may not delete this shade because it is a member of a group.`);
+                else {
+                    let prompt = ui.promptMessage(`Are you sure you want to delete this shade?`, () => {
+                        ui.clearErrors();
+                        putJSONSync('/deleteShade', { shadeId: shadeId }, (err, shade) => {
+                            this.updateShadeList();
+                            prompt.remove;
+                        });
+                    });
+                    prompt.querySelector('.sub-message').innerHTML = `<p>If this shade was previously paired with a motor, you should first unpair it from the motor and remove it from any groups.  Otherwise its address will remain in the motor memory.</p><p>Press YES to delete ${shade.name} or NO to cancel this operation.</p>`;
+                }
             });
         }
-    };
+    }
+    deleteGroup(groupId) {
+        let valid = true;
+        if (isNaN(groupId) || groupId >= 255 || groupId <= 0) {
+            ui.errorMessage('A valid shade id was not supplied.');
+            valid = false;
+        }
+        if (valid) {
+            getJSONSync(`/group?groupId=${groupId}`, (err, group) => {
+                if (err) ui.serviceError(err);
+                else {
+                    if (group.linkedShades.length > 0) {
+                        ui.errorMessage('You may not delete this group until all shades have been removed from it.');
+                    }
+                    else {
+                        let prompt = ui.promptMessage(`Are you sure you want to delete this group?`, () => {
+                            putJSONSync('/deleteGroup', { groupId: groupId }, (err, g) => {
+                                if (err) ui.serviceError(err);
+                                this.updateGroupList();
+                                prompt.remove();
+                            });
+
+                        });
+                        prompt.querySelector('.sub-message').innerHTML = `<p>Press YES to delete the ${group.name} group or NO to cancel this operation.</p>`;
+                        
+                    }
+                }
+            });
+        }
+    }
     sendPairCommand(shadeId) {
         putJSON('/pairShade', { shadeId: shadeId }, (err, shade) => {
             if (err) {
@@ -1723,7 +2707,7 @@ class Somfy {
             }
 
         });
-    };
+    }
     sendUnpairCommand(shadeId) {
         putJSON('/unpairShade', { shadeId: shadeId }, (err, shade) => {
             if (err) {
@@ -1754,32 +2738,27 @@ class Somfy {
                 document.getElementById('divPairing').remove();
             }
         });
-    };
+    }
     setRollingCode(shadeId, rollingCode) {
-        let dlg = document.getElementById('frmSetRollingCode');
-        let overlay = waitMessage(dlg || document.getElementById('fsSomfySettings'));
-        putJSON('/setRollingCode', { shadeId: shadeId, rollingCode: rollingCode }, (err, shade) => {
-            overlay.remove();
-            if (err) {
-                serviceError(document.getElementById('fsSomfySettings'), err);
-            }
+        putJSONSync('/setRollingCode', { shadeId: shadeId, rollingCode: rollingCode }, (err, shade) => {
+            if (err) ui.serviceError(document.getElementById('fsSomfySettings'), err);
             else {
+                let dlg = document.getElementById('divRollingCode');
                 if (dlg) dlg.remove();
-
             }
         });
     }
     openSetRollingCode(shadeId) {
-        let overlay = waitMessage(document.getElementById('fsSomfySettings'));
+        let overlay = ui.waitMessage(document.getElementById('divContainer'));
         getJSON(`/shade?shadeId=${shadeId}`, (err, shade) => {
             overlay.remove();
             if (err) {
-                serviceError(document.getElementById('fsSomfySettings'), err);
+                ui.serviceError(err);
             }
             else {
                 console.log(shade);
                 let div = document.createElement('div');
-                let html = `<form id="frmSetRollingCode"><div id="divRollingCode" class="instructions" data-shadeid="${shadeId}">`;
+                let html = `<div id="divRollingCode" class="instructions" data-shadeid="${shadeId}">`;
                 html += '<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="background:yellow;padding:10px;display:inline-block;border-radius:5px;background:white;">BEWARE ... WARNING ... DANGER<span></div>';
                 html += '<hr style="width:100%;margin:0px;"></hr>';
                 html += '<p style="font-size:14px;">If this shade is already paired with a motor then changing the rolling code WILL cause it to stop working.  Rolling codes are tied to the remote address and the Somfy motor expects these to be sequential.</p>';
@@ -1791,7 +2770,7 @@ class Somfy {
                 html += `<div class="button-container">`
                 html += `<button id="btnChangeRollingCode" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;" onclick="somfy.setRollingCode(${shadeId}, parseInt(document.getElementById('fldNewRollingCode').value, 10));">Set Rolling Code</button>`
                 html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('frmSetRollingCode').remove();">Cancel</button>`
-                html += `</div><form>`;
+                html += `</div>`;
                 div.innerHTML = html;
                 document.getElementById('somfyShade').appendChild(div);
             }
@@ -1800,26 +2779,18 @@ class Somfy {
     setPaired(shadeId, paired) {
         let obj = { shadeId: shadeId, paired: paired || false };
         let div = document.getElementById('divPairing');
-        let overlay = typeof div === 'undefined' ? undefined : waitMessage(div);
-        putJSON('/setPaired', obj, (err, shade) => {
+        let overlay = typeof div === 'undefined' ? undefined : ui.waitMessage(div);
+        putJSONSync('/setPaired', obj, (err, shade) => {
             if (overlay) overlay.remove();
             if (err) {
                 console.log(err);
-                errorMessage(div, err.message);
+                ui.errorMessage(err.message);
             }
             else if (div) {
                 console.log(shade);
-                document.getElementById('somfyMain').style.display = 'none';
-                document.getElementById('somfyShade').style.display = '';
+                this.showEditShade(true);
                 document.getElementById('btnSaveShade').style.display = 'inline-block';
                 document.getElementById('btnLinkRemote').style.display = '';
-                document.getElementsByName('shadeAddress')[0].value = shade.remoteAddress;
-                document.getElementsByName('shadeName')[0].value = shade.name;
-                document.getElementsByName('shadeUpTime')[0].value = shade.upTime;
-                document.getElementsByName('shadeDownTime')[0].value = shade.downTime;
-                let ico = document.getElementById('icoShade');
-                ico.style.setProperty('--shade-position', `${shade.flipPosition ? 100 - shade.position : shade.position}%`);
-                ico.setAttribute('data-shadeid', shade.shadeId);
                 if (shade.paired) {
                     document.getElementById('btnUnpairShade').style.display = 'inline-block';
                     document.getElementById('btnPairShade').style.display = 'none';
@@ -1854,7 +2825,7 @@ class Somfy {
         div.innerHTML = html;
         document.getElementById('somfyShade').appendChild(div);
         return div;
-    };
+    }
     unpairShade(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divPairing" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
@@ -1876,7 +2847,7 @@ class Somfy {
         div.innerHTML = html;
         document.getElementById('somfyShade').appendChild(div);
         return div;
-    };
+    }
     sendCommand(shadeId, command, repeat) {
         console.log(`Sending Shade command ${shadeId}-${command}`);
         let obj = { shadeId: shadeId };
@@ -1886,7 +2857,16 @@ class Somfy {
         putJSON('/shadeCommand', obj, (err, shade) => {
 
         });
-    };
+    }
+    sendGroupCommand(groupId, command, repeat) {
+        console.log(`Sending Group command ${groupId}-${command}`);
+        let obj = { groupId: groupId };
+        if (isNaN(parseInt(command, 10))) obj.command = command;
+        if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        putJSON('/groupCommand', obj, (err, group) => {
+
+        });
+    }
     sendTiltCommand(shadeId, command) {
         console.log(`Sending Tilt command ${shadeId}-${command}`);
         if (isNaN(parseInt(command, 10)))
@@ -1895,7 +2875,7 @@ class Somfy {
         else
             putJSON('/tiltCommand', { shadeId: shadeId, target: parseInt(command, 10) }, (err, shade) => {
             });
-    };
+    }
     linkRemote(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divLinking" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
@@ -1906,14 +2886,213 @@ class Somfy {
         div.innerHTML = html;
         document.getElementById('somfyShade').appendChild(div);
         return div;
-    };
+    }
+    linkGroupShade(groupId) {
+        let div = document.createElement('div');
+        let html = `<div id="divLinkGroup" class="inst-overlay wizard" data-type="link-shade" data-groupid="${groupId}" data-stepid="1">`;
+        html += '<div style="width:100%;text-align:center;font-weight:bold;"><div style="padding:10px;display:inline-block;width:100%;color:#00bcd4;border-radius:5px;border-top-right-radius:17px;border-top-left-radius:17px;background:white;"><div>ADD SHADE TO GROUP</div><div id="divGroupName" style="font-size:14px;"></div></div></div>';
+
+        html += '<div class="wizard-step" data-stepid="1">';
+        html += '<p style="font-size:14px;">This wizard will walk you through the steps required to add shades into a group.  Follow all instructions at each step until the shade is added to the group.</p>';
+        html += '<p style="font-size:14px;">During this process the shade should jog exactly two times.  The first time indicates that the motor memory has been enabled and the second time adds the group to the motor memory</p>';
+        html += '<p style="font-size:14px;">Each shade must be paired individually to the group.  When you are ready to begin pairing your shade to the group press the NEXT button.</p><hr></hr>'
+       
+        html += '</div>'
+
+        html += '<div class="wizard-step" data-stepid="2">';
+        html += '<p style="font-size:14px;">Choose a shade that you would like to include in this group.  Once you have chosen the shade to include in the link press the NEXT button.</p>';
+        html += '<p style="font-size:14px;">Only shades that have not already been included in this group are available the dropdown.  Each shade can be included in multiple groups.</p>';
+        html += '<hr></hr>';
+        html += `<div class="field-group" style="text-align:center;background-color:white;border-radius:5px;">`;
+        html += `<select id="selAvailShades" style="font-size:22px;min-width:277px;text-align:center;" data-bind="shadeId" data-datatype="int" onchange="document.getElementById('divWizShadeName').innerHTML = this.options[this.selectedIndex].text;"><options style="color:black;"></options></select><label for="selAvailShades">Select a Shade</label></div >`;
+        html += '</div>';
+
+        html += '<div class="wizard-step" data-stepid="3">';
+        html += '<p style="font-size:14px;">Now that you have chosen a shade to pair.  Open the memory for the shade by pressing the OPEN MEMORY button.  The shade should jog to indicate the memory has been opened.</p>';
+        html += '<p style="font-size:14px;">The motor should jog only once.  If it jogs more than once then you have again closed the memory on the motor. Once the motor has jogged press the NEXT button to proceed.</p>';
+        html += '<hr></hr>';
+        html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
+        html += '<div class="button-container"><button type="button" id="btnOpenMemory">Open Memory</button></div>';
+        html += '<hr></hr>'
+        html += '</div>';
+
+        html += '<div class="wizard-step" data-stepid="4">';
+        html += '<p style="font-size:14px;">Now that the memory is opened on the motor you need to send the pairing command for the group.</p>';
+        html += '<p style="font-size:14px;">To do this press the PAIR TO GROUP button below and once the motor jogs the process will be complete.</p>';
+        html += '<hr></hr>';
+        html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
+        html += '<div class="button-container"><button type="button" id="btnPairToGroup">Pair to Group</button></div>';
+        html += '<hr></hr>'
+        html += '</div>';
+
+
+
+        html += `<div class="button-container" style="text-align:center;"><button id="btnPrevStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;margin-right:10px;display:inline-block;" onclick="ui.wizSetPrevStep(document.getElementById('divLinkGroup'));">Go Back</button><button id="btnNextStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;display:inline-block;" onclick="ui.wizSetNextStep(document.getElementById('divLinkGroup'));">Next</button></div>`;
+        html += `<div class="button-container" style="text-align:center;"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;width:calc(100% - 100px);" onclick="document.getElementById('divLinkGroup').remove();">Cancel</button></div>`
+        html += '</div>';
+        div.innerHTML = html;
+        document.getElementById('divContainer').appendChild(div);
+        ui.wizSetStep(div, 1);
+        let btnOpenMemory = div.querySelector('#btnOpenMemory');
+        btnOpenMemory.addEventListener('click', (evt) => {
+            let obj = ui.fromElement(div);
+            console.log(obj);
+            putJSONSync('/shadeCommand', { shadeId: obj.shadeId, command: 'prog', repeat: 40 }, (err, shade) => {
+                if (err) ui.serviceError(err);
+                else {
+                    let prompt = ui.promptMessage('Confirm Motor Response', () => {
+                        ui.wizSetNextStep(document.getElementById('divLinkGroup'));
+                        prompt.remove();
+                    });
+                    prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog? If the shade jogged press the YES button if not then press the NO button and try again.</p><p>Once the shade has jogged the shade will be removed from the group and this process will be finished.</p>`;
+                }
+            });
+        });
+        let btnPairToGroup = div.querySelector('#btnPairToGroup');
+        btnPairToGroup.addEventListener('click', (evt) => {
+            let obj = ui.fromElement(div);
+            putJSONSync('/groupCommand', { groupId: groupId, command: 'prog', repeat: 1 }, (err, shade) => {
+                if (err) ui.serviceError(err);
+                else {
+                    let prompt = ui.promptMessage('Confirm Motor Response', () => {
+                        putJSONSync('/linkToGroup', { groupId: groupId, shadeId: obj.shadeId }, (err, group) => {
+                            console.log(group);
+                            somfy.setLinkedShadesList(group);
+                            this.updateGroupList();
+                        });
+                        prompt.remove();
+                        div.remove();
+                    });
+                    prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog?  If the shade jogged press the YES button and your shade will be linked to the group.  If it did not press the NO button and try again.</p></p><p>Once the shade has jogged the shade will be added to the group and this process will be finished.</p>`;
+                }
+            });
+        });
+        getJSONSync(`/groupOptions?groupId=${groupId}`, (err, options) => {
+            if (err) {
+                div.remove();
+                ui.serviceError(err);
+            }
+            else {
+                console.log(options);
+                if (options.availShades.length > 0) {
+                    // Add in all the available shades.
+                    let selAvail = div.querySelector('#selAvailShades');
+                    let grpName = div.querySelector('#divGroupName');
+                    if (grpName) grpName.innerHTML = options.name;
+                    for (let i = 0; i < options.availShades.length; i++) {
+                        let shade = options.availShades[i];
+                        selAvail.options.add(new Option(shade.name, shade.shadeId));
+                    }
+                    let divWizShadeName = div.querySelector('#divWizShadeName');
+                    if (divWizShadeName) divWizShadeName.innerHTML = options.availShades[0].name;
+                }
+                else {
+                    div.remove();
+                    ui.errorMessage('There are no available shades to pair to this group.');
+                }
+            }
+        });
+        return div;
+    }
+    unlinkGroupShade(groupId, shadeId) {
+        let div = document.createElement('div');
+        let html = `<div id="divUnlinkGroup" class="inst-overlay wizard" data-type="link-shade" data-groupid="${groupId}" data-stepid="1">`;
+        html += '<div style="width:100%;text-align:center;font-weight:bold;"><div style="padding:10px;display:inline-block;width:100%;color:#00bcd4;border-radius:5px;border-top-right-radius:17px;border-top-left-radius:17px;background:white;"><div>REMOVE SHADE FROM GROUP</div><div id="divGroupName" style="font-size:14px;"></div></div></div>';
+
+        html += '<div class="wizard-step" data-stepid="1">';
+        html += '<p style="font-size:14px;">This wizard will walk you through the steps required to remove a shade from a group.  Follow all instructions at each step until the shade is removed from the group.</p>';
+        html += '<p style="font-size:14px;">During this process the shade should jog exactly two times.  The first time indicates that the motor memory has been enabled and the second time removes the group from the motor memory</p>';
+        html += '<p style="font-size:14px;">Each shade must be removed from the group individually.  When you are ready to begin unpairing your shade from the group press the NEXT button to begin.</p><hr></hr>'
+        html += '</div>'
+
+        html += '<div class="wizard-step" data-stepid="2">';
+        html += '<p style="font-size:14px;">You must first open the memory for the shade by pressing the OPEN MEMORY button.  The shade should jog to indicate the memory has been opened.</p>';
+        html += '<p style="font-size:14px;">The motor should jog only once.  If it jogs more than once then you have again closed the memory on the motor. Once the motor has jogged press the NEXT button to proceed.</p>';
+        html += '<hr></hr>';
+        html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
+        html += '<div class="button-container"><button type="button" id="btnOpenMemory">Open Memory</button></div>';
+        html += '<hr></hr>'
+        html += '</div>';
+
+        html += '<div class="wizard-step" data-stepid="3">';
+        html += '<p style="font-size:14px;">Now that the memory is opened on the motor you need to send the un-pairing command for the group.</p>';
+        html += '<p style="font-size:14px;">To do this press the UNPAIR FROM GROUP button below and once the motor jogs the process will be complete.</p>';
+        html += '<hr></hr>';
+        html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
+        html += '<div class="button-container"><button type="button" id="btnUnpairFromGroup">Unpair from Group</button></div>';
+        html += '<hr></hr>'
+        html += '</div>';
+        html += `<div class="button-container" style="text-align:center;"><button id="btnPrevStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;margin-right:10px;display:inline-block;" onclick="ui.wizSetPrevStep(document.getElementById('divUnlinkGroup'));">Go Back</button><button id="btnNextStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;display:inline-block;" onclick="ui.wizSetNextStep(document.getElementById('divUnlinkGroup'));">Next</button></div>`;
+        html += `<div class="button-container" style="text-align:center;"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;width:calc(100% - 100px);" onclick="document.getElementById('divUnlinkGroup').remove();">Cancel</button></div>`
+        html += '</div>';
+        div.innerHTML = html;
+        document.getElementById('divContainer').appendChild(div);
+        ui.wizSetStep(div, 1);
+        let btnOpenMemory = div.querySelector('#btnOpenMemory');
+        btnOpenMemory.addEventListener('click', (evt) => {
+            let obj = ui.fromElement(div);
+            console.log(obj);
+            putJSONSync('/shadeCommand', { shadeId: shadeId, command: 'prog', repeat: 40 }, (err, shade) => {
+                if (err) ui.serviceError(err);
+                else {
+                    let prompt = ui.promptMessage('Confirm Motor Response', () => {
+                        ui.wizSetNextStep(document.getElementById('divUnlinkGroup'));
+                        prompt.remove();
+                    });
+                    prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog? If the shade jogged press the YES button if not then press the NO button and try again.</p><p>If you are having trouble getting the motor to jog on this step you may try to open the memory using a remote.  Most often this is done by selecting the channel, then a long press on the prog button.</p><p>If you opened the memory using the alternate method press the NO button to close this message, then press NEXT button to skip the step.</p>`;
+                }
+            });
+        });
+        let btnUnpairFromGroup = div.querySelector('#btnUnpairFromGroup');
+        btnUnpairFromGroup.addEventListener('click', (evt) => {
+            let obj = ui.fromElement(div);
+            putJSONSync('/groupCommand', { groupId: groupId, command: 'prog', repeat: 1 }, (err, shade) => {
+                if (err) ui.serviceError(err);
+                else {
+                    let prompt = ui.promptMessage('Confirm Motor Response', () => {
+                        putJSONSync('/unlinkFromGroup', { groupId: groupId, shadeId: shadeId }, (err, group) => {
+                            console.log(group);
+                            somfy.setLinkedShadesList(group);
+                            this.updateGroupList();
+                        });
+                        prompt.remove();
+                        div.remove();
+                    });
+                    prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog? If the shade jogged press the YES button if not then press the NO button and try again.</p><p>Once the shade has jogged the shade will be removed from the group and this process will be finished.</p>`;
+                }
+            });
+        });
+        getJSONSync(`/group?groupId=${groupId}`, (err, group) => {
+            if (err) {
+                div.remove();
+                ui.serviceError(err);
+            }
+            else {
+                console.log(group);
+                console.log(shadeId);
+                let shade = group.linkedShades.find((x) => { return shadeId === x.shadeId; })
+                if (typeof shade !== 'undefined') {
+                    // Add in all the available shades.
+                    let grpName = div.querySelector('#divGroupName');
+                    if (grpName) grpName.innerHTML = group.name;
+                    let divWizShadeName = div.querySelector('#divWizShadeName');
+                    if (divWizShadeName) divWizShadeName.innerHTML = shade.name;
+                }
+                else {
+                    div.remove();
+                    ui.errorMessage('The specified shade could not be found in this group.');
+                }
+            }
+        });
+        return div;
+    }
     unlinkRemote(shadeId, remoteAddress) {
-        let prompt = promptMessage(document.getElementById('fsSomfySettings'), 'Are you sure you want to unlink this remote from the shade?', () => {
+        let prompt = ui.promptMessage(document.getElementById('fsSomfySettings'), 'Are you sure you want to unlink this remote from the shade?', () => {
             let obj = {
                 shadeId: shadeId,
                 remoteAddress: remoteAddress
             };
-            let overlay = waitMessage(prompt);
+            let overlay = ui.waitMessage(prompt);
             putJSON('/unlinkRemote', obj, (err, shade) => {
                 console.log(shade);
                 overlay.remove();
@@ -1922,13 +3101,13 @@ class Somfy {
             });
 
         });
-    };
+    }
     deviationChanged(el) {
         document.getElementById('spanDeviation').innerText = (el.value / 100).fmt('#,##0.00');
-    };
+    }
     rxBandwidthChanged(el) {
         document.getElementById('spanRxBandwidth').innerText = (el.value / 100).fmt('#,##0.00');
-    };
+    }
     frequencyChanged(el) {
         document.getElementById('spanFrequency').innerText = (el.value / 1000).fmt('#,##0.000');
     }
@@ -1936,10 +3115,10 @@ class Somfy {
         console.log(el.value);
         let lvls = [-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12];
         document.getElementById('spanTxPower').innerText = lvls[el.value];
-    };
+    }
     stepSizeChanged(el) {
         document.getElementById('spanStepSize').innerText = parseInt(el.value, 10).fmt('#,##0');
-    };
+    }
 
     processShadeTarget(el, shadeId) {
         let positioner = document.querySelector(`.shade-positioner[data-shadeid="${shadeId}"]`);
@@ -1997,65 +3176,46 @@ class Somfy {
             }
         }
     }
-};
+}
 var somfy = new Somfy();
 class MQTT {
-    async init() { this.loadMQTT(); }
+    initialized = false;
+    init() { this.initialized = true; }
     async loadMQTT() {
-        let overlay = waitMessage(document.getElementById('fsMQTTSettings'));
-        getJSON('/mqttsettings', (err, settings) => {
-            overlay.remove();
-            if (err) {
+        getJSONSync('/mqttsettings', (err, settings) => {
+            if (err) 
                 console.log(err);
-            }
             else {
                 console.log(settings);
-                let dd = document.getElementsByName('mqtt-protocol')[0];
-                for (let i = 0; i < dd.options.length; i++) {
-                    if (dd.options[i].text === settings.proto) {
-                        dd.selectedIndex = i;
-                        break;
-                    }
-                }
-                if (dd.selectedIndex < 0) dd.selectedIndex = 0;
-                document.getElementsByName('mqtt-host')[0].value = settings.hostname;
-                document.getElementsByName('mqtt-port')[0].value = settings.port;
-                document.getElementsByName('mqtt-username')[0].value = settings.username;
-                document.getElementsByName('mqtt-password')[0].value = settings.password;
-                document.getElementsByName('mqtt-topic')[0].value = settings.rootTopic;
-                document.getElementsByName('mqtt-enabled')[0].checked = settings.enabled;
+                ui.toElement(document.getElementById('divMQTT'), { mqtt: settings });
             }
         });
     };
     connectMQTT() {
-        if (document.getElementById('btnConnectMQTT').classList.contains('disabled')) return;
-        document.getElementById('btnConnectMQTT').classList.add('disabled');
-        let obj = {
-            enabled: document.getElementsByName('mqtt-enabled')[0].checked,
-            protocol: document.getElementsByName('mqtt-protocol')[0].value,
-            hostname: document.getElementsByName('mqtt-host')[0].value,
-            port: parseInt(document.getElementsByName('mqtt-port')[0].value, 10),
-            username: document.getElementsByName('mqtt-username')[0].value,
-            password: document.getElementsByName('mqtt-password')[0].value,
-            rootTopic: document.getElementsByName('mqtt-topic')[0].value
+        let obj = ui.fromElement(document.getElementById('divMQTT'));
+        console.log(obj);
+        if (obj.mqtt.enabled) {
+            if (typeof obj.mqtt.hostname !== 'string' || obj.mqtt.hostname.length === 0) {
+                ui.errorMessage('Invalid host name.').querySelector('.sub-message').innerHTML = 'You must supply a host name to connect to MQTT.';
+                return;
+            }
+            if (isNaN(obj.mqtt.port) || obj.mqtt.port < 0) {
+                ui.errorMessage('Invalid port number.').querySelector('.sub-message').innerHTML = 'Likely ports are 1183, 8883 for MQTT/S or 80,443 for HTTP/S';
+                return;
+            }
 
         }
-        console.log(obj);
-        if (isNaN(obj.port) || obj.port < 0) {
-            errorMessage(document.getElementById('fsMQTTSettings'), 'Invalid port number.  Likely ports are 1183, 8883 for MQTT/S or 80,443 for HTTP/S');
-            return;
-        }
-        let overlay = waitMessage(document.getElementById('fsMQTTSettings'));
-        putJSON('/connectmqtt', obj, (err, response) => {
-            overlay.remove();
-            document.getElementById('btnConnectMQTT').classList.remove('disabled');
+       
+        putJSONSync('/connectmqtt', obj.mqtt, (err, response) => {
+            if (err) ui.serviceError(err);
             console.log(response);
         });
     };
-};
+}
 var mqtt = new MQTT();
 class Firmware {
-    async init() { }
+    initialized = false;
+    init() { this.initialized = true; }
     isMobile() {
         let agt = navigator.userAgent.toLowerCase();
         return /Android|iPhone|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)
@@ -2072,13 +3232,14 @@ class Firmware {
         let div = this.createFileUploader('/restore');
         let inst = div.querySelector('div[id=divInstText]');
         inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a backup file that you would like to restore then press the Upload File button.</div>';
-        document.getElementById('fsUpdates').appendChild(div);
+        document.getElementById('divContainer').appendChild(div);
     };
     createFileUploader(service) {
         let div = document.createElement('div');
         div.setAttribute('id', 'divUploadFile');
-        div.setAttribute('class', 'instructions');
+        div.setAttribute('class', 'inst-overlay');
         div.style.width = '100%';
+        div.style.alignContent = 'center';
         let html = `<div style="width:100%;text-align:center;"><form method="POST" action="#" enctype="multipart/form-data" id="frmUploadApp" style="">`;
         html += `<div id="divInstText"></div>`;
         html += `<input id="fileName" type="file" name="updateFS" style="display:none;" onchange="document.getElementById('span-selected-file').innerText = this.files[0].name;"/>`;
@@ -2099,7 +3260,7 @@ class Firmware {
         let div = this.createFileUploader('/updateFirmware');
         let inst = div.querySelector('div[id=divInstText]');
         inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file [SomfyController.ino.esp32.bin] containing the device firmware then press the Upload File button.</div>';
-        document.getElementById('fsUpdates').appendChild(div);
+        document.getElementById('divContainer').appendChild(div);
     };
     updateApplication() {
         let div = this.createFileUploader('/updateApplication');
@@ -2112,7 +3273,7 @@ class Firmware {
         }
         else
             inst.innerHTML += '<hr/><div style="font-size:14px;margin-bottom:10px;">A backup file for your configuration will be downloaded to your browser.  If the application update process fails please restore this file using the restore button</div>';
-        document.getElementById('fsUpdates').appendChild(div);
+        document.getElementById('divContainer').appendChild(div);
         if(this.isMobile()) document.getElementById('btnBackupCfg').style.display = 'inline-block';
     };
     async uploadFile(service, el) {
@@ -2121,8 +3282,12 @@ class Firmware {
         console.log(filename);
         switch (service) {
             case '/updateApplication':
-                if (filename.indexOf('.littlefs') === -1 || !filename.endsWith('.bin')) {
-                    errorMessage(el, 'This file is not a valid littleFS file system.');
+                if (typeof filename !== 'string' || filename.length === 0) {
+                    ui.errorMessage('You must select a littleFS binary file to proceed.');
+                    return;
+                }
+                else if (filename.indexOf('.littlefs') === -1 || !filename.endsWith('.bin')) {
+                    ui.errorMessage('This file is not a valid littleFS binary file.');
                     return;
                 }
                 if (!this.isMobile()) {
@@ -2141,27 +3306,35 @@ class Firmware {
                                 }
                             });
                         } catch (err) {
-                            serviceError(el, err);
+                            ui.serviceError(el, err);
                             reject(err);
                             return;
                         }
                     }).catch((err) => {
-                        serviceError(el, err);
+                        ui.serviceError(el, err);
                     });
                 }
                 break;
             case '/updateFirmware':
-                if (filename.indexOf('.ino.') === -1 || !filename.endsWith('.bin')) {
-                    errorMessage(el, 'This file is not a valid firmware binary file.');
+                if (typeof filename !== 'string' || filename.length === 0) {
+                    ui.errorMessage('You must select a valid firmware binary file to proceed.');
+                    return;
+                }
+                else if (filename.indexOf('.ino.') === -1 || !filename.endsWith('.bin')) {
+                    ui.errorMessage(el, 'This file is not a valid firmware binary file.');
                     return;
                 }
                 break;
             case '/restore':
-                if (!filename.endsWith('.backup') || filename.indexOf('ESPSomfyRTS') === -1) {
-                    errorMessage(el, 'This file is not a valid backup file')
+                if (typeof filename !== 'string' || filename.length === 0) {
+                    ui.errorMessage('You must select a valid backup file to proceed.');
                     return;
                 }
-
+                else if (!filename.endsWith('.backup') || filename.indexOf('ESPSomfyRTS') === -1) {
+                    ui.errorMessage(el, 'This file is not a valid backup file')
+                    return;
+                }
+                break;
         }
         let formData = new FormData();
         let btnUpload = el.querySelector('button[id="btnUploadFile"]');
@@ -2186,7 +3359,7 @@ class Firmware {
         };
         xhr.onerror = function (err) {
             console.log(err);
-            serviceError(el, err);
+            ui.serviceError(el, err);
         };
         xhr.onload = function () {
             console.log('File upload load called');
@@ -2205,5 +3378,6 @@ class Firmware {
         };
         xhr.send(formData);
     };
-};
+}
 var firmware = new Firmware();
+

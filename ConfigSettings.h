@@ -3,7 +3,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v1.7.3"
+#define FW_VERSION "v2.0.0"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -55,12 +55,6 @@ class EthernetSettings: BaseSettings {
   public:
     EthernetSettings();
     uint8_t boardType = 0; // These board types are enumerated in the ui and used to set the chip settings.
-    bool dhcp = true;
-    IPAddress ip;
-    IPAddress subnet = IPAddress(255,255,255,0);
-    IPAddress gateway;
-    IPAddress dns1;
-    IPAddress dns2;
     eth_phy_type_t phyType = ETH_PHY_LAN8720;
     eth_clock_mode_t CLKMode = ETH_CLOCK_GPIO0_IN;
     int8_t phyAddress = ETH_PHY_ADDR;
@@ -75,6 +69,44 @@ class EthernetSettings: BaseSettings {
     bool save();
     void print();
   
+};
+class IPSettings: BaseSettings {
+  public:
+    IPSettings();
+    bool dhcp = true;
+    IPAddress ip;
+    IPAddress subnet = IPAddress(255,255,255,0);
+    IPAddress gateway = IPAddress(0,0,0,0);
+    IPAddress dns1 = IPAddress(0,0,0,0);
+    IPAddress dns2 = IPAddress(0,0,0,0);
+    bool begin();
+    bool fromJSON(JsonObject &obj);
+    bool toJSON(JsonObject &obj);
+    bool load();
+    bool save();
+    void print();
+};
+enum class security_types : byte {
+  None = 0x00,
+  PinEntry = 0x01,
+  Password = 0x02
+};
+enum class security_permissions : byte {
+  ConfigOnly = 0x01
+};
+class SecuritySettings: BaseSettings {
+  public:
+    security_types type = security_types::None;
+    char username[33] = "";
+    char password[33] = "";
+    char pin[5] = "";
+    uint8_t permissions = 0;
+    bool begin();
+    bool save();
+    bool load();
+    void print();
+    bool toJSON(JsonObject &obj);
+    bool fromJSON(JsonObject &obj);
 };
 class MQTTSettings: BaseSettings {
   public:
@@ -97,7 +129,6 @@ enum class conn_types : byte {
     ethernet = 0x02,
     ethernetpref = 0x03
 };
-
 class ConfigSettings: BaseSettings {
   public:
     char serverId[10] = "";
@@ -106,10 +137,13 @@ class ConfigSettings: BaseSettings {
     const char* fwVersion = FW_VERSION;
     bool ssdpBroadcast = true;
     uint8_t status;
+    IPSettings IP;
     WifiSettings WIFI;
     EthernetSettings Ethernet;
     NTPSettings NTP;
     MQTTSettings MQTT;
+    SecuritySettings Security;
+    bool requiresAuth();
     bool fromJSON(JsonObject &obj);
     bool toJSON(JsonObject &obj);
     bool begin();

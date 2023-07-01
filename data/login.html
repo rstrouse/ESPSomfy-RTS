@@ -1,0 +1,53 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="main.css?v=2.0.0" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.0.0" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.0.0" type="text/css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <script type="text/javascript" src="index.js?v=2.0.0"></script>
+</head>
+<body onload="general.loadLogin();">
+    <div id="divContainer" class="container" data-securitytype="0">
+        <h1 style="text-align: center;"><img src="icon.png" style="width:127px;margin-left:1px;margin-top:-10px;" /></h1>
+        <div id="divLoginPnl" class="login-content" style="position:relative;">
+            <div style="max-width:270px;margin:0px auto;">
+                <form id="frmLogin" action="/login" method="post" class="login-form">
+                    <input id="fldPin" type="hidden" name="pin">
+                    <div id="divPinSecurity" style="display:none;">
+                        <div class="field-group" style="text-align:center;">
+                            <div id="fldPinEntry" style="display:inline-block;" onkeydown="general.pinKeyPressed(event);">
+                                <input class="pin-digit" maxlength="1" data-bind="security.pin.d0" onfocus="general.pinDigitFocus(event);">
+                                <input class="pin-digit" maxlength="1" data-bind="security.pin.d1" onfocus="general.pinDigitFocus(event);">
+                                <input class="pin-digit" maxlength="1" data-bind="security.pin.d2" onfocus="general.pinDigitFocus(event);">
+                                <input class="pin-digit" maxlength="1" data-bind="security.pin.d3" onfocus="general.pinDigitFocus(event);">
+                            </div>
+                            <label for="fldPinEntry" style="margin-top:7px;">Enter Pin</label>
+                        </div>
+                    </div>
+                    <div id="divPasswordSecurity" style="display:none;">
+                        <div class="field-group">
+                            <input id="fldUsername" name="username" type="text" data-bind="security.username" length=32 placeholder="Username">
+                            <label for="fldUsername">Username</label>
+                        </div>
+                        <div class="field-group">
+                            <input id="fldPassword" name="password" type="password" data-bind="security.password" length=32 placeholder="Password">
+                            <label for="fldPassword">Password</label>
+                        </div>
+                    </div>
+                    <div style="text-align:center;"><span id="spanLoginMessage" style="color:red"></span></div>
+                    <div class="button-container">
+                        <button id="btnLogin" type="button" value="Submit" onclick="general.login();">
+                            Login
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+    </script>
+</body>
+</html>

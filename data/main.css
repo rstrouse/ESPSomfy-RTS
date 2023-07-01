@@ -4,6 +4,29 @@
 * {
     box-sizing: border-box;
 }
+
+body {
+    color: #434343;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 14px;
+    background-color: #eeeeee;
+    margin-top: 77px;
+    box-sizing: border-box;
+}
+
+
+h1 {
+    text-align: center;
+    margin-bottom: 10px;
+    margin-top: 0px;
+    color: #939393;
+    font-size: 28px;
+}
+hr {
+    width:100%;
+}
+
+
 input[type="range"] {
     accent-color: #00bcd4;
     outline:none;
@@ -12,6 +35,9 @@ input[type="range"] {
     input[type="range"]:active {
         outline: dotted 1px silver;
     }
+
+
+
 .button-outline {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -48,34 +74,11 @@ input[type="range"] {
         transform: rotate(7deg);
     }
 }
-body {
-    color: #434343;
-    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
-    font-size: 14px;
-    background-color: #eeeeee;
-    margin-top: 77px;
-    box-sizing: border-box;
-}
-.container {
-    margin: 0 auto;
-    max-width: 450px;
-    padding: 20px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
-    background-color: #ffffff;
-}
-
-h1 {
-    text-align: center;
-    margin-bottom: 10px;
-    margin-top: 0px;
-    color: #939393;
-    font-size: 28px;
-}
 form {
     margin-top:-18px;
 }
 
-form .field-group {
+.field-group {
     box-sizing: border-box;
     clear: both;
     padding: 4px 0;
@@ -84,7 +87,7 @@ form .field-group {
     width: 100%;
 }
 
-form .field-group1 {
+.field-group1 {
     box-sizing: border-box;
     clear: both;
     padding: 4px 0;
@@ -93,7 +96,7 @@ form .field-group1 {
     width: 100%;
 }
 
-    form .field-group1 > span {
+    .field-group1 > span {
         color: #757575;
         display: inline-block;
         margin: 0 0 5px 0;
@@ -104,7 +107,7 @@ form .field-group1 {
         font-weight: bold;
     }
 
-form .field-group > label {
+.field-group > label {
     display: block;
     margin: 0px;
     padding: 3px 0 0;
@@ -116,11 +119,11 @@ form .field-group > label {
     margin-top:-10px;
     color:#00bcd4;
 }
-form .field-group1 > div.field-group {
+.field-group1 > div.field-group {
     display:inline-block;
     width:auto;
 }
-::placeholder {
+*::placeholder {
     opacity: .5;
 }
 
@@ -156,9 +159,9 @@ select {
     margin-bottom:14px;
 }
 
-form .field-group input[type=password],
-form .field-group input[type=number],
-form .field-group input[type=text] {
+.field-group input[type=password],
+.field-group input[type=number],
+.field-group input[type=text] {
     display: block;
     width: 100%;
 }
@@ -214,7 +217,8 @@ a {
     bottom: 7px;
     border-bottom: 1px solid #00bcd4;
 }
-div.errorMessage {
+div.prompt-message,
+div.error-message {
     position:absolute;
     left:0px;
     top:0px;
@@ -229,16 +233,30 @@ div.errorMessage {
     align-items:center;
     align-content:center;
     font-size:32px;
-    border-radius:5px;
+    border-radius:27px;
+    transition-duration:3s;
 }
-div.errorMessage > div {
+div.prompt-message,
+div.error-message > div {
     padding:10px;
+}
+div.error-message > .sub-message {
+    font-size:14px;
 }
 div.socket-error {
     opacity: 1;
     font-size: 20px;
     min-height: 277px;
     z-index: 20001;
+}
+.prompt-message > .button-container {
+    text-align:center;
+}
+.prompt-message > .button-container > button {
+    width: calc(50% - 22px);
+    margin-left:7px;
+    margin-right:7px;
+    display:inline-block;
 }
 div.instructions {
     position: absolute;
@@ -247,11 +265,11 @@ div.instructions {
     width: 100%;
     height: 100%;
     color: white;
-    display: flex;
-    flex-wrap: wrap;
     background: gray;
     opacity: .9;
     padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     align-content: center;
     font-size: 20px;
@@ -279,6 +297,45 @@ div.instructions {
             border-bottom-width: 3px;
             font-weight: bold;
         }
+.subtab-container {
+    margin-top:3px;
+    margin-left: 3px;
+    display: flex;
+    width: calc(100% - 7px);
+    margin-bottom: -1px;
+    overflow: visible;
+    border-bottom: 1px solid #ccc;
+}
+    .subtab-container > span {
+        display:inline-block;
+        background:white;
+        margin-bottom:-1px;
+        padding-left: 10px;
+        padding-right:10px;
+        padding-top:5px;
+        padding-bottom:5px;
+        border-top: 1px solid #ccc;
+        border-left: 1px solid #ccc;
+        border-right: 1px solid #ccc;
+        border-bottom: 1px solid #ccc;
+        border-top-left-radius: 5px;
+        border-top-right-radius: 5px;
+        cursor:pointer;
+        background:ghostwhite;
+    }
+    .subtab-container > span.selected {
+        border-bottom:none;
+        background:white;
+    }
+.subtab-content {
+    display: block;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 25px;
+    position: relative;
+}
 fieldset {
     display: block;
     border: 1px solid #ccc;
@@ -371,7 +428,7 @@ span.strength {
 button.disabled {
     opacity:.3;
 }
-div.waitoverlay {
+div.wait-overlay {
     width: 100%;
     height: 100%;
     position: absolute;
@@ -383,8 +440,9 @@ div.waitoverlay {
     background:rgba(227, 226, 230, 0.46);
     cursor:no-drop;
     z-index:20000;
+    border-radius:27px;
 }
-div.waitoverlay > .lds-roller {
+div.wait-overlay > .lds-roller {
     z-index:1000;
     opacity:1;
 }
@@ -463,10 +521,10 @@ div.waitoverlay > .lds-roller {
                 top: 63px;
                 left: 17px;
             }
+
         .lds-roller div:nth-child(8) {
             animation-delay: -0.288s;
         }
-
             .lds-roller div:nth-child(8):after {
                 top: 56px;
                 left: 12px;
@@ -486,17 +544,6 @@ div.waitoverlay > .lds-roller {
 .radioPins > label {
     text-align:center;
 }
-.somfyShade {
-    text-align:center;
-    padding-bottom:4px;
-    display:inline-table;
-    padding-left:4px;
-    padding-right:4px;
-}
-.somfyShade > div,
-.somfyShade > span {
-    display:table-cell;
-}
 .button-outline {
     background-color: #00bcd4;
     border-radius:50%;
@@ -507,6 +554,7 @@ div.waitoverlay > .lds-roller {
     font-size:1.5em;
     color:white;
 }
+.group-name,
 .shade-name {
     text-align:left;
     width: 100%;
@@ -517,6 +565,7 @@ div.waitoverlay > .lds-roller {
     overflow:hidden;
     vertical-align:middle;
 }
+.group-address,
 .shade-address {
     width:77px;
     padding-left:2px;
@@ -558,6 +607,7 @@ div.waitoverlay > .lds-roller {
         display: block;
         overflow: hidden;
     }
+.somfyGroupCtl,
 .somfyShadeCtl {
     height:60px;
     border-bottom:dotted 2px gainsboro;
@@ -576,12 +626,14 @@ div.waitoverlay > .lds-roller {
         font-size: 48px;
         position:relative;
     }
+.somfyGroupCtl .group-name,
 .somfyShadeCtl .shade-name {
     display:inline-block;
     padding:7px;
     vertical-align:middle;
     width:100%;
-}
+}   
+    .somfyGroupCtl .groupctl-name,
     .somfyShadeCtl .shadectl-name {
         font-size: 1.5em;
         color: silver;
@@ -590,18 +642,23 @@ div.waitoverlay > .lds-roller {
         white-space: nowrap;
         width: 100%;
     }
+    .somfyGroupCtl label,
     .somfyShadeCtl label {
         color:silver;
     }
+    .somfyGroupCtl .groupctl-mypos,
     .somfyShadeCtl .shadectl-mypos {
         white-space: nowrap;
         font-size: 12px;
     }
+.somfyGroupCtl .groupctl-buttons,
 .somfyShadeCtl .shadectl-buttons {
     margin-top:3px;
     float:right;
     white-space:nowrap;
 }
+
+    .somfyGroupCtl .groupctl-buttons .button-outline,
     .somfyShadeCtl .shadectl-buttons .button-outline {
         display: inline-block;
         padding: 7px;
@@ -675,30 +732,24 @@ div.eth-setting-line label {
     color:mediumspringgreen;
 }
 div.frame-log {
-    position:absolute;
-    top:0px;
-    left:0px;
-    width:100%;
-    height:100%;
-    border-radius:27px;
-    border:solid 2px gray;
     background:gainsboro;
 }
 div.frame-list {
     position:relative;
-    width: calc(100% - 14px);
-    height: calc(100% - 147px);
-    left: 7px;
+    width: 100%;
+    max-height:357px;
     background:white;
+    min-height:127px;
     overflow-y:auto;
-    border:solid 1px silver;
+    border-bottom:solid 1px silver;
 }
 div.frame-header {
+    border-top-left-radius:5px;
+    border-top-right-radius:5px;
     position: relative;
     font-size: 12px;
     background: #00bcd4;
-    width: calc(100% - 14px);
-    left: 7px;
+    width: 100%;
     color:white;
     padding-top:4px;
 }
