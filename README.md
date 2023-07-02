@@ -1,6 +1,6 @@
 # ESPSomfy-RTS <image src="https://user-images.githubusercontent.com/47839015/218898940-3541b360-5c49-4e38-a918-392cd0408b76.png" style="width:177px;display:inline-block;float:right"></image>
 
-A controller for Somfy RTS blinds and shades that supports up to 32 individual shades over 433.42MHz RTS protocol.
+A controller for Somfy RTS blinds and shades that supports up to 32 individual shades and 16 groups over 433.42MHz RTS protocol.
 
 Most of my home is automated and one of the more annoying aspects was that there were three very expensive patio roller shades that still didn't have any type of automation attached to them.  Since they were on the patio I had to run around on the patio looking for the Telis torpedo remote any time I wanted to move the outside shades.  I have a rather large patio and the shades do a really good job at keeping the hot late afternoon sun from baking the house.
 
@@ -20,10 +20,10 @@ After you get this up and running you will have the ability to interact with you
 
 ![image](https://github.com/rstrouse/ESPSomfy-RTS/assets/47839015/2a605e54-4487-49ba-9a7a-07e153db1c02)
 
-
-* Move the shade using up, down, and my buttons
+* Identify each device by motor type (Awning, Shade, Shutter, Blind, or Drapery)
+* Control movement using up, down, and my buttons
 * Set and remove my button favorite
-* Interactive shade positioning
+* Interactive positioning
 * Tilt blinds
 * Set blind tilt by percentage
 * Control Awning Sun/Wind Sensors
