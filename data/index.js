@@ -2592,7 +2592,7 @@ class Somfy {
                 obj.groupId = groupId;
                 putJSONSync('/saveGroup', obj, (err, shade) => {
                     if (err) ui.serviceError(err);
-                    else this.updateShadeList();
+                    else this.updateGroupList();
                     console.log(shade);
                 });
             }
@@ -2758,7 +2758,8 @@ class Somfy {
             else {
                 console.log(shade);
                 let div = document.createElement('div');
-                let html = `<div id="divRollingCode" class="instructions" data-shadeid="${shadeId}">`;
+                div.setAttribute('id', 'divRollingCode');
+                let html = `<div class="instructions" data-shadeid="${shadeId}">`;
                 html += '<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="background:yellow;padding:10px;display:inline-block;border-radius:5px;background:white;">BEWARE ... WARNING ... DANGER<span></div>';
                 html += '<hr style="width:100%;margin:0px;"></hr>';
                 html += '<p style="font-size:14px;">If this shade is already paired with a motor then changing the rolling code WILL cause it to stop working.  Rolling codes are tied to the remote address and the Somfy motor expects these to be sequential.</p>';
@@ -2769,7 +2770,7 @@ class Somfy {
                 html += '</div>'
                 html += `<div class="button-container">`
                 html += `<button id="btnChangeRollingCode" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;" onclick="somfy.setRollingCode(${shadeId}, parseInt(document.getElementById('fldNewRollingCode').value, 10));">Set Rolling Code</button>`
-                html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('frmSetRollingCode').remove();">Cancel</button>`
+                html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('divRollingCode').remove();">Cancel</button>`
                 html += `</div>`;
                 div.innerHTML = html;
                 document.getElementById('somfyShade').appendChild(div);
@@ -2909,7 +2910,7 @@ class Somfy {
 
         html += '<div class="wizard-step" data-stepid="3">';
         html += '<p style="font-size:14px;">Now that you have chosen a shade to pair.  Open the memory for the shade by pressing the OPEN MEMORY button.  The shade should jog to indicate the memory has been opened.</p>';
-        html += '<p style="font-size:14px;">The motor should jog only once.  If it jogs more than once then you have again closed the memory on the motor. Once the motor has jogged press the NEXT button to proceed.</p>';
+        html += '<p style="font-size:14px;">The motor should jog only once.  If it jogs more than once then you have again closed the memory on the motor. Once the command is sent to the motor you will be asked if the motor successfully jogged.</p><p style="font-size:14px;">If it did then press YES if not press no and click the OPEN MEMORY button again.</p>';
         html += '<hr></hr>';
         html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
         html += '<div class="button-container"><button type="button" id="btnOpenMemory">Open Memory</button></div>';
@@ -2944,7 +2945,7 @@ class Somfy {
                         ui.wizSetNextStep(document.getElementById('divLinkGroup'));
                         prompt.remove();
                     });
-                    prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog? If the shade jogged press the YES button if not then press the NO button and try again.</p><p>Once the shade has jogged the shade will be removed from the group and this process will be finished.</p>`;
+                    prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog? If the shade jogged press the YES button if not then press the NO button and try again.</p><p>Once the shade has jogged the motor memory will be ready to add the shade to the group.</p>`;
                 }
             });
         });
