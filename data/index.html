@@ -638,13 +638,6 @@
                             wifi.loadNetwork();
                             break;
                     }
-                    if (tab.getAttribute('data-grpid') === 'divNetworkSettings') {
-                        // Only load the networks if we need them.
-                        //if(new Date().getTime() - parseInt(document.getElementById('divAps').getAttribute('data-lastloaded'), 10) > 60000)
-                        //    wifi.loadAPs();
-                        wifi.loadNetwork();
-                    }
-                    
                     let grp = document.getElementById(tab.getAttribute('data-grpid'));
                     if (typeof grp !== 'undefined' && grp) grp.style.display = '';
                 }
