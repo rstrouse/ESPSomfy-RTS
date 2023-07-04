@@ -1075,6 +1075,7 @@ class UIBinder {
             else this.setConfigPanel();
         }
         somfy.showEditShade(false);
+        somfy.showEditGroup(false);
     }
 }
 var ui = new UIBinder();
