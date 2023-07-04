@@ -1047,9 +1047,12 @@ class UIBinder {
         let overlay = ui.waitMessage(document.getElementById('divSecurityOptions'));
         overlay.style.borderRadius = '5px';
         getJSON('/getSecurity', (err, security) => {
-            console.log(security);
-            general.setSecurityConfig(security);
             overlay.remove();
+            if (err) ui.serviceError(err);
+            else {
+                console.log(security);
+                general.setSecurityConfig(security);
+            }
         });
     }
     setHomePanel() {
