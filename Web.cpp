@@ -267,6 +267,8 @@ void Web::begin() {
       obj["serverId"] = settings.serverId;
       obj["version"] = settings.fwVersion;
       obj["model"] = "ESPSomfyRTS";
+      obj["authType"] = static_cast<uint8_t>(settings.Security.type);
+      obj["permissions"] = settings.Security.permissions;
       JsonArray arrShades = obj.createNestedArray("shades");
       somfy.toJSONShades(arrShades);
       JsonArray arrGroups = obj.createNestedArray("groups");
@@ -278,7 +280,7 @@ void Web::begin() {
     });
   apiServer.on("/shades", []() { webServer.handleGetShades(apiServer); });
   apiServer.on("/groups", []() { webServer.handleGetGroups(apiServer); });
-    
+  apiServer.on("/login", []() { webServer.handleLogin(apiServer); });
   apiServer.onNotFound([]() {
     Serial.print("Request 404:");
     HTTPMethod method = apiServer.method();
@@ -309,6 +311,7 @@ void Web::begin() {
   apiServer.on("/controller", []() { webServer.handleController(apiServer); });
   apiServer.on("/shadeCommand", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = apiServer.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
@@ -376,6 +379,7 @@ void Web::begin() {
     });
   apiServer.on("/groupCommand", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = apiServer.method();
     uint8_t groupId = 255;
     uint8_t repeat = 1;
@@ -435,6 +439,7 @@ void Web::begin() {
     });
   apiServer.on("/tiltCommand", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = apiServer.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
