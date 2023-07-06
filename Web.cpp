@@ -131,8 +131,11 @@ void Web::handleLogin(WebServer &server) {
     char username[33] = "";
     char password[33] = "";
     char pin[5] = "";
+    memset(username, 0x00, sizeof(username));
+    memset(password, 0x00, sizeof(password));
+    memset(pin, 0x00, sizeof(pin));
     if(server.hasArg("plain")) {
-      DynamicJsonDocument docin(256);
+      DynamicJsonDocument docin(512);
       DeserializationError err = deserializeJson(docin, server.arg("plain"));
       if (err) {
         switch (err.code()) {
@@ -150,9 +153,9 @@ void Web::handleLogin(WebServer &server) {
       }
       else {
           JsonObject objin = docin.as<JsonObject>();
-          if(objin.containsKey("username")) strlcpy(username, objin["username"], sizeof(username));
-          if(objin.containsKey("password")) strlcpy(username, objin["password"], sizeof(password));
-          if(objin.containsKey("pin")) strlcpy(pin, objin["pin"], sizeof(pin));
+          if(objin.containsKey("username") && objin["username"]) strlcpy(username, objin["username"], sizeof(username));
+          if(objin.containsKey("password") && objin["password"]) strlcpy(password, objin["password"], sizeof(password));
+          if(objin.containsKey("pin") && objin["pin"]) strlcpy(pin, objin["pin"], sizeof(pin));
       }
     }
     else {
@@ -267,6 +270,7 @@ void Web::begin() {
       obj["serverId"] = settings.serverId;
       obj["version"] = settings.fwVersion;
       obj["model"] = "ESPSomfyRTS";
+      obj["hostname"] = settings.hostname;
       obj["authType"] = static_cast<uint8_t>(settings.Security.type);
       obj["permissions"] = settings.Security.permissions;
       JsonArray arrShades = obj.createNestedArray("shades");
