@@ -1767,6 +1767,7 @@ void SomfyShade::moveToMyPosition() {
     else
       return;
   }
+  if(this->myPos == -1 && (this->tiltType == tilt_types::none || this->myTiltPos == -1)) return;
   Serial.print("Seeking my Position:");
   Serial.print(this->myPos);
   Serial.print("% ");
