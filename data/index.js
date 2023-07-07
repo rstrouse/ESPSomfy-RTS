@@ -470,6 +470,9 @@ async function initSockets() {
                         case 'shadeState':
                             somfy.procShadeState(msg);
                             break;
+                        case 'shadeCommand':
+                            console.log(msg);
+                            break;
                         case 'shadeRemoved':
                             break;
                         case 'shadeAdded':

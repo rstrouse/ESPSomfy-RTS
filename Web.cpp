@@ -225,6 +225,10 @@ void Web::handleLoginContext(WebServer &server) {
     JsonObject obj = doc.to<JsonObject>();
     obj["type"] = static_cast<uint8_t>(settings.Security.type);
     obj["permissions"] = settings.Security.permissions;
+    obj["serverId"] = settings.serverId;
+    obj["version"] = settings.fwVersion;
+    obj["model"] = "ESPSomfyRTS";
+    obj["hostname"] = settings.hostname;
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
 }

@@ -1208,6 +1208,23 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
     }
   }
 }
+void SomfyShade::emitCommand(somfy_commands cmd, const char *source, uint32_t sourceAddress, const char *evt) { this->emitCommand(255, cmd, source, sourceAddress, evt); }
+void SomfyShade::emitCommand(uint8_t num, somfy_commands cmd, const char *source, uint32_t sourceAddress, const char *evt) {
+  ClientSocketEvent e(evt);
+  char buf[30];
+  snprintf(buf, sizeof(buf), "{\"shadeId\":%d", this->shadeId);
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), ",\"remoteAddress\":%d", this->getRemoteAddress());
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), ",\"cmd\":\"%s\"", translateSomfyCommand(cmd));
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), ",\"source\":\"%s\"", source);
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), ",\"sourceAddress\":%d}", sourceAddress);
+  e.appendMessage(buf);
+  if(num >= 255) sockEmit.sendToClients(&e);
+  else sockEmit.sendToClient(num, &e);
+}
 void SomfyGroup::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyGroup::emitState(uint8_t num, const char *evt) {
   ClientSocketEvent e(evt);
@@ -1250,13 +1267,15 @@ void SomfyShade::processWaitingFrame() {
   }
   if(this->lastFrame.processed) return;
   if(this->lastFrame.await > 0 && (millis() > this->lastFrame.await)) {
-    switch(this->transformCommand(this->lastFrame.cmd)) {
+    somfy_commands cmd = this->transformCommand(this->lastFrame.cmd);
+    switch(cmd) {
       case somfy_commands::StepUp:
           this->lastFrame.processed = true;
           // Simply move the shade up by 1%.
           if(this->currentPos > 0) {
             this->target = floor(this->currentPos) - 1;
             this->setMovement(-1);
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
           }
           break;
       case somfy_commands::StepDown:
@@ -1265,6 +1284,7 @@ void SomfyShade::processWaitingFrame() {
           if(this->currentPos < 100) {
             this->target = floor(this->currentPos) + 1;
             this->setMovement(1);
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
           }
           break;
       case somfy_commands::Down:
@@ -1281,14 +1301,19 @@ void SomfyShade::processWaitingFrame() {
             Serial.print(" after ");
             Serial.print(this->lastFrame.repeats);
             Serial.println(" repeats");
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
           }
           else {
             int8_t dir = this->lastFrame.cmd == somfy_commands::Up ? -1 : 1;
             this->target = dir > 0 ? 100 : 0;
             this->setMovement(dir);
             this->lastFrame.processed = true;
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
           }
-          if(this->lastFrame.repeats > TILT_REPEATS + 2) this->lastFrame.processed = true;
+          if(this->lastFrame.repeats > TILT_REPEATS + 2) {
+            this->lastFrame.processed = true;
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
+          }
         }
         break;
       case somfy_commands::My:
@@ -1311,6 +1336,7 @@ void SomfyShade::processWaitingFrame() {
           if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->tiltTarget = this->myTiltPos;
           this->setMovement(0);
           this->lastFrame.processed = true;
+          this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
         }
         else {
           this->target = this->currentPos;
@@ -1472,6 +1498,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         // If from a remote we will simply be going up.
         if(!internal) this->target = this->tiltTarget = 0.0f;
         this->lastFrame.processed = true;
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       }
       break;
     case somfy_commands::Down:
@@ -1488,6 +1515,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
             if(this->tiltType != tilt_types::none) this->tiltTarget = 100.0f;
           }
         }
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       }
       break;
     case somfy_commands::My:
@@ -1499,10 +1527,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         }
         else {
           this->lastFrame.processed = true;
-          if(!internal) {
-            if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->tiltTarget = this->myTiltPos;
-            if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
-          }
+          if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->tiltTarget = this->myTiltPos;
+          if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
+          this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
         }
       }
       else {
@@ -1513,7 +1540,6 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         }
       }
       break;
-    case somfy_commands::MyUp:
     case somfy_commands::StepUp:
       this->lastFrame.processed = true;
       if(this->lastFrame.repeats != 0) return;
@@ -1530,7 +1556,6 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         this->target = max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize)))));
       }
       break;
-    case somfy_commands::MyDown:
     case somfy_commands::StepDown:
       this->lastFrame.processed = true;
       if(this->lastFrame.repeats != 0) return;
@@ -1546,6 +1571,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         if(this->downTime == 0 || this->stepSize == 0) return;
         this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize)))));
       }
+      this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
     default:
       dir = 0;
@@ -1806,7 +1832,10 @@ void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
     if(this->linkedShades[i] != 0) {
       SomfyShade * shade = somfy.getShadeById(this->linkedShades[i]);
-      if(shade) shade->processInternalCommand(cmd, repeat);
+      if(shade) {
+        shade->processInternalCommand(cmd, repeat);
+        shade->emitCommand(cmd, "group", this->getRemoteAddress());
+      }
     }
   }
   

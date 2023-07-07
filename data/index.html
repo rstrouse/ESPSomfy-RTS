@@ -484,9 +484,8 @@
                             </select>
                         </div>
                         <div class="field-group" style="display:inline-block;width:77px;">
-                            <label for="selRadioType">Radio</label>
+                            <label for="selRadioType">Bit Length</label>
                             <select id="selRadioType" name="radioType" data-bind="transceiver.config.type" data-datatype="int" style="width:77px;">
-                                <option value="none" selected>None</option>
                                 <option value="56">56-BIT</option>
                                 <option value="80">80-BIT</option>
                             </select>
@@ -495,7 +494,8 @@
                             <input id="cbEnableRadio" name="enableRadio" type="checkbox" data-bind="transceiver.config.enabled" style="display:inline-block;" />
                             <label for="cbEnableRadio" style="display:inline-block;cursor:pointer;">Enable Radio</label>
                         </div>
-                        <div class="field-group1" style="margin-top:-20px;white-space:nowrap">
+                        <div class="field-group" style="margin-top:-18px;"><label style="font-size:12px;">(default when adding new motors)</label></div>
+                        <div class="field-group1" style="white-space:nowrap">
                             <div class="field-group radioPins">
                                 <select id="selTransSCKPin" name="transSCK" data-bind="transceiver.config.SCKPin" data-datatype="int"></select>
                                 <label for="selTransSCKPin">SCLK</label>

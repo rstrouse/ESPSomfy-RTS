@@ -258,6 +258,8 @@ class SomfyShade : public SomfyRemote {
     bool unlinkRemote(uint32_t remoteAddress);
     void emitState(const char *evt = "shadeState");
     void emitState(uint8_t num, const char *evt = "shadeState");
+    void emitCommand(somfy_commands cmd, const char *source, uint32_t sourceAddress, const char *evt = "shadeCommand");
+    void emitCommand(uint8_t num, somfy_commands cmd, const char *source, uint32_t sourceAddress, const char *evt = "shadeCommand");
     void setMyPosition(int8_t pos, int8_t tilt = -1);
     void moveToMyPosition();
     void processWaitingFrame();
