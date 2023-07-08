@@ -514,7 +514,7 @@ void Web::begin() {
   server.on("/upnp.xml", []() {
     SSDP.schema(server.client());
     });
-  server.on("/", []() {  webServer.handleStreamFile(server, "/index.html", _encoding_html); });
+  server.on("/", []() { webServer.handleStreamFile(server, "/index.html", _encoding_html); });
   server.on("/login", []() { webServer.handleLogin(server); });
   server.on("/loginContext", []() { webServer.handleLoginContext(server); });
   server.on("/shades.cfg", []() { webServer.handleStreamFile(server, "/shades.cfg", _encoding_text); });
@@ -573,9 +573,9 @@ void Web::begin() {
         if(somfy.loadShadesFile("/shades.tmp")) somfy.commit();
       }
     });
-  server.on("/index.js", []() { webServer.handleStreamFile(server, "/index.js", "text/javascript"); });
-  server.on("/main.css", []() { webServer.handleStreamFile(server, "/main.css", "text/css"); });
-  server.on("/widgets.css", []() { webServer.handleStreamFile(server, "/widgets.css", "text/css"); });
+  server.on("/index.js", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/index.js", "text/javascript"); });
+  server.on("/main.css", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/main.css", "text/css"); });
+  server.on("/widgets.css", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/widgets.css", "text/css"); });
   server.on("/icons.css", []() {  webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icons.css", "text/css"); });
   server.on("/favicon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/favicon.png", "image/png"); });
   server.on("/icon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icon.png", "image/png"); });
