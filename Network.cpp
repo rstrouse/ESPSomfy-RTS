@@ -216,9 +216,10 @@ bool Network::connectWired() {
   if(!this->ethStarted) {
       this->ethStarted = true;
       WiFi.mode(WIFI_OFF);
-      if(!settings.IP.dhcp)
+      if(!settings.IP.dhcp) {
         if(!ETH.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
           ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+      }
       else
           ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
       WiFi.onEvent(this->networkEvent);
@@ -271,9 +272,10 @@ bool Network::connectWiFi() {
     this->connectStart = millis();
     Serial.print("Set hostname to:");
     Serial.println(WiFi.getHostname());
-    if(!settings.IP.dhcp)
+    if(!settings.IP.dhcp) {
       if(!WiFi.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    }
     else
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     WiFi.setSleep(false);

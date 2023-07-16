@@ -1684,6 +1684,7 @@ void Web::begin() {
     });
   server.on("/updateFirmware", HTTP_POST, []() {
     webServer.sendCORSHeaders();
+    somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     if (Update.hasError())
       server.send(500, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Error updating firmware: \"}");
@@ -1740,6 +1741,7 @@ void Web::begin() {
     });
   server.on("/updateApplication", HTTP_POST, []() {
     webServer.sendCORSHeaders();
+    somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
     server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Application: \"}");

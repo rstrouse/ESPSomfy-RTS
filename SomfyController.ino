@@ -36,7 +36,12 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) ESP.restart();
+  if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
+    Serial.print("Rebooting after ");
+    Serial.print(rebootDelay.rebootTime);
+    Serial.println("ms");
+    ESP.restart();
+  }
   net.loop();
   somfy.loop();
   if(net.connected()) {
