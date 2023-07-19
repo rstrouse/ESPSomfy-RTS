@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.0.0" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.0.0" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.0.1" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.0.1" type="text/css" />
     <link rel="stylesheet" href="icons.css?v=2.0.0" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.0.0"></script>
+    <script type="text/javascript" src="index.js?v=2.0.1"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -251,7 +251,7 @@
                                 <option>MQTTS</option>
                             </select>
                             <span style="">://</span>
-                            <input name="mqtt-host" type="text" length=32 placeholder="Host" data-bind="mqtt.hostname" style="width:calc(100% - 137px);">
+                            <input name="mqtt-host" type="text" length=64 placeholder="Host" data-bind="mqtt.hostname" style="width:calc(100% - 137px);">
                             <span>:</span>
                             <input name="mqtt-port" type="text" length=5 placeholder="Port" data-bind="mqtt.port" data-datatype="int" style="width:50px;">
                         </div>
@@ -291,6 +291,7 @@
                                     <select id="selShadeProto" name="proto" data-bind="proto" data-datatype="int" style="width:100%;">
                                         <option value="0">RTS</option>
                                         <option value="1">RTW</option>
+                                        <option value="2">RTV</option>
                                     </select>
                                     <label for="selShadeProto">Protocol</label>
                                 </div>

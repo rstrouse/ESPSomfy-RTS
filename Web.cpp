@@ -2131,7 +2131,7 @@ void Web::begin() {
     });
   server.on("/connectmqtt", []() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    DynamicJsonDocument doc(512);
+    DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
       Serial.print("Error parsing JSON ");
@@ -2150,7 +2150,7 @@ void Web::begin() {
         settings.MQTT.fromJSON(obj);
         settings.MQTT.save();
         
-        StaticJsonDocument<512> sdoc;
+        DynamicJsonDocument sdoc(1024);
         JsonObject sobj = sdoc.to<JsonObject>();
         settings.MQTT.toJSON(sobj);
         serializeJson(sdoc, g_content);
@@ -2163,7 +2163,7 @@ void Web::begin() {
     });
   server.on("/mqttsettings", []() {
     webServer.sendCORSHeaders();
-    DynamicJsonDocument doc(512);
+    DynamicJsonDocument doc(1024);
     JsonObject obj = doc.to<JsonObject>();
     settings.MQTT.toJSON(obj);
     serializeJson(doc, g_content);

@@ -3,7 +3,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v2.0.0"
+#define FW_VERSION "v2.0.1"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -25,7 +25,7 @@ class BaseSettings {
 };
 class NTPSettings: BaseSettings {
   public:
-    char ntpServer[64] = "pool.ntp.org";
+    char ntpServer[65] = "pool.ntp.org";
     char posixZone[64] = "";
     bool fromJSON(JsonObject &obj);
     bool toJSON(JsonObject &obj);
@@ -38,8 +38,8 @@ class NTPSettings: BaseSettings {
 class WifiSettings: BaseSettings {
   public:
     WifiSettings();
-    char ssid[64] = "";
-    char passphrase[64] = "";
+    char ssid[65] = "";
+    char passphrase[65] = "";
     //bool ssdpBroadcast = true;
     bool begin();
     bool fromJSON(JsonObject &obj);
@@ -111,12 +111,12 @@ class SecuritySettings: BaseSettings {
 class MQTTSettings: BaseSettings {
   public:
     bool enabled = false;
-    char hostname[32] = "";
+    char hostname[65] = "";
     char protocol[10] = "mqtt://";
     uint16_t port = 1883;
-    char username[32] = "";
-    char password[32] = "";
-    char rootTopic[64] = "";
+    char username[33] = "";
+    char password[33] = "";
+    char rootTopic[65] = "";
     bool begin();
     bool save();
     bool load();

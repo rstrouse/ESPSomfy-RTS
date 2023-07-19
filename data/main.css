@@ -769,20 +769,20 @@ div.frame-header > span {
     }
     div.frame-row > span:nth-child(1),
     div.frame-header > span:nth-child(1) {
-        width:30px;
+        width:25px;
     }
     div.frame-row > span:nth-child(2),
     div.frame-header > span:nth-child(2) {
-        width: 67px;
+        width: 64px;
     }
     div.frame-row > span:nth-child(3),
     div.frame-header > span:nth-child(3) {
-        width: 77px;
+        width: 80px;
         text-align:center;
     }
     div.frame-row > span:nth-child(4),
     div.frame-header > span:nth-child(4) {
-        width: 50px;
+        width: 43px;
     }
     div.frame-row > span:nth-child(5),
     div.frame-header > span:nth-child(5) {
@@ -790,7 +790,7 @@ div.frame-header > span {
     }
     div.frame-row > span:nth-child(6),
     div.frame-header > span:nth-child(6) {
-        width: 27px;
+        width: 42px;
         text-align:center;
     }
     div.frame-row > span:nth-child(7),

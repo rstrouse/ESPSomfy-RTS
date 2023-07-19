@@ -1186,7 +1186,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.0.0';
+    appVersion = 'v2.0.1';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1380,15 +1380,19 @@ class General {
         let pnl = document.getElementById('divSystemSettings');
         let obj = ui.fromElement(pnl).general;
         if (typeof obj.hostname === 'undefined' || !obj.hostname || obj.hostname === '') {
-            ui.errorMessage(pnl, 'You must supply a valid host name.');
+            ui.errorMessage('Invalid Host Name').querySelector('.sub-message').innerHTML = 'You must supply a valid Host Name.';
             valid = false;
         }
         if (valid && !/^[a-zA-Z0-9-]+$/.test(obj.hostname)) {
-            ui.errorMessage(pnl, 'The host name must only include numbers, letters, or dash.');
+            ui.errorMessage('Invalid Host Name').querySelector('.sub-message').innerHTML = 'The host name must only include numbers, letters, or dash.';
             valid = false;
         }
         if (valid && obj.hostname.length > 32) {
-            ui.errorMessage(pnl, 'The host name can only be up to 32 characters long.');
+            ui.errorMessage('Invalid Host Name').querySelector('.sub-message').innerHTML = 'The maximum Host Name length is 32 characters.';
+            valid = false;
+        }
+        if (valid && typeof obj.ntpServer === 'string' && obj.ntpServer.length > 64) {
+            ui.errorMessage('Invalid NTP Server').querySelector('.sub-message').innerHTML = 'The maximum NTP Server length is 64 characters.';
             valid = false;
         }
         if (valid) {
@@ -1471,10 +1475,20 @@ class General {
                 ui.errorMessage('No Username Provided').querySelector('.sub-message').innerHTML = 'You must provide a username for password security.';
                 return;
             }
+            if (sec.username.length > 32) {
+                ui.errorMessage('Invalid Username').querySelector('.sub-message').innerHTML = 'The maximum username length is 32 characters.';
+                return;
+            }
+
             if (sec.password.length === 0) {
                 ui.errorMessage('No Password Provided').querySelector('.sub-message').innerHTML = 'You must provide a password for password security.';
                 return;
             }
+            if (sec.password.length > 32) {
+                ui.errorMessage('Invalid Password').querySelector('.sub-message').innerHTML = 'The maximum password length is 32 characters.';
+                return;
+            }
+
             if (security.repeatpassword.length === 0) {
                 ui.errorMessage('Re-enter Password').querySelector('.sub-message').innerHTML = 'You must re-enter the password in the Re-enter Password field.';
                 return;
@@ -1647,7 +1661,7 @@ class Wifi {
             encryption: el.getAttribute('data-encryption'),
             strength: parseInt(el.getAttribute('data-strength'), 10),
             channel: parseInt(el.getAttribute('data-channel'), 10)
-        }
+        };
         console.log(obj);
         document.getElementsByName('ssid')[0].value = obj.name;
     }
@@ -1762,7 +1776,17 @@ class Wifi {
         let obj = {
             ssid: document.getElementsByName('ssid')[0].value,
             passphrase: document.getElementsByName('passphrase')[0].value
+        };
+        if (obj.ssid.length > 64) {
+            ui.errorMessage('Invalid SSID').querySelector('.sub-message').innerHTML = 'The maximum length of the SSID is 64 characters.';
+            return;
         }
+        if (obj.passphrase.length > 64) {
+            ui.errorMessage('Invalid Passphrase').querySelector('.sub-message').innerHTML = 'The maximum length of the passphrase is 64 characters.';
+            return;
+        }
+
+
         let overlay = ui.waitMessage(document.getElementById('divNetAdapter'));
         putJSON('/connectwifi', obj, (err, response) => {
             overlay.remove();
@@ -2280,12 +2304,21 @@ class Somfy {
         // the browser.
         let fnFmtDate = (dt) => {
             return `${(dt.getMonth() + 1).fmt('00')}/${dt.getDate().fmt('00')} ${dt.getHours().fmt('00')}:${dt.getMinutes().fmt('00')}:${dt.getSeconds().fmt('00')}.${dt.getMilliseconds().fmt('000')}`;
-        }
+        };
         let fnFmtTime = (dt) => {
             return `${dt.getHours().fmt('00')}:${dt.getMinutes().fmt('00')}:${dt.getSeconds().fmt('00')}.${dt.getMilliseconds().fmt('000')}`;
-        }
+        };
         frame.time = new Date();
-        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><span>${frame.bits}</span><span>${fnFmtTime(frame.time)}</span><div class="frame-pulses">`;
+        let proto = '-S';
+        switch (frame.proto) {
+            case 1:
+                proto = '-W';
+                break;
+            case 2:
+                proto = '-V';
+                break;
+        }
+        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><span>${frame.bits}${proto}</span><span>${fnFmtTime(frame.time)}</span><div class="frame-pulses">`;
         for (let i = 0; i < frame.pulses.length; i++) {
             if (i !== 0) html += ',';
             html += `${frame.pulses[i]}`;
@@ -3204,16 +3237,30 @@ class MQTT {
         console.log(obj);
         if (obj.mqtt.enabled) {
             if (typeof obj.mqtt.hostname !== 'string' || obj.mqtt.hostname.length === 0) {
-                ui.errorMessage('Invalid host name.').querySelector('.sub-message').innerHTML = 'You must supply a host name to connect to MQTT.';
+                ui.errorMessage('Invalid host name').querySelector('.sub-message').innerHTML = 'You must supply a host name to connect to MQTT.';
+                return;
+            }
+            if (obj.mqtt.hostname.length > 64) {
+                ui.errorMessage('Invalid host name').querySelector('.sub-message').innerHTML = 'The maximum length of the host name is 64 characters.';
                 return;
             }
             if (isNaN(obj.mqtt.port) || obj.mqtt.port < 0) {
-                ui.errorMessage('Invalid port number.').querySelector('.sub-message').innerHTML = 'Likely ports are 1183, 8883 for MQTT/S or 80,443 for HTTP/S';
+                ui.errorMessage('Invalid port number').querySelector('.sub-message').innerHTML = 'Likely ports are 1183, 8883 for MQTT/S or 80,443 for HTTP/S';
                 return;
             }
-
+            if (typeof obj.mqtt.username === 'string' && obj.mqtt.username.length > 32) {
+                ui.errorMessage('Invalid Username').querySelector('.sub-message').innerHTML = 'The maximum length of the username is 32 characters.';
+                return;
+            }
+            if (typeof obj.mqtt.password === 'string' && obj.mqtt.password.length > 32) {
+                ui.errorMessage('Invalid Password').querySelector('.sub-message').innerHTML = 'The maximum length of the password is 32 characters.';
+                return;
+            }
+            if (typeof obj.mqtt.rootTopic === 'string' && obj.mqtt.rootTopic.length > 64) {
+                ui.errorMessage('Invalid Root Topic').querySelector('.sub-message').innerHTML = 'The maximum length of the root topic is 64 characters.';
+                return;
+            }
         }
-       
         putJSONSync('/connectmqtt', obj.mqtt, (err, response) => {
             if (err) ui.serviceError(err);
             console.log(response);

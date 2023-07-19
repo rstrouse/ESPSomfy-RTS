@@ -2817,6 +2817,8 @@ void Transceiver::emitFrame(somfy_frame_t *frame, somfy_rx_t *rx) {
     evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"bits\":%d,", rx->bit_length);
     evt.appendMessage(buf);
+    snprintf(buf, sizeof(buf), "\"proto\":%d,", static_cast<uint8_t>(frame->proto));
+    evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"valid\":%s,", frame->valid ? "true" : "false");
     evt.appendMessage(buf);
     snprintf(buf, sizeof(buf), "\"sync\":%d,\"pulses\":[", frame->hwsync);

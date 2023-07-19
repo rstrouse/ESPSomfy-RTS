@@ -57,6 +57,7 @@ double BaseSettings::parseValueDouble(JsonObject &obj, const char *prop, double 
 }
 bool ConfigSettings::begin() {
   uint32_t chipId = 0;
+  
   uint64_t mac = ESP.getEfuseMac();
   for(int i=0; i<17; i=i+8) {
     chipId |= ((mac >> (40 - i)) & 0xff) << i;
@@ -80,6 +81,7 @@ bool ConfigSettings::load() {
   pref.getString("hostname", this->hostname, sizeof(this->hostname));
   this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
   this->connType = static_cast<conn_types>(pref.getChar("connType", 0x00));
+  Serial.printf("Preference GFG Free Entries: %d\n", pref.freeEntries());
   pref.end();
   if(this->connType == conn_types::unset) {
     // We are doing this to convert the data from previous versions.
@@ -290,6 +292,7 @@ bool IPSettings::load() {
     pref.getString("dns2", buff, sizeof(buff));
     this->dns2.fromString(buff);
   }
+  Serial.printf("Preference IP Free Entries: %d\n", pref.freeEntries());
   pref.end();
   return true;
 }
