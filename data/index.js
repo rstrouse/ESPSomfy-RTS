@@ -1116,6 +1116,8 @@ class Security {
                 resolve();
                 if (err) ui.serviceError(err);
                 else {
+                    console.log(ctx);
+                    document.getElementById('divContainer').setAttribute('data-securitytype', ctx.type);
                     this.type = ctx.type;
                     this.permissions = ctx.permissions;
                     switch (ctx.type) {
@@ -1153,13 +1155,19 @@ class Security {
         let msg = pnl.querySelector('#spanLoginMessage');
         msg.innerHTML = '';
         let sec = ui.fromElement(pnl).login;
-        let pin = '';
-        for (let i = 0; i < 4; i++) {
-            pin += sec.pin[`d${i}`];
-        }
-        if (pin.length !== 4) return;
-        sec.pin = pin;
         console.log(sec);
+        let pin = '';
+        switch (sec.type) {
+            case 1:
+                for (let i = 0; i < 4; i++) {
+                    pin += sec.pin[`d${i}`];
+                }
+                if (pin.length !== 4) return;
+                break;
+            case 2:
+                break;
+        }
+        sec.pin = pin;
         putJSONSync('/login', sec, (err, log) => {
             if (err) ui.serviceError(err);
             else {
@@ -1186,7 +1194,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.0.2';
+    appVersion = 'v2.0.3';
     reloadApp = false;
     init() {
         if (this.initialized) return;

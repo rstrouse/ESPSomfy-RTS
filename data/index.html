@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.0.2" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.0.2" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.0.2" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.0.3" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.0.3" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.0.3" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.0.2"></script>
+    <script type="text/javascript" src="index.js?v=2.0.3"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -584,7 +584,7 @@
         <div id="divUnauthenticated">
             <h1 style="text-align: center;"><img src="icon.png" style="width:127px;margin-left:1px;margin-top:-10px;" /></h1>
             <input id="fldLoginPin" type="hidden" name="pin" />
-            <input id="fldLoginType" type="hidden" data-bind="type" data-datatype="int" />
+            <input id="fldLoginType" type="hidden" data-bind="login.type" data-datatype="int" />
             <div id="divLoginPin" style="display:none;">
                 <div class="field-group" style="text-align:center;">
                     <div id="fldPinEntry" style="display:inline-block;" onkeydown="ui.pinKeyPressed(event);">
