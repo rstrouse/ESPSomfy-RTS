@@ -594,8 +594,8 @@ div.wait-overlay > .lds-roller {
         vertical-align: middle;
         margin-top: .15em;
         color: darkslategray;
-        top:0px;
-        left:0px;
+        top: 0;
+        left: 0;
     }
     .progress-bar::before {
         content: "";

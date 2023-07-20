@@ -393,7 +393,7 @@ void Web::begin() {
     uint8_t repeat = 1;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (apiServer.hasArg("shadeId")) {
+      if (apiServer.hasArg("groupId")) {
         groupId = atoi(apiServer.arg("groupId").c_str());
         if (apiServer.hasArg("command")) command = translateSomfyCommand(apiServer.arg("command"));
         if(apiServer.hasArg("repeat")) repeat = atoi(apiServer.arg("repeat").c_str());
@@ -1139,7 +1139,7 @@ void Web::begin() {
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (server.hasArg("groupId")) {
-        groupId = atoi(server.arg("shadeId").c_str());
+        groupId = atoi(server.arg("groupId").c_str());
         if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
         if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
       }

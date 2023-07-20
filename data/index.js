@@ -13,9 +13,9 @@ Date.prototype.toJSON = function () {
     return `${this.getFullYear()}-${(this.getMonth() + 1).fmt('00')}-${this.getDate().fmt('00')}T${this.getHours().fmt('00')}:${this.getMinutes().fmt('00')}:${this.getSeconds().fmt('00')}.${this.getMilliseconds().fmt('000')}${sign}${tzHrs}${tzMin}`;
 };
 Date.prototype.fmt = function (fmtMask, emptyMask) {
-    if (fmtMask.match(/[hHmt]/g) !== null) { if (this.isDateTimeEmpty()) return typeof (emptyMask) !== 'undefined' ? emptyMask : ''; }
-    if (fmtMask.match(/[Mdy]/g) !== null) { if (this.isDateEmpty()) return typeof (emptyMask) !== 'undefined' ? emptyMask : ''; }
-    let formatted = (typeof (fmtMask) !== 'undefined' && fmtMask !== null) ? fmtMask : 'MM-dd-yyyy HH:mm:ss';
+    if (fmtMask.match(/[hHmt]/g) !== null) { if (this.isDateTimeEmpty()) return typeof emptyMask !== 'undefined' ? emptyMask : ''; }
+    if (fmtMask.match(/[Mdy]/g) !== null) { if (this.isDateEmpty()) return typeof emptyMask !== 'undefined' ? emptyMask : ''; }
+    let formatted = typeof fmtMask !== 'undefined' && fmtMask !== null ? fmtMask : 'MM-dd-yyyy HH:mm:ss';
     let letters = 'dMyHhmst'.split('');
     let temp = [];
     let count = 0;
@@ -36,14 +36,14 @@ Date.prototype.fmt = function (fmtMask, emptyMask) {
         yyyy: year,
         H: this.getHours().toString(),
         HH: this.getHours().toString().padStart(2, '00'),
-        h: this.getHours() === 0 ? '12' : (this.getHours() > 12) ? Math.abs(this.getHours() - 12).toString() : this.getHours().toString(),
-        hh: this.getHours() === 0 ? '12' : (this.getHours() > 12) ? Math.abs(this.getHours() - 12).toString().padStart(2, '00') : this.getHours().toString().padStart(2, '00'),
+        h: this.getHours() === 0 ? '12' : this.getHours() > 12 ? Math.abs(this.getHours() - 12).toString() : this.getHours().toString(),
+        hh: this.getHours() === 0 ? '12' : this.getHours() > 12 ? Math.abs(this.getHours() - 12).toString().padStart(2, '00') : this.getHours().toString().padStart(2, '00'),
         m: this.getMinutes().toString(),
         mm: this.getMinutes().toString().padStart(2, '00'),
         s: this.getSeconds().toString(),
         ss: this.getSeconds().toString().padStart(2, '00'),
-        t: (this.getHours() < 12 || this.getHours() === 24) ? 'a' : 'p',
-        tt: (this.getHours() < 12 || this.getHours() === 24) ? 'am' : 'pm'
+        t: this.getHours() < 12 || this.getHours() === 24 ? 'a' : 'p',
+        tt: this.getHours() < 12 || this.getHours() === 24 ? 'am' : 'pm'
     };
     for (let i = 0; i < letters.length; i++) {
         regexA = new RegExp('(' + letters[i] + '+)');
@@ -152,10 +152,10 @@ Number.prototype.fmt = function (format, empty) {
 var baseUrl = window.location.protocol === 'file:' ? 'http://ESPSomfyRTS' : '';
 //var baseUrl = '';
 function makeBool(val) {
-    if (typeof (val) === 'boolean') return val;
-    if (typeof (val) === 'undefined') return false;
-    if (typeof (val) === 'number') return val >= 1;
-    if (typeof (val) === 'string') {
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'undefined') return false;
+    if (typeof val === 'number') return val >= 1;
+    if (typeof val === 'string') {
         if (val === '') return false;
         switch (val.toLowerCase().trim()) {
             case 'on':
@@ -735,7 +735,7 @@ class UIBinder {
         if (typeof val.getMonth === 'function') return val.getTime();
         var tval = val.replace(/[^0-9\.\-]+/g, '');
         return tval.indexOf('.') !== -1 ? parseFloat(tval) : parseInt(tval, 10);
-    };
+    }
     _bindValue(obj, el, val, arrayRef) {
         var binding = el.getAttribute('data-bind');
         var dataType = el.getAttribute('data-datatype');
@@ -746,7 +746,7 @@ class UIBinder {
             for (var i = 0; i < arr.length - 1; i++) {
                 let s = arr[i];
                 if (typeof s === 'undefined' || s.length === 0) continue;
-                sRef += ('.' + s);
+                sRef += '.' + s;
                 var ndx = s.lastIndexOf('[');
                 if (ndx !== -1) {
                     var v = s.substring(0, ndx);
@@ -1038,7 +1038,7 @@ class UIBinder {
             }
         }
     }
-    isConfigOpen() { return (window.getComputedStyle(document.getElementById('divConfigPnl')).display !== 'none'); }
+    isConfigOpen() { return window.getComputedStyle(document.getElementById('divConfigPnl')).display !== 'none'; }
     setConfigPanel() {
         if (this.isConfigOpen()) return;
         let divCfg = document.getElementById('divConfigPnl');
@@ -1186,7 +1186,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.0.1';
+    appVersion = 'v2.0.2';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1468,7 +1468,7 @@ class General {
                 ui.errorMessage('Invalid Pin').querySelector('.sub-message').innerHTML = 'Pins must be exactly 4 alpha-numeric values in length.  Please enter a complete pin.';
                 return;
             }
-            confirm = '<p>Please keep your PIN safe and above all remember it.  The only way to recover a lost PIN is to completely reload the onboarding firmware which will wipe out your configuration.</p><p>Have you stored your PIN in a safe place?</p>'
+            confirm = '<p>Please keep your PIN safe and above all remember it.  The only way to recover a lost PIN is to completely reload the onboarding firmware which will wipe out your configuration.</p><p>Have you stored your PIN in a safe place?</p>';
         }
         else if (security.type === 2) { // Password
             if (sec.username.length === 0) {
@@ -1497,7 +1497,7 @@ class General {
                 ui.errorMessage('Passwords do not Match').querySelector('.sub-message').innerHTML = 'Please re-enter the password exactly as you typed it in the Re-enter Password field.';
                 return;
             }
-            confirm = '<p>Please keep your password safe and above all remember it.  The only way to recover a password is to completely reload the onboarding firmware which will wipe out your configuration.</p><p>Have you stored your username and password in a safe place?</p>'
+            confirm = '<p>Please keep your password safe and above all remember it.  The only way to recover a password is to completely reload the onboarding firmware which will wipe out your configuration.</p><p>Have you stored your username and password in a safe place?</p>';
         }
         let prompt = ui.promptMessage('Confirm Security', () => {
             putJSONSync('/saveSecurity', sec, (err, objApiKey) => {
@@ -1745,10 +1745,10 @@ class Wifi {
             html += `<div class="eth-setting-line"><label>Power Pin</label><span>${obj.ethernet.PWRPin === -1 ? 'None' : obj.ethernet.PWRPin}</span></div>`;
             html += `<div class="eth-setting-line"><label>MDC Pin</label><span>${obj.ethernet.MDCPin}</span></div>`;
             html += `<div class="eth-setting-line"><label>MDIO Pin</label><span>${obj.ethernet.MDIOPin}</span></div>`;
-            html += '</div>'
-            html += `<div class="button-container">`
-            html += `<button id="btnSaveEthernet" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;">Save Ethernet Settings</button>`
-            html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('divLanSettings').remove();">Cancel</button>`
+            html += '</div>';
+            html += `<div class="button-container">`;
+            html += `<button id="btnSaveEthernet" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;">Save Ethernet Settings</button>`;
+            html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('divLanSettings').remove();">Cancel</button>`;
             html += `</div><form>`;
             div.innerHTML = html;
             document.getElementById('divContainer').appendChild(div);
@@ -1799,13 +1799,13 @@ class Wifi {
         let ssid = strength.ssid || strength.name;
         document.getElementById('spanNetworkSSID').innerHTML = !ssid || ssid === '' ? '-------------' : ssid;
         document.getElementById('spanNetworkChannel').innerHTML = isNaN(strength.channel) || strength.channel < 0 ? '--' : strength.channel;
-        let cssClass = 'waveStrength-' + ((isNaN(strength.strength) || strength > 0) ? -100 : this.calcWaveStrength(strength.strength));
+        let cssClass = 'waveStrength-' + (isNaN(strength.strength) || strength > 0 ? -100 : this.calcWaveStrength(strength.strength));
         let elWave = document.getElementById('divNetworkStrength').children[0];
         if (typeof elWave !== 'undefined' && !elWave.classList.contains(cssClass)) {
             elWave.classList.remove('waveStrength-0', 'waveStrength-1', 'waveStrength-2', 'waveStrength-3', 'waveStrength-4');
             elWave.classList.add(cssClass);
         }
-        document.getElementById('spanNetworkStrength').innerHTML = (isNaN(strength.strength) || strength.strength <= -100) ? '----' : strength.strength;
+        document.getElementById('spanNetworkStrength').innerHTML = isNaN(strength.strength) || strength.strength <= -100 ? '----' : strength.strength;
     }
     procEthernet(ethernet) {
         console.log(ethernet);
@@ -1814,7 +1814,7 @@ class Wifi {
         document.getElementById('spanEthernetStatus').innerHTML = ethernet.connected ? 'Connected' : 'Disconnected';
         document.getElementById('spanEthernetSpeed').innerHTML = !ethernet.connected ? '--------' : `${ethernet.speed}Mbps ${ethernet.fullduplex ? 'Full-duplex' : 'Half-duplex'}`;
     }
-};
+}
 var wifi = new Wifi();
 class Somfy {
     initialized = false;
@@ -1858,7 +1858,7 @@ class Somfy {
     }
     saveRadio() {
         let valid = true;
-        let getIntValue = (fld) => { return parseInt(document.getElementById(fld).value, 10); }
+        let getIntValue = (fld) => { return parseInt(document.getElementById(fld).value, 10); };
         let trans = ui.fromElement(document.getElementById('divTransceiverSettings')).transceiver;
         // Check to make sure we have a trans type.
         if (typeof trans.config.type === 'undefined' || trans.config.type === '' || trans.config.type === 'none') {
@@ -1960,8 +1960,8 @@ class Somfy {
             divCtl += `<div class="shade-name">`;
 
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
-            divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`
-            if (shade.myTiltPos > 0) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
+            divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`;
+            if (shade.myTiltPos > 0) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`;
             divCtl += '</div>';
 
             divCtl += `<div class="shadectl-buttons">`;
@@ -2073,7 +2073,7 @@ class Somfy {
             divCtl += `<div class="somfyGroupCtl" data-groupId="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
             divCtl += `<div class="group-name">`;
             divCtl += `<span class="groupctl-name">${group.name}</span>`;
-            divCtl += `<div class="groupctl-shades">`
+            divCtl += `<div class="groupctl-shades">`;
             for (let j = 0; j < group.linkedShades.length; j++) {
                 divCtl += '<span>';
                 if (j !== 0) divCtl += ', ';
@@ -2133,9 +2133,9 @@ class Somfy {
                 html += '<div id="divTiltTarget" style="display:none;">';
                 html += `<input id="slidShadeTiltTarget" name="shadeTiltTarget" type="range" min="0" max="100" step="1" oninput="document.getElementById('spanShadeTiltTarget').innerHTML = this.value;" />`;
                 html += `<label for="slidShadeTiltTarget"><span>Target Tilt </span><span><span id="spanShadeTiltTarget" class="shade-target">${currTiltPos}</span><span>%</span></span></label>`;
-                html += '</div>'
+                html += '</div>';
                 html += `<hr></hr>`;
-                html += '<div style="text-align:right;width:100%;">'
+                html += '<div style="text-align:right;width:100%;">';
                 html += `<button id="btnSetMyPosition" type="button" style="width:auto;display:inline-block;padding-left:10px;padding-right:10px;margin-top:0px;margin-bottom:10px;margin-right:7px;">Set My Position</button>`;
                 html += `<button id="btnCancel" type="button" onclick="somfy.closeShadePositioners();" style="width:auto;display:inline-block;padding-left:10px;padding-right:10px;margin-top:0px;margin-bottom:10px;">Cancel</button>`;
                 html += `</div></div>`;
@@ -2280,7 +2280,7 @@ class Somfy {
     procRemoteFrame(frame) {
         console.log(frame);
         document.getElementById('spanRssi').innerHTML = frame.rssi;
-        document.getElementById('spanFrameCount').innerHTML = parseInt(document.getElementById('spanFrameCount').innerHTML, 10) + 1
+        document.getElementById('spanFrameCount').innerHTML = parseInt(document.getElementById('spanFrameCount').innerHTML, 10) + 1;
         let lnk = document.getElementById('divLinking');
         if (lnk) {
             let obj = {
@@ -2335,7 +2335,7 @@ class Somfy {
                 if (i !== 0) output += ',\n';
                 output += this.JSONPretty(obj[i], indent);
             }
-            output += ']'
+            output += ']';
             return output;
         }
         else {
@@ -2803,14 +2803,14 @@ class Somfy {
                 html += '<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="background:yellow;padding:10px;display:inline-block;border-radius:5px;background:white;">BEWARE ... WARNING ... DANGER<span></div>';
                 html += '<hr style="width:100%;margin:0px;"></hr>';
                 html += '<p style="font-size:14px;">If this shade is already paired with a motor then changing the rolling code WILL cause it to stop working.  Rolling codes are tied to the remote address and the Somfy motor expects these to be sequential.</p>';
-                html += '<p style="font-size:14px;">If you hesitated just a little bit do not press the red button.  Green represents safety so press it, wipe the sweat from your brow, and go through the normal pairing process.'
+                html += '<p style="font-size:14px;">If you hesitated just a little bit do not press the red button.  Green represents safety so press it, wipe the sweat from your brow, and go through the normal pairing process.';
                 html += '<div class="field-group" style="border-radius:5px;background:white;width:50%;margin-left:25%;text-align:center">';
                 html += `<input id="fldNewRollingCode" min="0" max="65535" name="newRollingCode" type="number" length="12" style="text-align:center;font-size:24px;" placeholder="New Code" value="${shade.lastRollingCode}"></input>`;
                 html += '<label for="fldNewRollingCode">Rolling Code</label>';
-                html += '</div>'
-                html += `<div class="button-container">`
-                html += `<button id="btnChangeRollingCode" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;" onclick="somfy.setRollingCode(${shadeId}, parseInt(document.getElementById('fldNewRollingCode').value, 10));">Set Rolling Code</button>`
-                html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('divRollingCode').remove();">Cancel</button>`
+                html += '</div>';
+                html += `<div class="button-container">`;
+                html += `<button id="btnChangeRollingCode" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:orangered;" onclick="somfy.setRollingCode(${shadeId}, parseInt(document.getElementById('fldNewRollingCode').value, 10));">Set Rolling Code</button>`;
+                html += `<button id="btnCancel" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;background:lawngreen;color:gray" onclick="document.getElementById('divRollingCode').remove();">Cancel</button>`;
                 html += `</div>`;
                 div.innerHTML = html;
                 document.getElementById('somfyShade').appendChild(div);
@@ -2848,20 +2848,20 @@ class Somfy {
     pairShade(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divPairing" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
-        html += '<div>Follow the instructions below to pair this shade with a Somfy motor</div>'
+        html += '<div>Follow the instructions below to pair this shade with a Somfy motor</div>';
         html += '<hr style="width:100%;margin:0px;"></hr>';
         html += '<ul style="width:100%;margin:0px;padding-left:20px;font-size:14px;">';
         html += '<li>Open the shade memory using an existing remote</li>';
         html += '<li>Press the prog button on the back of the remote until the shade jogs</li>';
         html += '<li>After the shade jogs press the Prog button below</li>';
         html += '<li>The shade should jog again indicating that the shade is paired</li>';
-        html += '<li>If the shade jogs, you can press the shade paired button.</li>'
-        html += '<li>If the shade does not jog, press the prog button again.</li>'
-        html += '</ul>'
-        html += `<div class="button-container">`
-        html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`
-        html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, true);">Shade Paired</button>`
-        html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`
+        html += '<li>If the shade jogs, you can press the shade paired button.</li>';
+        html += '<li>If the shade does not jog, press the prog button again.</li>';
+        html += '</ul>';
+        html += `<div class="button-container">`;
+        html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`;
+        html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, true);">Shade Paired</button>`;
+        html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`;
         html += `</div>`;
         div.innerHTML = html;
         document.getElementById('somfyShade').appendChild(div);
@@ -2870,20 +2870,20 @@ class Somfy {
     unpairShade(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divPairing" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
-        html += '<div>Follow the instructions below to unpair this shade from a Somfy motor</div>'
+        html += '<div>Follow the instructions below to unpair this shade from a Somfy motor</div>';
         html += '<hr style="width:100%;margin:0px;"></hr>';
         html += '<ul style="width:100%;margin:0px;padding-left:20px;font-size:14px;">';
         html += '<li>Open the shade memory using an existing remote</li>';
         html += '<li>Press the prog button on the back of the remote until the shade jogs</li>';
         html += '<li>After the shade jogs press the Prog button below</li>';
         html += '<li>The shade should jog again indicating that the shade is unpaired</li>';
-        html += '<li>If the shade jogs, you can press the shade unpaired button.</li>'
-        html += '<li>If the shade does not jog, press the prog button again until the shade jogs.</li>'
-        html += '</ul>'
-        html += `<div class="button-container">`
-        html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`
-        html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, false);">Shade Unpaired</button>`
-        html += `<button id="btnStopUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`
+        html += '<li>If the shade jogs, you can press the shade unpaired button.</li>';
+        html += '<li>If the shade does not jog, press the prog button again until the shade jogs.</li>';
+        html += '</ul>';
+        html += `<div class="button-container">`;
+        html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`;
+        html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, false);">Shade Unpaired</button>`;
+        html += `<button id="btnStopUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`;
         html += `</div>`;
         div.innerHTML = html;
         document.getElementById('somfyShade').appendChild(div);
@@ -2936,9 +2936,9 @@ class Somfy {
         html += '<div class="wizard-step" data-stepid="1">';
         html += '<p style="font-size:14px;">This wizard will walk you through the steps required to add shades into a group.  Follow all instructions at each step until the shade is added to the group.</p>';
         html += '<p style="font-size:14px;">During this process the shade should jog exactly two times.  The first time indicates that the motor memory has been enabled and the second time adds the group to the motor memory</p>';
-        html += '<p style="font-size:14px;">Each shade must be paired individually to the group.  When you are ready to begin pairing your shade to the group press the NEXT button.</p><hr></hr>'
+        html += '<p style="font-size:14px;">Each shade must be paired individually to the group.  When you are ready to begin pairing your shade to the group press the NEXT button.</p><hr></hr>';
        
-        html += '</div>'
+        html += '</div>';
 
         html += '<div class="wizard-step" data-stepid="2">';
         html += '<p style="font-size:14px;">Choose a shade that you would like to include in this group.  Once you have chosen the shade to include in the link press the NEXT button.</p>';
@@ -2954,7 +2954,7 @@ class Somfy {
         html += '<hr></hr>';
         html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
         html += '<div class="button-container"><button type="button" id="btnOpenMemory">Open Memory</button></div>';
-        html += '<hr></hr>'
+        html += '<hr></hr>';
         html += '</div>';
 
         html += '<div class="wizard-step" data-stepid="4">';
@@ -2963,13 +2963,13 @@ class Somfy {
         html += '<hr></hr>';
         html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
         html += '<div class="button-container"><button type="button" id="btnPairToGroup">Pair to Group</button></div>';
-        html += '<hr></hr>'
+        html += '<hr></hr>';
         html += '</div>';
 
 
 
         html += `<div class="button-container" style="text-align:center;"><button id="btnPrevStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;margin-right:10px;display:inline-block;" onclick="ui.wizSetPrevStep(document.getElementById('divLinkGroup'));">Go Back</button><button id="btnNextStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;display:inline-block;" onclick="ui.wizSetNextStep(document.getElementById('divLinkGroup'));">Next</button></div>`;
-        html += `<div class="button-container" style="text-align:center;"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;width:calc(100% - 100px);" onclick="document.getElementById('divLinkGroup').remove();">Cancel</button></div>`
+        html += `<div class="button-container" style="text-align:center;"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;width:calc(100% - 100px);" onclick="document.getElementById('divLinkGroup').remove();">Cancel</button></div>`;
         html += '</div>';
         div.innerHTML = html;
         document.getElementById('divContainer').appendChild(div);
@@ -3043,8 +3043,8 @@ class Somfy {
         html += '<div class="wizard-step" data-stepid="1">';
         html += '<p style="font-size:14px;">This wizard will walk you through the steps required to remove a shade from a group.  Follow all instructions at each step until the shade is removed from the group.</p>';
         html += '<p style="font-size:14px;">During this process the shade should jog exactly two times.  The first time indicates that the motor memory has been enabled and the second time removes the group from the motor memory</p>';
-        html += '<p style="font-size:14px;">Each shade must be removed from the group individually.  When you are ready to begin unpairing your shade from the group press the NEXT button to begin.</p><hr></hr>'
-        html += '</div>'
+        html += '<p style="font-size:14px;">Each shade must be removed from the group individually.  When you are ready to begin unpairing your shade from the group press the NEXT button to begin.</p><hr></hr>';
+        html += '</div>';
 
         html += '<div class="wizard-step" data-stepid="2">';
         html += '<p style="font-size:14px;">You must first open the memory for the shade by pressing the OPEN MEMORY button.  The shade should jog to indicate the memory has been opened.</p>';
@@ -3052,7 +3052,7 @@ class Somfy {
         html += '<hr></hr>';
         html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
         html += '<div class="button-container"><button type="button" id="btnOpenMemory">Open Memory</button></div>';
-        html += '<hr></hr>'
+        html += '<hr></hr>';
         html += '</div>';
 
         html += '<div class="wizard-step" data-stepid="3">';
@@ -3061,10 +3061,10 @@ class Somfy {
         html += '<hr></hr>';
         html += '<div id="divWizShadeName" style="text-align:center;font-size:22px;"></div>';
         html += '<div class="button-container"><button type="button" id="btnUnpairFromGroup">Unpair from Group</button></div>';
-        html += '<hr></hr>'
+        html += '<hr></hr>';
         html += '</div>';
         html += `<div class="button-container" style="text-align:center;"><button id="btnPrevStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;margin-right:10px;display:inline-block;" onclick="ui.wizSetPrevStep(document.getElementById('divUnlinkGroup'));">Go Back</button><button id="btnNextStep" type="button" style="padding-left:20px;padding-right:20px;width:37%;display:inline-block;" onclick="ui.wizSetNextStep(document.getElementById('divUnlinkGroup'));">Next</button></div>`;
-        html += `<div class="button-container" style="text-align:center;"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;width:calc(100% - 100px);" onclick="document.getElementById('divUnlinkGroup').remove();">Cancel</button></div>`
+        html += `<div class="button-container" style="text-align:center;"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;width:calc(100% - 100px);" onclick="document.getElementById('divUnlinkGroup').remove();">Cancel</button></div>`;
         html += '</div>';
         div.innerHTML = html;
         document.getElementById('divContainer').appendChild(div);
@@ -3111,7 +3111,7 @@ class Somfy {
             else {
                 console.log(group);
                 console.log(shadeId);
-                let shade = group.linkedShades.find((x) => { return shadeId === x.shadeId; })
+                let shade = group.linkedShades.find((x) => { return shadeId === x.shadeId; });
                 if (typeof shade !== 'undefined') {
                     // Add in all the available shades.
                     let grpName = div.querySelector('#divGroupName');
@@ -3265,7 +3265,7 @@ class MQTT {
             if (err) ui.serviceError(err);
             console.log(response);
         });
-    };
+    }
 }
 var mqtt = new MQTT();
 class Firmware {
@@ -3273,8 +3273,8 @@ class Firmware {
     init() { this.initialized = true; }
     isMobile() {
         let agt = navigator.userAgent.toLowerCase();
-        return /Android|iPhone|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)
-    };
+        return /Android|iPhone|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
+    }
     backup() {
         var link = document.createElement('a');
         link.href = '/backup';
@@ -3282,13 +3282,13 @@ class Firmware {
         document.body.appendChild(link);
         link.click();
         link.remove();
-    };
+    }
     restore() {
         let div = this.createFileUploader('/restore');
         let inst = div.querySelector('div[id=divInstText]');
         inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a backup file that you would like to restore then press the Upload File button.</div>';
         document.getElementById('divContainer').appendChild(div);
-    };
+    }
     createFileUploader(service) {
         let div = document.createElement('div');
         div.setAttribute('id', 'divUploadFile');
@@ -3302,21 +3302,21 @@ class Firmware {
         html += `<span id="span-selected-file" style="display:inline-block;width:calc(100% - 47px);border-bottom:solid 2px white;font-size:14px;white-space:nowrap;overflow:hidden;max-width:320px;text-overflow:ellipsis;"></span>`;
         html += `<div id="btn-select-file" class="button-outline" style="font-size:.8em;padding:10px;"><i class="icss-upload" style="margin:0px;"></i></div>`;
         html += `</label>`;
-        html += `<div class="progress-bar" id="progFileUpload" style="--progress:0%;margin-top:10px;display:none;"></div>`
-        html += `<div class="button-container">`
-        html += `<button id="btnBackupCfg" type="button" style="display:none;width:auto;padding-left:20px;padding-right:20px;margin-right:4px;" onclick="firmware.backup();">Backup</button>`
-        html += `<button id="btnUploadFile" type="button" style="width:auto;padding-left:20px;padding-right:20px;margin-right:4px;display:inline-block;" onclick="firmware.uploadFile('${service}', document.getElementById('divUploadFile'));">Upload File</button>`
+        html += `<div class="progress-bar" id="progFileUpload" style="--progress:0%;margin-top:10px;display:none;"></div>`;
+        html += `<div class="button-container">`;
+        html += `<button id="btnBackupCfg" type="button" style="display:none;width:auto;padding-left:20px;padding-right:20px;margin-right:4px;" onclick="firmware.backup();">Backup</button>`;
+        html += `<button id="btnUploadFile" type="button" style="width:auto;padding-left:20px;padding-right:20px;margin-right:4px;display:inline-block;" onclick="firmware.uploadFile('${service}', document.getElementById('divUploadFile'));">Upload File</button>`;
         html += `<button id="btnClose" type="button" style="width:auto;padding-left:20px;padding-right:20px;display:inline-block;" onclick="document.getElementById('divUploadFile').remove();">Cancel</button></div>`;
         html += `</form><div>`;
         div.innerHTML = html;
         return div;
-    };
+    }
     updateFirmware() {
         let div = this.createFileUploader('/updateFirmware');
         let inst = div.querySelector('div[id=divInstText]');
         inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file [SomfyController.ino.esp32.bin] containing the device firmware then press the Upload File button.</div>';
         document.getElementById('divContainer').appendChild(div);
-    };
+    }
     updateApplication() {
         let div = this.createFileUploader('/updateApplication');
         general.reloadApp = true;
@@ -3330,7 +3330,7 @@ class Firmware {
             inst.innerHTML += '<hr/><div style="font-size:14px;margin-bottom:10px;">A backup file for your configuration will be downloaded to your browser.  If the application update process fails please restore this file using the restore button</div>';
         document.getElementById('divContainer').appendChild(div);
         if(this.isMobile()) document.getElementById('btnBackupCfg').style.display = 'inline-block';
-    };
+    }
     async uploadFile(service, el) {
         let field = el.querySelector('input[type="file"]');
         let filename = field.value;
@@ -3386,7 +3386,7 @@ class Firmware {
                     return;
                 }
                 else if (!filename.endsWith('.backup') || filename.indexOf('ESPSomfyRTS') === -1) {
-                    ui.errorMessage(el, 'This file is not a valid backup file')
+                    ui.errorMessage(el, 'This file is not a valid backup file');
                     return;
                 }
                 break;
@@ -3432,7 +3432,7 @@ class Firmware {
             }
         };
         xhr.send(formData);
-    };
+    }
 }
 var firmware = new Firmware();
 
