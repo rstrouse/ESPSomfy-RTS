@@ -602,7 +602,7 @@
                     <label for="fldPinEntry" style="margin-top:7px;">Enter Pin</label>
                 </div>
             </div>
-            <div id="divLoginPassword" style="display:none;">
+            <div id="divLoginPassword" style="display:none;" onkeyup="if (event.code === 'Enter') security.login();">
                 <div class="field-group">
                     <input id="fldLoginUsername" name="username" type="text" data-bind="login.username" length=32 placeholder="Username"/>
                     <label for="fldLoginUsername">Username</label>
