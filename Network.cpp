@@ -54,6 +54,10 @@ void Network::loop() {
     this->emitSockets();
     if(!this->connected()) return;
   }
+  if(this->connected() && millis() - this->lastMDNS > 60000) {
+    if(this->lastMDNS != 0) MDNS.setInstanceName(settings.hostname);
+    this->lastMDNS = millis();
+  }
   sockEmit.loop();
   if(settings.ssdpBroadcast) {
     if(!SSDP.isStarted) SSDP.begin();

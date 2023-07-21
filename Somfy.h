@@ -137,6 +137,7 @@ struct somfy_tx_queue_t {
 
 enum class somfy_flags_t : byte {
     SunFlag = 0x01,
+    SunSensor = 0x02,
     DemoMode = 0x04,
     Windy = 0x10,
     Sunny = 0x20
@@ -175,7 +176,6 @@ class SomfyRemote {
   public:
     radio_proto proto = radio_proto::RTS;
     bool flipCommands = false;
-    
     uint8_t flags = 0;
     uint8_t bitLength = 0;
     char *getRemotePrefId() {return m_remotePrefId;}
@@ -185,6 +185,8 @@ class SomfyRemote {
     virtual uint16_t getNextRollingCode();
     virtual uint16_t setRollingCode(uint16_t code);
     uint16_t lastRollingCode = 0;
+    bool hasSunSensor();
+    void setSunSensor(bool bHasSensor);
     virtual void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
     somfy_commands transformCommand(somfy_commands cmd);
 };
@@ -288,6 +290,9 @@ class SomfyGroup : public SomfyRemote {
     bool linkShade(uint8_t shadeId);
     bool unlinkShade(uint8_t shadeId);
     bool hasShadeId(uint8_t shadeId);
+    void compressLinkedShadeIds();
+    void publish();
+    void updateFlags();
     void emitState(const char *evt = "groupState");
     void emitState(uint8_t num, const char *evt = "groupState");
     void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
@@ -420,6 +425,7 @@ class SomfyShadeController {
     bool toJSONGroups(JsonArray &arr);
     uint8_t shadeCount();
     uint8_t groupCount();
+    void updateGroupFlags();
     SomfyShade * getShadeById(uint8_t shadeId);
     SomfyGroup * getGroupById(uint8_t groupId);
     SomfyShade * findShadeByRemoteAddress(uint32_t address);

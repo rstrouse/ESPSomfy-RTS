@@ -5,6 +5,7 @@
 class Network {
   protected:
     unsigned long lastEmit = 0;
+    unsigned long lastMDNS = 0;
     int lastRSSI = 0;
     int lastChannel = 0;
     int linkSpeed = 0;

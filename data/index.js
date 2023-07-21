@@ -467,6 +467,9 @@ async function initSockets() {
                         case 'remoteFrame':
                             somfy.procRemoteFrame(msg);
                             break;
+                        case 'groupState':
+                            somfy.procGroupState(msg);
+                            break;
                         case 'shadeState':
                             somfy.procShadeState(msg);
                             break;
@@ -1194,7 +1197,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.0.3';
+    appVersion = 'v2.1.0';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1973,7 +1976,7 @@ class Somfy {
             divCtl += '</div>';
 
             divCtl += `<div class="shadectl-buttons">`;
-            divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-shadeid="${shade.shadeId}" data-on="${shade.flags & 0x01 ? 'true' : 'false'}" style="${shade.shadeType !== 3 ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
+            divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-shadeid="${shade.shadeId}" data-on="${shade.flags & 0x01 ? 'true' : 'false'}" style="${!shade.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-shadeid="${shade.shadeId}"><i class="icss-somfy-up"></i></div>`;
             divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-shadeid="${shade.shadeId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-shadeid="${shade.shadeId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
@@ -1992,6 +1995,7 @@ class Somfy {
                 let cmd = event.currentTarget.getAttribute('data-cmd');
                 let shadeId = parseInt(event.currentTarget.getAttribute('data-shadeid'), 10);
                 if (this.btnTimer) {
+                    console.log({ timer: true, isOn: event.currentTarget.getAttribute('data-on'), cmd: cmd });
                     clearTimeout(this.btnTimer);
                     this.btnTimer = null;
                     if (new Date().getTime() - this.btnDown > 2000) event.preventDefault();
@@ -2027,6 +2031,7 @@ class Somfy {
                         }, 2000);
                     }
                 }
+                else if (cmd === 'sunflag') return;
                 else if (makeBool(elShade.getAttribute('data-tilt'))) {
                     this.btnTimer = setTimeout(() => {
                         this.sendTiltCommand(shadeId, cmd);
@@ -2090,6 +2095,7 @@ class Somfy {
             }
             divCtl += '</div></div>';
             divCtl += `<div class="groupctl-buttons">`;
+            divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-groupid="${group.groupId}" data-on="${group.flags & 0x01 ? 'true' : 'false'}" style="${!group.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-groupid="${group.groupId}"><i class="icss-somfy-up"></i></div>`;
             divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-groupid="${group.groupId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-groupid="${group.groupId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
@@ -2104,9 +2110,16 @@ class Somfy {
             btns[i].addEventListener('click', (event) => {
                 console.log(this);
                 console.log(event);
-                let cmd = event.currentTarget.getAttribute('data-cmd');
                 let groupId = parseInt(event.currentTarget.getAttribute('data-groupid'), 10);
-                this.sendGroupCommand(groupId, cmd);
+                let cmd = event.currentTarget.getAttribute('data-cmd');
+                if (cmd === 'sunflag') {
+                    if (makeBool(event.currentTarget.getAttribute('data-on')))
+                        this.sendGroupCommand(groupId, 'flag');
+                    else
+                        this.sendGroupCommand(groupId, 'sunflag');
+                }
+                else
+                    this.sendGroupCommand(groupId, cmd);
             }, true);
         }
     }
@@ -2246,6 +2259,14 @@ class Somfy {
             sel.options[sel.options.length] = new Option(`GPIO-${i > 9 ? i.toString() : '0' + i.toString()}`, i, typeof opt !== 'undefined' && opt === i);
         }
     }
+    procGroupState(state) {
+        console.log(state);
+        let flags = document.querySelectorAll(`.button-sunflag[data-groupid="${state.groupId}"]`);
+        for (let i = 0; i < flags.length; i++) {
+            flags[i].style.display = state.sunSensor ? '' : 'none';
+            flags[i].setAttribute('data-on', state.flags & 0x01 === 0x01 ? 'true' : 'false');
+        }
+    }
     procShadeState(state) {
         console.log(state);
         let icons = document.querySelectorAll(`.somfy-shade-icon[data-shadeid="${state.shadeId}"]`);
@@ -2260,7 +2281,7 @@ class Somfy {
         }
         let flags = document.querySelectorAll(`.button-sunflag[data-shadeid="${state.shadeId}"]`);
         for (let i = 0; i < flags.length; i++) {
-            flags[i].style.display = state.type === 3 ? '' : 'none';
+            flags[i].style.display = state.sunSensor ? '' : 'none';
             flags[i].setAttribute('data-on', state.flags & 0x01 === 0x01 ? 'true' : 'false');
            
         }

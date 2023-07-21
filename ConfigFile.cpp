@@ -352,7 +352,13 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     }
     shade->lastRollingCode = this->readUInt16(0);
     if(this->header.version > 7) shade->flags = this->readUInt8(0);
-    if(shade->getRemoteAddress() != 0) shade->lastRollingCode = max(pref.getUShort(shade->getRemotePrefId(), shade->lastRollingCode), shade->lastRollingCode);
+    if(shade->getRemoteAddress() != 0) {
+      // If the last rolling code stored on the nvs is less than the rc we currently have
+      // then we need to set it.
+      uint16_t rc = pref.getUShort(shade->getRemotePrefId(), 0);
+      shade->lastRollingCode = max(rc, shade->lastRollingCode);
+      if(rc < shade->lastRollingCode) pref.putUShort(shade->getRemotePrefId(), shade->lastRollingCode);
+    }
     if(this->header.version < 4)
       shade->myPos = static_cast<float>(this->readUInt8(255));
     else {
@@ -391,12 +397,18 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     this->readString(group->name, sizeof(group->name));
     group->proto = static_cast<radio_proto>(this->readUInt8(0));
     group->bitLength = this->readUInt8(56);
+    if(group->getRemoteAddress() != 0) {
+      uint16_t rc = pref.getUShort(group->getRemotePrefId(), 0);
+      group->lastRollingCode = max(rc, group->lastRollingCode);
+      if(rc < group->lastRollingCode) pref.putUShort(group->getRemotePrefId(), group->lastRollingCode);
+    }
     uint8_t lsd = 0;
     for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
       uint8_t shadeId = this->readUInt8(0);
       // Do this to eliminate gaps.
       if(shadeId > 0) group->linkedShades[lsd++] = shadeId;
     }
+    group->compressLinkedShadeIds();
   }
   pref.end();
   if(opened) {
@@ -442,7 +454,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   }
   this->writeUInt16(shade->lastRollingCode);
   if(shade->getShadeId() != 255) {
-    this->writeUInt8(shade->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
+    this->writeUInt8(shade->flags & 0x0F);
     this->writeFloat(shade->myPos, 5);
     this->writeFloat(shade->myTiltPos, 5);
     this->writeFloat(shade->currentPos, 5);

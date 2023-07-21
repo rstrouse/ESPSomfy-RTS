@@ -28,7 +28,7 @@ void MQTTClass::reset() {
 bool MQTTClass::loop() {
   if(settings.MQTT.enabled && !mqttClient.connected())
     this->connect();
-  mqttClient.loop();
+  if(settings.MQTT.enabled) mqttClient.loop();
   return true;
 }
 void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
@@ -219,49 +219,49 @@ bool MQTTClass::subscribe(const char *topic) {
   }
   return true;
 }
-bool MQTTClass::publish(const char *topic, const char *payload) {
+bool MQTTClass::publish(const char *topic, const char *payload, bool retain) {
   if(mqttClient.connected()) {
     char top[128];
     if(strlen(settings.MQTT.rootTopic) > 0)
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
     else
       strlcpy(top, topic, sizeof(top));
-    mqttClient.publish(top, payload);
+    mqttClient.publish(top, payload, retain);
     return true;
   }
   return false;
 }
-bool MQTTClass::publish(const char *topic, uint32_t val) {
+bool MQTTClass::publish(const char *topic, uint32_t val, bool retain) {
   snprintf(g_content, sizeof(g_content), "%u", val);
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, JsonDocument &doc) {
+bool MQTTClass::publish(const char *topic, JsonDocument &doc, bool retain) {
   serializeJson(doc, g_content, sizeof(g_content));
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, JsonArray &arr) {
+bool MQTTClass::publish(const char *topic, JsonArray &arr, bool retain) {
   serializeJson(arr, g_content, sizeof(g_content));
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, JsonObject &obj) {
+bool MQTTClass::publish(const char *topic, JsonObject &obj, bool retain) {
   serializeJson(obj, g_content, sizeof(g_content));
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, int8_t val) {
+bool MQTTClass::publish(const char *topic, int8_t val, bool retain) {
   snprintf(g_content, sizeof(g_content), "%d", val);
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, uint8_t val) {
+bool MQTTClass::publish(const char *topic, uint8_t val, bool retain) {
   snprintf(g_content, sizeof(g_content), "%u", val);
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, uint16_t val) {
+bool MQTTClass::publish(const char *topic, uint16_t val, bool retain) {
   snprintf(g_content, sizeof(g_content), "%u", val);
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, bool val) {
+bool MQTTClass::publish(const char *topic, bool val, bool retain) {
   snprintf(g_content, sizeof(g_content), "%s", val ? "true" : "false");
-  return this->publish(topic, g_content);
+  return this->publish(topic, g_content, retain);
 }
 bool MQTTClass::connected() {
   if(settings.MQTT.enabled) return mqttClient.connected();
