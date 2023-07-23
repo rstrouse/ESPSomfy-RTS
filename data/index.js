@@ -1197,7 +1197,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.1.0';
+    appVersion = 'v2.1.1';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -3163,6 +3163,7 @@ class Somfy {
                 remoteAddress: remoteAddress
             };
             putJSONSync('/unlinkRemote', obj, (err, shade) => {
+
                 console.log(shade);
                 prompt.remove();
                 this.setLinkedRemotesList(shade);
