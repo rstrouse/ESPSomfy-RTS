@@ -3157,15 +3157,13 @@ class Somfy {
         return div;
     }
     unlinkRemote(shadeId, remoteAddress) {
-        let prompt = ui.promptMessage(document.getElementById('fsSomfySettings'), 'Are you sure you want to unlink this remote from the shade?', () => {
+        let prompt = ui.promptMessage('Are you sure you want to unlink this remote from the shade?', () => {
             let obj = {
                 shadeId: shadeId,
                 remoteAddress: remoteAddress
             };
-            let overlay = ui.waitMessage(prompt);
-            putJSON('/unlinkRemote', obj, (err, shade) => {
+            putJSONSync('/unlinkRemote', obj, (err, shade) => {
                 console.log(shade);
-                overlay.remove();
                 prompt.remove();
                 this.setLinkedRemotesList(shade);
             });

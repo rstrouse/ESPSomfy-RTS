@@ -121,7 +121,7 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
           shade->setMyPosition(shade->myPos, val);
       }
       else if(strncmp(command, "sunFlag", sizeof(command)) == 0) {
-        if(val >= 0) shade->sendCommand(somfy_commands::SunFlag);
+        if(val > 0) shade->sendCommand(somfy_commands::SunFlag);
         else shade->sendCommand(somfy_commands::Flag);
       }
     }
@@ -137,6 +137,12 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
           group->sendCommand(somfy_commands::Down);
         else
           group->sendCommand(somfy_commands::My);
+      }
+      else if(strncmp(command, "sunFlag", sizeof(command)) == 0) {
+        if(val > 0)
+          group->sendCommand(somfy_commands::Flag);
+        else
+          group->sendCommand(somfy_commands::SunFlag);
       }
     }
   }

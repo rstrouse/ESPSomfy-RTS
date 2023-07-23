@@ -1394,6 +1394,7 @@ void Web::begin() {
     });
   server.on("/unlinkRemote", []() {
     webServer.sendCORSHeaders();
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
       // We are updating an existing shade by adding a linked remote.
