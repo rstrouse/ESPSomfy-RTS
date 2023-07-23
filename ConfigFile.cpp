@@ -6,10 +6,10 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 11
+#define SHADE_HDR_VER 12
 #define SHADE_HDR_SIZE 24
-#define SHADE_REC_SIZE 248
-#define GROUP_REC_SIZE 176
+#define SHADE_REC_SIZE 252
+#define GROUP_REC_SIZE 180
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -387,6 +387,7 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     if(this->header.version >= 10) {
       shade->flipPosition = this->readBool(false);
     }
+    if(this->header.version >= 12) shade->repeats = this->readUInt8(1);
     if(shade->getShadeId() == 255) shade->clear();
   }
   for(uint8_t i = 0; i < this->header.groupRecords; i++) {
@@ -408,7 +409,9 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
       // Do this to eliminate gaps.
       if(shadeId > 0) group->linkedShades[lsd++] = shadeId;
     }
-    group->compressLinkedShadeIds();
+    if(this->header.version >= 12) group->repeats = this->readUInt8(1);
+    if(group->getGroupId() == 255) group->clear();
+    else group->compressLinkedShadeIds();
   }
   pref.end();
   if(opened) {
@@ -425,9 +428,9 @@ bool ShadeConfigFile::writeGroupRecord(SomfyGroup *group) {
   this->writeUInt8(static_cast<uint8_t>(group->proto));
   this->writeUInt8(group->bitLength);
   for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
-    if(j == SOMFY_MAX_GROUPED_SHADES - 1) this->writeUInt8(group->linkedShades[j], CFG_REC_END);
-    else this->writeUInt8(group->linkedShades[j]);
+    this->writeUInt8(group->linkedShades[j]);
   }
+  this->writeUInt8(group->repeats, CFG_REC_END);
   return true;
 }
 bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
@@ -469,7 +472,8 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
     this->writeFloat(0.0f, 5); // currentTiltPos
   }
   this->writeBool(shade->flipCommands);
-  this->writeBool(shade->flipPosition, CFG_REC_END);
+  this->writeBool(shade->flipPosition);
+  this->writeUInt8(shade->repeats, CFG_REC_END);
   return true;  
 }
 bool ShadeConfigFile::exists() { return LittleFS.exists("/shades.cfg"); }

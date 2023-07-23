@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.1.1" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.1.1" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.1.1" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.1.2" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.1.2" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.1.2" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.1.1"></script>
+    <script type="text/javascript" src="index.js?v=2.1.2"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -375,7 +375,7 @@
                                 </div>
                             </div>
                             <div style="margin-top:-10px;">
-                                <div class="field-group">
+                                <div class="field-group" style="display:inline-block">
                                     <input id="cbFlipCommands" name="flipCommands" data-bind="flipCommands" type="checkbox" style="" />
                                     <label for="cbFlipCommands" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Commands</label>
                                 </div>
@@ -384,6 +384,24 @@
                                 <div class="field-group">
                                     <input id="cbFlipPosition" name="flipPos" data-bind="flipPosition" type="checkbox" style="" />
                                     <label for="cbFlipPosition" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Position (expressed in % of open)</label>
+                                </div>
+                            </div>
+                            <div classs="field-group" style="display:inline-block;">
+                                <label for="selRepeatCommnds" style="cursor:pointer;color:#00bcd4;margin-right:4px;">Repeat Commands</label>
+                                <select id="selRepeatCommands" data-bind="repeats" data-datatype="int" style="width:127px;">
+                                    <option value="0">No Repeats</option>
+                                    <option value="1">1 Time</option>
+                                    <option value="2">2 Times</option>
+                                    <option value="3">3 Times</option>
+                                    <option value="4">4 Times</option>
+                                    <option value="5">5 Times</option>
+                                    <option value="6">6 Times</option>
+                                    <option value="7">7 Times</option>
+                                </select>
+                            </div>
+
+                            <div style="margin-top:-10px;">
+                                <div class="field-group">
                                 </div>
                             </div>
                             <div class="button-container" style="text-align:center;">
@@ -459,6 +477,20 @@
                                 <input id="fldGroupName" name="groupName" data-bind="name" type="text" length=20 placeholder="Name">
                                 <label for="fldGroupName">Name</label>
                             </div>
+                            <div classs="field-group" style="display:inline-block;">
+                                <label for="selRepeatCommnds" style="cursor:pointer;color:#00bcd4;margin-right:4px;">Repeat Commands</label>
+                                <select id="selRepeatCommands" data-bind="repeats" data-datatype="int" style="width:127px;">
+                                    <option value="0">No Repeats</option>
+                                    <option value="1">1 Time</option>
+                                    <option value="2">2 Times</option>
+                                    <option value="3">3 Times</option>
+                                    <option value="4">4 Times</option>
+                                    <option value="5">5 Times</option>
+                                    <option value="6">6 Times</option>
+                                    <option value="7">7 Times</option>
+                                </select>
+                            </div>
+
                             <div class="button-container" style="margin-top:-10px;padding-left:7px;padding-right:7px;">
                                 <button id="btnSaveGroup" type="button" onclick="somfy.saveGroup();">
                                     Save Group

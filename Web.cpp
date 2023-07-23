@@ -323,7 +323,7 @@ void Web::begin() {
     HTTPMethod method = apiServer.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
-    uint8_t repeat = 1;
+    int8_t repeat = -1;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (apiServer.hasArg("shadeId")) {
@@ -373,8 +373,10 @@ void Web::begin() {
       // Send the command to the shade.
       if(target <= 100)
         shade->moveToTarget(shade->transformPosition(target));
-      else
+      else if(repeat > 0)
         shade->sendCommand(command, repeat);
+      else
+        shade->sendCommand(command);
       DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);
@@ -390,7 +392,7 @@ void Web::begin() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = apiServer.method();
     uint8_t groupId = 255;
-    uint8_t repeat = 1;
+    int8_t repeat = -1;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (apiServer.hasArg("groupId")) {
@@ -434,7 +436,8 @@ void Web::begin() {
       Serial.print("Received:");
       Serial.println(apiServer.arg("plain"));
       // Send the command to the group.
-      group->sendCommand(command, repeat);
+      if(repeat != -1) group->sendCommand(command, repeat);
+      else group->sendCommand(command);
       DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       group->toJSON(sobj);
@@ -1068,7 +1071,7 @@ void Web::begin() {
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
     uint8_t target = 255;
-    uint8_t repeat = 1;
+    int8_t repeat = -1;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (server.hasArg("shadeId")) {
@@ -1118,8 +1121,10 @@ void Web::begin() {
       // Send the command to the shade.
       if(target <= 100)
         shade->moveToTarget(shade->transformPosition(target));
-      else
+      else if(repeat > 0)
         shade->sendCommand(command, repeat);
+      else
+        shade->sendCommand(command);
       DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       shade->toJSON(sobj);
@@ -1135,7 +1140,7 @@ void Web::begin() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t groupId = 255;
-    uint8_t repeat = 1;
+    int8_t repeat = -1;
     somfy_commands command = somfy_commands::My;
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
       if (server.hasArg("groupId")) {
@@ -1179,7 +1184,8 @@ void Web::begin() {
       Serial.print("Received:");
       Serial.println(server.arg("plain"));
       // Send the command to the group.
-      group->sendCommand(command, repeat);
+      if(repeat > 0) group->sendCommand(command, repeat);
+      else group->sendCommand(command);
       DynamicJsonDocument sdoc(512);
       JsonObject sobj = sdoc.to<JsonObject>();
       group->toJSON(sobj);

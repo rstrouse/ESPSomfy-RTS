@@ -178,6 +178,7 @@ class SomfyRemote {
     bool flipCommands = false;
     uint8_t flags = 0;
     uint8_t bitLength = 0;
+    uint8_t repeats = 1;
     char *getRemotePrefId() {return m_remotePrefId;}
     virtual bool toJSON(JsonObject &obj);
     virtual void setRemoteAddress(uint32_t address);
@@ -187,7 +188,8 @@ class SomfyRemote {
     uint16_t lastRollingCode = 0;
     bool hasSunSensor();
     void setSunSensor(bool bHasSensor);
-    virtual void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
+    virtual void sendCommand(somfy_commands cmd);
+    virtual void sendCommand(somfy_commands cmd, uint8_t repeat);
     somfy_commands transformCommand(somfy_commands cmd);
 };
 class SomfyLinkedRemote : public SomfyRemote {
@@ -255,7 +257,8 @@ class SomfyShade : public SomfyRemote {
     void moveToTarget(float pos, float tilt = -1.0f);
     void moveToTiltTarget(float target);
     void sendTiltCommand(somfy_commands cmd);
-    void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
+    void sendCommand(somfy_commands cmd);
+    void sendCommand(somfy_commands cmd, uint8_t repeat);
     bool linkRemote(uint32_t remoteAddress, uint16_t rollingCode = 0);
     bool unlinkRemote(uint32_t remoteAddress);
     void emitState(const char *evt = "shadeState");
@@ -295,7 +298,8 @@ class SomfyGroup : public SomfyRemote {
     void updateFlags();
     void emitState(const char *evt = "groupState");
     void emitState(uint8_t num, const char *evt = "groupState");
-    void sendCommand(somfy_commands cmd, uint8_t repeat = 1);
+    void sendCommand(somfy_commands cmd);
+    void sendCommand(somfy_commands cmd, uint8_t repeat);
 };
 struct transceiver_config_t {
     bool printBuffer = false;

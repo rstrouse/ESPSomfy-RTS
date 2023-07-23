@@ -1197,7 +1197,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.1.1';
+    appVersion = 'v2.1.2';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -2073,33 +2073,37 @@ class Somfy {
     setGroupsList(groups) {
         let divCfg = '';
         let divCtl = '';
-        for (let i = 0; i < groups.length; i++) {
-            let group = groups[i];
-            divCfg += `<div class="somfyGroup" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
-            divCfg += `<div class="button-outline" onclick="somfy.openEditGroup(${group.groupId});"><i class="icss-edit"></i></div>`;
-            //divCfg += `<i class="Group-icon" data-position="${Group.position || 0}%"></i>`;
-            divCfg += `<span class="group-name">${group.name}</span>`;
-            divCfg += `<span class="group-address">${group.remoteAddress}</span>`;
-            divCfg += `<div class="button-outline" onclick="somfy.deleteGroup(${group.groupId});"><i class="icss-trash"></i></div>`;
-            divCfg += '</div>';
+        if (typeof groups !== 'undefined') {
+            for (let i = 0; i < groups.length; i++) {
+                let group = groups[i];
+                divCfg += `<div class="somfyGroup" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
+                divCfg += `<div class="button-outline" onclick="somfy.openEditGroup(${group.groupId});"><i class="icss-edit"></i></div>`;
+                //divCfg += `<i class="Group-icon" data-position="${Group.position || 0}%"></i>`;
+                divCfg += `<span class="group-name">${group.name}</span>`;
+                divCfg += `<span class="group-address">${group.remoteAddress}</span>`;
+                divCfg += `<div class="button-outline" onclick="somfy.deleteGroup(${group.groupId});"><i class="icss-trash"></i></div>`;
+                divCfg += '</div>';
 
-            divCtl += `<div class="somfyGroupCtl" data-groupId="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
-            divCtl += `<div class="group-name">`;
-            divCtl += `<span class="groupctl-name">${group.name}</span>`;
-            divCtl += `<div class="groupctl-shades">`;
-            for (let j = 0; j < group.linkedShades.length; j++) {
-                divCtl += '<span>';
-                if (j !== 0) divCtl += ', ';
-                divCtl += group.linkedShades[j].name;
-                divCtl += '</span>';
+                divCtl += `<div class="somfyGroupCtl" data-groupId="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
+                divCtl += `<div class="group-name">`;
+                divCtl += `<span class="groupctl-name">${group.name}</span>`;
+                divCtl += `<div class="groupctl-shades">`;
+                if (typeof group.linkedShades !== 'undefined') {
+                    for (let j = 0; j < group.linkedShades.length; j++) {
+                        divCtl += '<span>';
+                        if (j !== 0) divCtl += ', ';
+                        divCtl += group.linkedShades[j].name;
+                        divCtl += '</span>';
+                    }
+                }
+                divCtl += '</div></div>';
+                divCtl += `<div class="groupctl-buttons">`;
+                divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-groupid="${group.groupId}" data-on="${group.flags & 0x01 ? 'true' : 'false'}" style="${!group.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
+                divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-groupid="${group.groupId}"><i class="icss-somfy-up"></i></div>`;
+                divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-groupid="${group.groupId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
+                divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-groupid="${group.groupId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
+                divCtl += '</div></div>';
             }
-            divCtl += '</div></div>';
-            divCtl += `<div class="groupctl-buttons">`;
-            divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-groupid="${group.groupId}" data-on="${group.flags & 0x01 ? 'true' : 'false'}" style="${!group.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
-            divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-groupid="${group.groupId}"><i class="icss-somfy-up"></i></div>`;
-            divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-groupid="${group.groupId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
-            divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-groupid="${group.groupId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
-            divCtl += '</div></div>';
         }
         document.getElementById('divGroupList').innerHTML = divCfg;
         let groupControls = document.getElementById('divGroupControls');
@@ -3305,7 +3309,7 @@ class Firmware {
     }
     backup() {
         var link = document.createElement('a');
-        link.href = '/backup';
+        link.href = baseUrl.length > 0 ? `${baseUrl}/backup` : '/backup';
         link.setAttribute('download', 'backup');
         document.body.appendChild(link);
         link.click();
@@ -3431,8 +3435,10 @@ class Firmware {
         prog.style.display = '';
         btnSelectFile.style.visibility = 'hidden';
         formData.append('file', field.files[0]);
+
         let xhr = new XMLHttpRequest();
-        xhr.open('POST', service, true);
+        //xhr.open('POST', service, true);
+        xhr.open('POST', baseUrl.length > 0 ? `${baseUrl}${service}` : service, true);
         xhr.upload.onprogress = function (evt) {
             let pct = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
             prog.style.setProperty('--progress', `${pct}%`);

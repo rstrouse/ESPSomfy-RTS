@@ -622,10 +622,13 @@ void SomfyShade::clear() {
   this->downTime = 10000;
   this->tiltTime = 7000;
   this->stepSize = 100;
+  this->repeats = 1;
 }
 void SomfyGroup::clear() {
   this->setGroupId(255);
   this->setRemoteAddress(0);
+  this->repeats = 1;
+  memset(&this->linkedShades[0], 0x00, sizeof(this->linkedShades));
 }
 bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
   // Check to see if the remote is already linked. If it is
@@ -914,13 +917,13 @@ void SomfyShade::checkMovement() {
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
         if(!isAtTarget()) {
-          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
           delay(100);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
         else
-          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
       }
       this->direction = 0;
       this->tiltStart = curTime;
@@ -959,13 +962,13 @@ void SomfyShade::checkMovement() {
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
         if(!isAtTarget()) {
-          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
           delay(100);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
         else
-          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
       }
       this->direction = 0;
       this->tiltStart = curTime;
@@ -1004,11 +1007,11 @@ void SomfyShade::checkMovement() {
       if(this->settingTiltPos) {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
-          if(this->tiltTarget != 100.0 || this->currentPos != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->tiltTarget != 100.0 || this->currentPos != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
           // This is a tilt motor so let it complete if it is going to 0.
-          if(this->tiltTarget != 100.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->tiltTarget != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
       }
       this->tiltDirection = 0;
@@ -1052,11 +1055,11 @@ void SomfyShade::checkMovement() {
       if(this->settingTiltPos) {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
-          if(this->tiltTarget != 0.0 || this->currentPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->tiltTarget != 0.0 || this->currentPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
           // This is a tilt motor so let it complete if it is going to 0.
-          if(this->tiltTarget != 0.0) SomfyRemote::sendCommand(somfy_commands::My);
+          if(this->tiltTarget != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
       }
       this->tiltDirection = 0;
@@ -1824,7 +1827,7 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
           this->moveToMyPosition();      
         }
         else {
-          SomfyRemote::sendCommand(somfy_commands::My, 1);
+          SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
           this->settingPos = false;
           this->settingMyPos = true;
         }
@@ -1854,7 +1857,7 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
         this->moveToMyPosition();      
       }
       else {
-        SomfyRemote::sendCommand(somfy_commands::My, 1);
+        SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         this->settingPos = false;
         this->settingMyPos = true;
       }
@@ -1892,8 +1895,9 @@ void SomfyShade::moveToMyPosition() {
   if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
   if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->tiltTarget = this->myTiltPos;
   this->settingPos = false;
-  SomfyRemote::sendCommand(somfy_commands::My);
+  SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
 }
+void SomfyShade::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
 void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
   // This sendCommand function will always be called externally. sendCommand at the remote level
   // is expected to be called internally when the motor needs commanded.
@@ -1923,6 +1927,7 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     SomfyRemote::sendCommand(cmd, repeat);
   }
 }
+void SomfyGroup::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
 void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
   // This sendCommand function will always be called externally. sendCommand at the remote level
   // is expected to be called internally when the motor needs commanded.
@@ -1954,15 +1959,15 @@ void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
 }  
 void SomfyShade::sendTiltCommand(somfy_commands cmd) {
   if(cmd == somfy_commands::Up) {
-    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : 1);
+    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
     this->tiltTarget = 0.0f;
   }
   else if(cmd == somfy_commands::Down) {
-    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : 1);
+    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
     this->tiltTarget = 100.0f;
   }
   else if(cmd == somfy_commands::My) {
-    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : 1);
+    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
     this->tiltTarget = this->currentTiltPos;
   }
 }
@@ -1981,10 +1986,10 @@ void SomfyShade::moveToTiltTarget(float target) {
         Serial.print(this->currentTiltPos);
         Serial.print("% using ");
         Serial.println(translateSomfyCommand(cmd));
-        SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : 1);
+        SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
       }
       else
-        SomfyRemote::sendCommand(cmd);
+        SomfyRemote::sendCommand(cmd, this->repeats);
     }
     this->tiltTarget = target;
   }
@@ -2013,7 +2018,7 @@ void SomfyShade::moveToTarget(float pos, float tilt) {
     }
     Serial.print("% using ");
     Serial.println(translateSomfyCommand(cmd));
-    SomfyRemote::sendCommand(cmd);
+    SomfyRemote::sendCommand(cmd, this->repeats);
     this->settingPos = true;
     this->target = pos;
     if(tilt >= 0) {
@@ -2084,6 +2089,7 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
   }
   if(obj.containsKey("flipCommands")) this->flipCommands = obj["flipCommands"].as<bool>();
   if(obj.containsKey("flipPosition")) this->flipPosition = obj["flipPosition"].as<bool>();
+  if(obj.containsKey("repeats")) this->repeats = obj["repeats"];
   if(obj.containsKey("tiltType")) {
     if(obj["tiltType"].is<const char *>()) {
       if(strncmp(obj["tiltType"].as<const char *>(), "none", 4) == 0)
@@ -2124,6 +2130,7 @@ bool SomfyShade::toJSONRef(JsonObject &obj) {
   obj["proto"] = static_cast<uint8_t>(this->proto);
   obj["flags"] = this->flags;
   obj["sunSensor"] = this->hasSunSensor();
+  obj["repeats"] = this->repeats;
   SomfyRemote::toJSON(obj);
   return true;
 }
@@ -2160,6 +2167,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["flipPosition"] = this->flipPosition;
   obj["inGroup"] = this->isInGroup();
   obj["sunSensor"] = this->hasSunSensor();
+  obj["repeats"] = this->repeats;
   
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
@@ -2177,7 +2185,8 @@ bool SomfyGroup::fromJSON(JsonObject &obj) {
   if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
   if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
   if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
-  if(obj.containsKey("sunSensor")) obj["sunSensor"] = this->hasSunSensor();
+  //if(obj.containsKey("sunSensor")) this->hasSunSensor() = obj["sunSensor"];  This is calculated
+  if(obj.containsKey("repeats")) this->repeats = obj["repeats"];
   if(obj.containsKey("linkedShades")) {
     uint8_t linkedShades[SOMFY_MAX_GROUPED_SHADES];
     memset(linkedShades, 0x00, sizeof(linkedShades));
@@ -2199,6 +2208,7 @@ bool SomfyGroup::toJSON(JsonObject &obj) {
   obj["proto"] = static_cast<uint8_t>(this->proto);
   obj["sunSensor"] = this->hasSunSensor();
   obj["flags"] = this->flags;
+  obj["repeats"] = this->repeats;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedShades");
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
@@ -2440,6 +2450,7 @@ somfy_commands SomfyRemote::transformCommand(somfy_commands cmd) {
   }
   return cmd;
 }
+void SomfyRemote::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
 void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   somfy_frame_t frame;
   frame.rollingCode = this->getNextRollingCode();
