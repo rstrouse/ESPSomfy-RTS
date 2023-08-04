@@ -1881,14 +1881,14 @@ class Somfy {
             let fnValDup = (o, name) => {
                 let val = o[name];
                 if (typeof val === 'undefined' || isNaN(val)) {
-                    ui.errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
+                    ui.errorMessage(document.getElementById('divSomfySettings'), 'You must define all the pins for the radio.');
                     return false;
                 }
                 for (let s in o) {
                     if (s.endsWith('Pin') && s !== name) {
                         let sval = o[s];
                         if (typeof sval === 'undefined' || isNaN(sval)) {
-                            ui.errorMessage(document.getElementById('fsSomfySettings'), 'You must define all the pins for the radio.');
+                            ui.errorMessage(document.getElementById('divSomfySettings'), 'You must define all the pins for the radio.');
                             return false;
                         }
                         if (sval === val) {
@@ -1896,7 +1896,7 @@ class Somfy {
                                 (name === 'RXPin' && s === 'TXPin'))
                                 continue; // The RX and TX pins can share the same value.  In this instance the radio will only use GDO0.
                             else {
-                                ui.errorMessage(document.getElementById('fsSomfySettings'), `The ${name.replace('Pin', '')} pin is duplicated by the ${s.replace('Pin', '')}.  All pin definitions must be unique`);
+                                ui.errorMessage(document.getElementById('divSomfySettings'), `The ${name.replace('Pin', '')} pin is duplicated by the ${s.replace('Pin', '')}.  All pin definitions must be unique`);
                                 valid = false;
                                 return false;
                             }
@@ -2591,19 +2591,19 @@ class Somfy {
         let obj = ui.fromElement(document.getElementById('somfyShade'));
         let valid = true;
         if (valid && (isNaN(obj.remoteAddress) || obj.remoteAddress < 1 || obj.remoteAddress > 16777215)) {
-            ui.errorMessage(document.getElementById('fsSomfySettings'), 'The remote address must be a number between 1 and 16777215.  This number must be unique for all shades.');
+            ui.errorMessage(document.getElementById('divSomfySettings'), 'The remote address must be a number between 1 and 16777215.  This number must be unique for all shades.');
             valid = false;
         }
         if (valid && (typeof obj.name !== 'string' || obj.name === '' || obj.name.length > 20)) {
-            ui.errorMessage(document.getElementById('fsSomfySettings'), 'You must provide a name for the shade between 1 and 20 characters.');
+            ui.errorMessage(document.getElementById('divSomfySettings'), 'You must provide a name for the shade between 1 and 20 characters.');
             valid = false;
         }
         if (valid && (isNaN(obj.upTime) || obj.upTime < 1 || obj.upTime > 4294967295)) {
-            ui.errorMessage(document.getElementById('fsSomfySettings'), 'Up Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full closed to full open.');
+            ui.errorMessage(document.getElementById('divSomfySettings'), 'Up Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full closed to full open.');
             valid = false;
         }
         if (valid && (isNaN(obj.downTime) || obj.downTime < 1 || obj.downTime > 4294967295)) {
-            ui.errorMessage(document.getElementById('fsSomfySettings'), 'Down Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full open to full closed.');
+            ui.errorMessage(document.getElementById('divSomfySettings'), 'Down Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full open to full closed.');
             valid = false;
         }
         if (valid) {
@@ -2814,7 +2814,7 @@ class Somfy {
     }
     setRollingCode(shadeId, rollingCode) {
         putJSONSync('/setRollingCode', { shadeId: shadeId, rollingCode: rollingCode }, (err, shade) => {
-            if (err) ui.serviceError(document.getElementById('fsSomfySettings'), err);
+            if (err) ui.serviceError(document.getElementById('divSomfySettings'), err);
             else {
                 let dlg = document.getElementById('divRollingCode');
                 if (dlg) dlg.remove();
