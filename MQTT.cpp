@@ -160,6 +160,8 @@ bool MQTTClass::connect() {
     snprintf(this->clientId, sizeof(this->clientId), "client-%08x%08x", (uint32_t)((mac >> 32) & 0xFFFFFFFF), (uint32_t)(mac & 0xFFFFFFFF));
     if(strlen(settings.MQTT.protocol) > 0 && strlen(settings.MQTT.hostname) > 0) {
       mqttClient.setServer(settings.MQTT.hostname, settings.MQTT.port);
+      string statusTopic = settings.MQTT.rootTopic + "/status";
+      mqttClient.setWill(statusTopic, "offline", true, 1);
       if(mqttClient.connect(this->clientId, settings.MQTT.username, settings.MQTT.password)) {
         Serial.print("Successfully connected MQTT client ");
         Serial.println(this->clientId);
@@ -173,6 +175,7 @@ bool MQTTClass::connect() {
         this->subscribe("groups/+/direction/set");
         mqttClient.setCallback(MQTTClass::receive);
         this->lastConnect = millis();
+        this->publish(statusTopic, "online", true)
         return true;
       }
       else {
