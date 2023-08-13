@@ -1197,7 +1197,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.1.2';
+    appVersion = 'v2.1.3';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1971,8 +1971,12 @@ class Somfy {
             divCtl += `<div class="shade-name">`;
 
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
-            divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`;
-            if (shade.myTiltPos > 0) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`;
+            if (shade.tiltType === 3)
+                divCtl += `<span class="shadectl-mypos"><label>My Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
+            else {
+                divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`;
+                if (shade.myTiltPos > 0 && shade.tiltType !== 3) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`;
+            }
             divCtl += '</div>';
 
             divCtl += `<div class="shadectl-buttons">`;
@@ -2148,13 +2152,15 @@ class Somfy {
                 let elname = shade.querySelector(`.shadectl-name`);
                 let shadeName = elname.innerHTML;
                 let html = `<div class="shade-name"><span>${shadeName}</span><div style="float:right;vertical-align:top;cursor:pointer;font-size:12px;margin-top:4px;">`;
-                if (myPos >= 0)
+                if (myPos >= 0 && tiltType !== 3)
                     html += `<div onclick="document.getElementById('slidShadeTarget').value = ${myPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span style="display:inline-block;width:47px;">Current:</span><span>${myPos}</span><span>%</span></div>`;
                 if (myTiltPos >= 0 && tiltType > 0)
                     html += `<div onclick="document.getElementById('slidShadeTiltTarget').value = ${myTiltPos}; document.getElementById('slidShadeTarget').dispatchEvent(new Event('change'));"><span style="display:inline-block;width:47px;">Tilt:</span><span>${myTiltPos}</span><span>%</span></div>`;
-                html += `</div></div >`;
+                html += `</div></div>`;
+                html += `<div id="divShadeTarget">`
                 html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
                 html += `<label for="slidShadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
+                html += `</div>`
                 html += '<div id="divTiltTarget" style="display:none;">';
                 html += `<input id="slidShadeTiltTarget" name="shadeTiltTarget" type="range" min="0" max="100" step="1" oninput="document.getElementById('spanShadeTiltTarget').innerHTML = this.value;" />`;
                 html += `<label for="slidShadeTiltTarget"><span>Target Tilt </span><span><span id="spanShadeTiltTarget" class="shade-target">${currTiltPos}</span><span>%</span></span></label>`;
@@ -2175,11 +2181,19 @@ class Somfy {
                 elTarget.value = currPos;
                 elTiltTarget.value = currTiltPos;
                 let elBtn = div.querySelector('button#btnSetMyPosition');
-                if (tiltType > 0) div.querySelector('div#divTiltTarget').style.display = '';
+                if (tiltType === 3) {
+                    div.querySelector('div#divTiltTarget').style.display = '';
+                    div.querySelector('div#divShadeTarget').style.display = 'none';
+                }
+                else if (tiltType > 0) div.querySelector('div#divTiltTarget').style.display = '';
                 let fnProcessChange = () => {
                     let pos = parseInt(elTarget.value, 10);
                     let tilt = parseInt(elTiltTarget.value, 10);
-                    if (pos === myPos && (tiltType === 0 || tilt === myTiltPos)) {
+                    if (tiltType === 3 && tilt === myTiltPos) {
+                        elBtn.innerHTML = 'Clear My Position';
+                        elBtn.style.background = 'orangered';
+                    }
+                    else if (pos === myPos && (tiltType === 0 || tilt === myTiltPos)) {
                         elBtn.innerHTML = 'Clear My Position';
                         elBtn.style.background = 'orangered';
                     }
@@ -2415,6 +2429,7 @@ class Somfy {
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-awning')) ico.classList.add('icss-awning');
+                tilt = false;
                 break;
             case 4:
                 document.getElementById('divTiltSettings').style.display = 'none';
@@ -2422,6 +2437,7 @@ class Somfy {
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (!ico.classList.contains('icss-shutter')) ico.classList.add('icss-shutter');
+                tilt = false;
                 break;
 
             default:
@@ -2434,6 +2450,7 @@ class Somfy {
                 break;
         }
         document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
+        document.getElementById('divLiftSettings').style.display = tilt === 3 ? 'none' : '';
         document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
     }
     onShadeBitLengthChanged(el) {
@@ -3220,14 +3237,16 @@ class Somfy {
                     console.log('Closing shade positioner');
                     ctls[i].remove();
                 }
-
+                let tiltType = parseInt(shade.getAttribute('data-tilt'), 10) || 0;
                 let currPos = parseInt(shade.getAttribute('data-target'), 0);
                 let elname = shade.querySelector(`.shadectl-name`);
                 let shadeName = elname.innerHTML;
                 let html = `<div class="shade-name">${shadeName}</div>`;
-                html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" value="${currPos}" onchange="somfy.processShadeTarget(this, ${shadeId});" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
-                html += `<label for="slidShadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
-                if (makeBool(shade.getAttribute('data-tilt'))) {
+                if (tiltType !== 3) {
+                    html += `<input id="slidShadeTarget" name="shadeTarget" type="range" min="0" max="100" step="1" value="${currPos}" onchange="somfy.processShadeTarget(this, ${shadeId});" oninput="document.getElementById('spanShadeTarget').innerHTML = this.value;" />`;
+                    html += `<label for="slidShadeTarget"><span>Target Position </span><span><span id="spanShadeTarget" class="shade-target">${currPos}</span><span>%</span></span></label>`;
+                }
+                if (tiltType > 0) {
                     let currTiltPos = parseInt(shade.getAttribute('data-tilttarget'), 10);
                     html += `<input id="slidShadeTiltTarget" name="shadeTarget" type="range" min="0" max="100" step="1" value="${currTiltPos}" onchange="somfy.processShadeTiltTarget(this, ${shadeId});" oninput="document.getElementById('spanShadeTiltTarget').innerHTML = this.value;" />`;
                     html += `<label for="slidShadeTiltTarget"><span>Target Tilt Position </span><span><span id="spanShadeTiltTarget" class="shade-tilt-target">${currTiltPos}</span><span>%</span></span></label>`;

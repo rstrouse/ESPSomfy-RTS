@@ -333,7 +333,7 @@
                                 <input id="fldShadeName" name="shadeName" data-bind="name" type="text" length=20 placeholder="Name">
                                 <label for="fldShadeName">Name</label>
                             </div>
-                            <div style="margin-top:-10px;">
+                            <div id="divLiftSettings" style="margin-top:-10px;">
                                 <div class="field-group" style="display:inline-block;max-width:127px;margin-right:17px;margin-top:-10px;">
                                     <input id="fldShadeUpTime" name="shadeUpTime" data-bind="upTime" data-datatype="int" type="number" length=5 placeholder="milliseconds" style="width:100%;text-align:right;" />
                                     <label for="fldShadeUpTime">Up Time (ms)</label>
@@ -349,6 +349,7 @@
                                         <option value="0">None</option>
                                         <option value="1">Tilt Motor</option>
                                         <option value="2">Integrated</option>
+                                        <option value="3">Tilt Only</option>
                                     </select>
                                     <label for="selTiltType" style="cursor:pointer;">Tilt Type</label>
                                 </div>
