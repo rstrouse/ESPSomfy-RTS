@@ -339,7 +339,6 @@ void somfy_frame_t::encodeFrame(byte *frame) {
         break;
       case somfy_commands::Prog:
         frame[0] = 156;
-        frame[1] = 0xFD;
         break;
       case somfy_commands::SunFlag:
         frame[0] = 157;
