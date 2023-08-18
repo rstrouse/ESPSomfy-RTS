@@ -35,10 +35,13 @@ void Web::startup() {
   Serial.println("Launching web server...");
 }
 void Web::loop() {
-  apiServer.handleClient();
   server.handleClient();
+  yield();
+  apiServer.handleClient();
 }
-void Web::sendCORSHeaders() { 
+void Web::sendCORSHeaders(WebServer &server) { 
+    //server.sendHeader(F("Connection"), F("Keep-Alive")); 
+    //server.sendHeader(F("Keep-Alive"), F("timeout=5, max=1000"));
     //server.sendHeader(F("Access-Control-Allow-Origin"), F("*"));
     //server.sendHeader(F("Access-Control-Max-Age"), F("600"));
     //server.sendHeader(F("Access-Control-Allow-Methods"), F("PUT,POST,GET,OPTIONS"));
@@ -111,7 +114,7 @@ void Web::handleLogout(WebServer &server) {
   server.send(301);
 }
 void Web::handleLogin(WebServer &server) {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     StaticJsonDocument<256> doc;
     JsonObject obj = doc.to<JsonObject>();
@@ -193,7 +196,7 @@ void Web::handleLogin(WebServer &server) {
     return;
 }
 void Web::handleStreamFile(WebServer &server, const char *filename, const char *encoding) {
-  webServer.sendCORSHeaders();
+  webServer.sendCORSHeaders(server);
   // Load the index html page from the data directory.
   Serial.print("Loading file ");
   Serial.println(filename);
@@ -207,7 +210,7 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
   file.close();
 }
 void Web::handleController(WebServer &server) {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_GET) {
@@ -219,7 +222,7 @@ void Web::handleController(WebServer &server) {
     else server.send(404, _encoding_text, _response_404);
 }
 void Web::handleLoginContext(WebServer &server) {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     JsonObject obj = doc.to<JsonObject>();
@@ -233,7 +236,7 @@ void Web::handleLoginContext(WebServer &server) {
     server.send(200, _encoding_json, g_content);
 }
 void Web::handleGetShades(WebServer &server) {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_GET) {
@@ -246,7 +249,7 @@ void Web::handleGetShades(WebServer &server) {
     else server.send(404, _encoding_text, _response_404);
 }
 void Web::handleGetGroups(WebServer &server) {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_GET) {
@@ -257,6 +260,158 @@ void Web::handleGetGroups(WebServer &server) {
       server.send(200, _encoding_json, g_content);
     }
     else server.send(404, _encoding_text, _response_404);
+}
+void Web::handleShadeCommand(WebServer& server) {
+  webServer.sendCORSHeaders(server);
+  if (server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  uint8_t shadeId = 255;
+  uint8_t target = 255;
+  int8_t repeat = -1;
+  somfy_commands command = somfy_commands::My;
+  if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+    if (server.hasArg("shadeId")) {
+      shadeId = atoi(server.arg("shadeId").c_str());
+      if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
+      else if (server.hasArg("target")) target = atoi(server.arg("target").c_str());
+      if (server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
+    }
+    else if (server.hasArg("plain")) {
+      Serial.println("Sending Shade Command");
+      DynamicJsonDocument doc(256);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+        case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+        default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+        }
+        return;
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
+        if (obj.containsKey("command")) {
+            String scmd = obj["command"];
+            command = translateSomfyCommand(scmd);
+        }
+        else if (obj.containsKey("target")) {
+            target = obj["target"].as<uint8_t>();
+        }
+        if (obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+      }
+    }
+    else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+  }
+  SomfyShade* shade = somfy.getShadeById(shadeId);
+  if (shade) {
+      Serial.print("Received:");
+      Serial.println(server.arg("plain"));
+      // Send the command to the shade.
+      if (target <= 100)
+          shade->moveToTarget(shade->transformPosition(target));
+      else if (repeat > 0)
+          shade->sendCommand(command, repeat);
+      else
+          shade->sendCommand(command);
+      DynamicJsonDocument sdoc(512);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+  }
+  else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+  }
+}
+void Web::handleRepeatCommand(WebServer& server) {
+  webServer.sendCORSHeaders(server);
+  HTTPMethod method = server.method();
+  if (method == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  uint8_t shadeId = 255;
+  uint8_t groupId = 255;
+  uint8_t target = 255;
+  int8_t repeat = -1;
+  somfy_commands command = somfy_commands::My;
+  if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+    if(server.hasArg("shadeId")) shadeId = atoi(server.arg("shadeId").c_str());
+    else if(server.hasArg("groupId")) shadeId = atoi(server.arg("groupId").c_str());
+    if(server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
+    if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
+    if(shadeId == 255 && groupId == 255 && server.hasArg("plain")) {
+      DynamicJsonDocument doc(256);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+        case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+        default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+        }
+        return;
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+        if(obj.containsKey("groupId")) groupId = obj["groupId"];
+        if (obj.containsKey("command")) {
+            String scmd = obj["command"];
+            command = translateSomfyCommand(scmd);
+        }
+        if (obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+      }
+    }
+    DynamicJsonDocument sdoc(512);
+    JsonObject sobj = sdoc.to<JsonObject>();
+    if(shadeId != 255) {
+      SomfyShade *shade = somfy.getShadeById(shadeId);
+      if(!shade) {
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade reference could not be found.\"}"));
+        return;        
+      }
+      if(!shade->isLastCommand(command)) {
+        // We are going to send this as a new command.
+        shade->sendCommand(command, repeat >= 0 ? repeat : shade->repeats);
+      }
+      else {
+        shade->repeatFrame(repeat >= 0 ? repeat : shade->repeats);
+      }
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else if(groupId != 255) {
+      SomfyGroup * group = somfy.getGroupById(groupId);
+      if(!group) {
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group reference could not be found.\"}"));
+        return;        
+      }
+      if(!group->isLastCommand(command)) {
+        // We are going to send this as a new command.
+        group->sendCommand(command, repeat >= 0 ? repeat : group->repeats);
+      }
+      else
+        group->repeatFrame(repeat >= 0 ? repeat : group->repeats);
+      group->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+  }
+  else {
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+  }
 }
 void Web::begin() {
   Serial.println("Creating Web MicroServices...");
@@ -318,7 +473,7 @@ void Web::begin() {
     });
   apiServer.on("/controller", []() { webServer.handleController(apiServer); });
   apiServer.on("/shadeCommand", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(apiServer);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = apiServer.method();
     uint8_t shadeId = 255;
@@ -388,7 +543,7 @@ void Web::begin() {
     }
     });
   apiServer.on("/groupCommand", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(apiServer);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = apiServer.method();
     uint8_t groupId = 255;
@@ -449,7 +604,7 @@ void Web::begin() {
     }
     });
   apiServer.on("/tiltCommand", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(apiServer);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = apiServer.method();
     uint8_t shadeId = 255;
@@ -523,7 +678,7 @@ void Web::begin() {
   server.on("/shades.cfg", []() { webServer.handleStreamFile(server, "/shades.cfg", _encoding_text); });
   server.on("/shades.tmp", []() { webServer.handleStreamFile(server, "/shades.tmp", _encoding_text); });
   server.on("/backup", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     char filename[120];
     Timestamp ts;
     char * iso = ts.getISOTime();
@@ -553,7 +708,7 @@ void Web::begin() {
     file.close();
   });
   server.on("/restore", HTTP_POST, []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     server.sendHeader("Connection", "close");
     server.send(200, _encoding_json, "{\"status\":\"Success\",\"desc\":\"Restoring Shade settings\"}");
     }, []() {
@@ -583,8 +738,8 @@ void Web::begin() {
   server.on("/favicon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/favicon.png", "image/png"); });
   server.on("/icon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icon.png", "image/png"); });
   server.onNotFound([]() {
-    Serial.print("Request 404:");
     HTTPMethod method = server.method();
+    Serial.printf("Request %s 404-%d ", server.uri().c_str(), method);
     switch (method) {
     case HTTP_POST:
       Serial.print("POST ");
@@ -596,7 +751,7 @@ void Web::begin() {
       Serial.print("PUT ");
       break;
     case HTTP_OPTIONS:
-      Serial.print("OPTIONS ");
+      Serial.println("OPTIONS ");
       server.send(200, "OK");
       return;
     default:
@@ -613,7 +768,7 @@ void Web::begin() {
   server.on("/shades", []() { webServer.handleGetShades(server); });
   server.on("/groups", []() { webServer.handleGetGroups(server); });
   server.on("/getNextShade", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     StaticJsonDocument<256> doc;
     uint8_t shadeId = somfy.getNextShadeId();
@@ -627,7 +782,7 @@ void Web::begin() {
     server.send(200, _encoding_json, g_content);
     });
   server.on("/getNextGroup", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     StaticJsonDocument<256> doc;
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     uint8_t groupId = somfy.getNextGroupId();
@@ -751,7 +906,7 @@ void Web::begin() {
     }
     });
   server.on("/shade", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_GET) {
@@ -812,7 +967,7 @@ void Web::begin() {
     }
     });
   server.on("/group", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_GET) {
@@ -873,7 +1028,7 @@ void Web::begin() {
     }
     });
   server.on("/groupOptions", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_GET || method == HTTP_POST) {
@@ -913,7 +1068,7 @@ void Web::begin() {
     
     });
   server.on("/saveShade", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -957,7 +1112,7 @@ void Web::begin() {
     }
     });
   server.on("/saveGroup", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -1001,7 +1156,7 @@ void Web::begin() {
     }
     });
   server.on("/tiltCommand", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
@@ -1065,78 +1220,10 @@ void Web::begin() {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
     }
     });
-  server.on("/shadeCommand", []() {
-    webServer.sendCORSHeaders();
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = server.method();
-    uint8_t shadeId = 255;
-    uint8_t target = 255;
-    int8_t repeat = -1;
-    somfy_commands command = somfy_commands::My;
-    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (server.hasArg("shadeId")) {
-        shadeId = atoi(server.arg("shadeId").c_str());
-        if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
-        else if(server.hasArg("target")) target = atoi(server.arg("target").c_str());
-        if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
-      }
-      else if (server.hasArg("plain")) {
-        Serial.println("Sending Shade Command");
-        DynamicJsonDocument doc(256);
-        DeserializationError err = deserializeJson(doc, server.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-          return;
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
-          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
-          if (obj.containsKey("command")) {
-            String scmd = obj["command"];
-            command = translateSomfyCommand(scmd);
-          }
-          else if(obj.containsKey("target")) {
-            target = obj["target"].as<uint8_t>();
-          }
-          if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
-        }
-      }
-      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
-    }
-    SomfyShade* shade = somfy.getShadeById(shadeId);
-    if (shade) {
-      Serial.print("Received:");
-      Serial.println(server.arg("plain"));
-      // Send the command to the shade.
-      if(target <= 100)
-        shade->moveToTarget(shade->transformPosition(target));
-      else if(repeat > 0)
-        shade->sendCommand(command, repeat);
-      else
-        shade->sendCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      shade->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      server.send(200, _encoding_json, g_content);
-    }
-    else {
-      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
-    }
-    });
+  server.on("/repeatCommand", []() { webServer.handleRepeatCommand(server); });
+  server.on("/shadeCommand", []() { webServer.handleShadeCommand(server); });
   server.on("/groupCommand", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t groupId = 255;
@@ -1197,7 +1284,7 @@ void Web::begin() {
     }
     });
   server.on("/setMyPosition", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
@@ -1254,7 +1341,7 @@ void Web::begin() {
     }
     });
   server.on("/setRollingCode", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -1303,7 +1390,7 @@ void Web::begin() {
     }
   });
   server.on("/setPaired", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     uint8_t shadeId = 255;
     bool paired = false;
@@ -1349,7 +1436,7 @@ void Web::begin() {
     }
   });
   server.on("/unpairShade", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -1399,7 +1486,7 @@ void Web::begin() {
     }
     });
   server.on("/unlinkRemote", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -1446,7 +1533,7 @@ void Web::begin() {
     }
     });
   server.on("/linkRemote", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -1495,7 +1582,7 @@ void Web::begin() {
     }
     });
   server.on("/linkToGroup", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -1550,7 +1637,7 @@ void Web::begin() {
     }
   });
   server.on("/unlinkFromGroup", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_PUT || method == HTTP_POST) {
@@ -1605,7 +1692,7 @@ void Web::begin() {
     }
   });
   server.on("/deleteShade", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t shadeId = 255;
@@ -1649,7 +1736,7 @@ void Web::begin() {
     }
     });
   server.on("/deleteGroup", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     uint8_t groupId = 255;
@@ -1690,7 +1777,7 @@ void Web::begin() {
     }
     });
   server.on("/updateFirmware", HTTP_POST, []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     if (Update.hasError())
@@ -1723,7 +1810,7 @@ void Web::begin() {
       }
     });
   server.on("/updateShadeConfig", HTTP_POST, []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
     server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Shade Config: \"}");
@@ -1747,7 +1834,7 @@ void Web::begin() {
       }
     });
   server.on("/updateApplication", HTTP_POST, []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
@@ -1779,7 +1866,7 @@ void Web::begin() {
       }
     });
   server.on("/scanaps", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     int statusCode = 200;
     int n = WiFi.scanNetworks();
     Serial.print("Scanned ");
@@ -1815,7 +1902,7 @@ void Web::begin() {
     server.send(statusCode, "application/json", g_content);
     });
   server.on("/reboot", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_PUT) {
@@ -1829,7 +1916,7 @@ void Web::begin() {
     }
     });
   server.on("/saveSecurity", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
@@ -1860,7 +1947,7 @@ void Web::begin() {
     }
     });
   server.on("/getSecurity", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(512);
     JsonObject obj = doc.to<JsonObject>();
     settings.Security.toJSON(obj);
@@ -1868,7 +1955,7 @@ void Web::begin() {
     server.send(200, _encoding_json, g_content);
     });
   server.on("/saveRadio", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
@@ -1897,7 +1984,7 @@ void Web::begin() {
     }
     });
   server.on("/getRadio", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(1024);
     JsonObject obj = doc.to<JsonObject>();
     somfy.transceiver.toJSON(obj);
@@ -1905,7 +1992,7 @@ void Web::begin() {
     server.send(200, _encoding_json, g_content);
     });
   server.on("/sendRemoteCommand", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
@@ -1955,7 +2042,7 @@ void Web::begin() {
     }
     });
   server.on("/setgeneral", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     
@@ -1990,7 +2077,7 @@ void Web::begin() {
     }
     });
   server.on("/setNetwork", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
@@ -2039,7 +2126,7 @@ void Web::begin() {
     }
   });
   server.on("/setIP", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     Serial.println("Setting IP...");
     DynamicJsonDocument doc(1024);
@@ -2064,7 +2151,7 @@ void Web::begin() {
     }
   });
   server.on("/connectwifi", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     Serial.println("Settings WIFI connection...");
     DynamicJsonDocument doc(512);
@@ -2110,7 +2197,7 @@ void Web::begin() {
     }
     });
   server.on("/modulesettings", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(512);
     JsonObject obj = doc.to<JsonObject>();
     doc["fwVersion"] = settings.fwVersion;
@@ -2122,7 +2209,7 @@ void Web::begin() {
     server.send(200, _encoding_json, g_content);
     });
   server.on("/networksettings", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(2048);
     JsonObject obj = doc.to<JsonObject>();
     doc["fwVersion"] = settings.fwVersion;
@@ -2169,7 +2256,7 @@ void Web::begin() {
     }
     });
   server.on("/mqttsettings", []() {
-    webServer.sendCORSHeaders();
+    webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(1024);
     JsonObject obj = doc.to<JsonObject>();
     settings.MQTT.toJSON(obj);

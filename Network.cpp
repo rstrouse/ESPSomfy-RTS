@@ -54,11 +54,10 @@ void Network::loop() {
     this->emitSockets();
     if(!this->connected()) return;
   }
-  if(this->connected() && millis() - this->lastMDNS > 60000) {
+  if(this->connected() && millis() - this->lastMDNS > 10000) {
     if(this->lastMDNS != 0) MDNS.setInstanceName(settings.hostname);
     this->lastMDNS = millis();
   }
-  sockEmit.loop();
   if(settings.ssdpBroadcast) {
     if(!SSDP.isStarted) SSDP.begin();
     SSDP.loop();
@@ -74,6 +73,7 @@ void Network::emitSockets() {
       sockEmit.sendToClients("wifiStrength", buf);
       this->lastRSSI = WiFi.RSSI();
       this->lastChannel = WiFi.channel();
+      sockEmit.loop();
     }
   }
   else {
@@ -81,6 +81,7 @@ void Network::emitSockets() {
       sockEmit.sendToClients("wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
       this->lastRSSI = -100;
       this->lastChannel = -1;
+      sockEmit.loop();
     }
   }
 }

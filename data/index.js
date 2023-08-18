@@ -2901,22 +2901,55 @@ class Somfy {
         html += '<div>Follow the instructions below to pair this shade with a Somfy motor</div>';
         html += '<hr style="width:100%;margin:0px;"></hr>';
         html += '<ul style="width:100%;margin:0px;padding-left:20px;font-size:14px;">';
-        html += '<li>Open the shade memory using an existing remote</li>';
-        html += '<li>Press the prog button on the back of the remote until the shade jogs</li>';
+        html += '<li>Open the shade memory using an existing remote by pressing the prog button on the back until the shade jogs.</li>';
         html += '<li>After the shade jogs press the Prog button below</li>';
-        html += '<li>The shade should jog again indicating that the shade is paired</li>';
+        html += '<li>The shade should jog again indicating that the shade is paired. NOTE: On some motors you may need to press and hold the Prog button.</li>';
         html += '<li>If the shade jogs, you can press the shade paired button.</li>';
-        html += '<li>If the shade does not jog, press the prog button again.</li>';
+        html += '<li>If the shade does not jog, try pressing the prog button again.</li>';
         html += '</ul>';
         html += `<div class="button-container">`;
-        html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`;
+        html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;">Prog</button>`;
         html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, true);">Shade Paired</button>`;
-        html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`;
+        html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" >Close</button>`;
         html += `</div>`;
+        let fnRepeatProg = (err, shade) => {
+            if (this.btnTimer) {
+                clearTimeout(this.btnTimer);
+                this.btnTimer = null;
+            }
+            if (err) return;
+            if (mouseDown) {
+                somfy.sendCommandRepeat(shadeId, 'prog', null, fnRepeatProg);
+            }
+        }
         div.innerHTML = html;
         document.getElementById('somfyShade').appendChild(div);
+        document.getElementById('btnStopPairing').addEventListener('click', (event) => {
+            console.log(this);
+            console.log(event);
+            console.log('close');
+            if (this.btnTimer) {
+                clearInterval(this.btnTimer);
+                this.btnTimer = null;
+            }
+            document.getElementById('divPairing').remove();
+        });
+        let btn = document.getElementById('btnSendPairing');
+        btn.addEventListener('mousedown', (event) => {
+            console.log(this);
+            console.log(event);
+            console.log('mousedown');
+            somfy.sendCommand(shadeId, 'prog', null, (err, shade) => { fnRepeatProg(err, shade); });
+        }, true);
+        btn.addEventListener('touchstart', (event) => {
+            console.log(this);
+            console.log(event);
+            console.log('touchstart');
+            somfy.sendCommand(shadeId, 'prog', null, (err, shade) => { fnRepeatProg(err, shade); });
+        }, true);
         return div;
     }
+
     unpairShade(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divPairing" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
@@ -2939,16 +2972,25 @@ class Somfy {
         document.getElementById('somfyShade').appendChild(div);
         return div;
     }
-    sendCommand(shadeId, command, repeat) {
+    sendCommand(shadeId, command, repeat, cb) {
         console.log(`Sending Shade command ${shadeId}-${command}`);
         let obj = { shadeId: shadeId };
         if (isNaN(parseInt(command, 10))) obj.command = command;
         else obj.target = parseInt(command, 10);
         if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
         putJSON('/shadeCommand', obj, (err, shade) => {
-
+            if (typeof cb === 'function') cb(err, shade);
         });
     }
+    sendCommandRepeat(shadeId, command, repeat, cb) {
+        //console.log(`Sending Shade command ${shadeId}-${command}`);
+        let obj = { shadeId: shadeId, command: command };
+        if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        putJSON(`/repeatCommand?shadeId=${shadeId}&command=${command}`, null, (err, shade) => {
+            if(typeof cb === 'function') cb(err, shade);
+        });
+    }
+
     sendGroupCommand(groupId, command, repeat) {
         console.log(`Sending Group command ${groupId}-${command}`);
         let obj = { groupId: groupId };

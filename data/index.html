@@ -398,6 +398,19 @@
                                     <option value="5">5 Times</option>
                                     <option value="6">6 Times</option>
                                     <option value="7">7 Times</option>
+                                    <option value="8">8 Times</option>
+                                    <option value="9">9 Times</option>
+                                    <option value="10">10 Times</option>
+                                    <option value="11">11 Times</option>
+                                    <option value="12">12 Times</option>
+                                    <option value="13">13 Times</option>
+                                    <option value="14">14 Times</option>
+                                    <option value="15">15 Times</option>
+                                    <option value="16">16 Times</option>
+                                    <option value="17">17 Times</option>
+                                    <option value="18">18 Times</option>
+                                    <option value="19">19 Times</option>
+                                    <option value="20">20 Times</option>
                                 </select>
                             </div>
 
@@ -653,6 +666,7 @@
         </div>
     </div>
     <script type="text/javascript">
+        var mouseDown = false;
         //ui.waitMessage(document.getElementById('divShadeControls'));
         let tabs = document.querySelectorAll('div.tab-container > span');
         tabs.forEach((tab) => {
@@ -685,6 +699,24 @@
             });
         });
         document.querySelectorAll('.subtab-container > span').forEach((tab) => { tab.addEventListener('click', (evt) => { ui.selectTab(evt.srcElement); }) });
+        document.addEventListener('mousedown', (event) => {
+            mouseDown = true;
+        });
+        document.addEventListener('mouseup', (event) => {
+            mouseDown = false;
+        });
+        document.addEventListener('mouseleave', (event) => {
+            mouseDown = false;
+        });
+        document.addEventListener('touchend', (event) => {
+            mouseDown = false;
+        });
+        document.addEventListener('touchstart', (event) => {
+            mouseDown = true;
+        });
+        document.addEventListener('touchcancel', (event) => {
+            mouseDown = false;
+        });
         (async () => { await init(); })();
         /*
         security.init();

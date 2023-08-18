@@ -42,11 +42,21 @@ void loop() {
     Serial.println("ms");
     ESP.restart();
   }
+  uint32_t timing = millis();
   net.loop();
+  if(millis() - timing > 100) Serial.printf("Timing Net: %dms\n", millis() - timing);
+  timing = millis();
   somfy.loop();
+  if(millis() - timing > 100) Serial.printf("Timing Somfy: %dms\n", millis() - timing);
+  timing = millis();
   if(net.connected()) {
     webServer.loop();
+    if(millis() - timing > 200) Serial.printf("Timing WebServer: %dms\n", millis() - timing);
+    timing = millis();
     sockEmit.loop();
+    if(millis() - timing > 100) Serial.printf("Timing Socket: %dms\n", millis() - timing);
+    timing = millis();
+    
   }
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
     net.end();

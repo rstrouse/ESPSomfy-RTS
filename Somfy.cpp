@@ -1307,8 +1307,11 @@ void SomfyShade::emitCommand(uint8_t num, somfy_commands cmd, const char *source
   e.appendMessage(buf);
   snprintf(buf, sizeof(buf), ",\"source\":\"%s\"", source);
   e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), ",\"rcode\":%d", this->lastRollingCode);
+  e.appendMessage(buf);
   snprintf(buf, sizeof(buf), ",\"sourceAddress\":%d}", sourceAddress);
   e.appendMessage(buf);
+
   if(num >= 255) sockEmit.sendToClients(&e);
   else sockEmit.sendToClient(num, &e);
 }
@@ -2514,32 +2517,48 @@ somfy_commands SomfyRemote::transformCommand(somfy_commands cmd) {
 }
 void SomfyRemote::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
 void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
-  somfy_frame_t frame;
-  frame.rollingCode = this->getNextRollingCode();
-  frame.remoteAddress = this->getRemoteAddress();
-  frame.cmd = this->transformCommand(cmd);
-  frame.repeats = repeat;
-  frame.bitLength = this->bitLength;
+  this->lastFrame.rollingCode = this->getNextRollingCode();
+  this->lastFrame.remoteAddress = this->getRemoteAddress();
+  this->lastFrame.cmd = this->transformCommand(cmd);
+  this->lastFrame.repeats = repeat;
+  this->lastFrame.bitLength = this->bitLength;
   // Match the encKey to the rolling code.  These keys range from 160 to 175.
-  frame.encKey = 0xA0 | static_cast<uint8_t>(frame.rollingCode & 0x000F);
-  frame.proto = this->proto;
-  if(frame.bitLength == 0) frame.bitLength = bit_length;
-  this->lastRollingCode = frame.rollingCode;
-  somfy.sendFrame(frame, repeat);
-  somfy.processFrame(frame, true);
+  this->lastFrame.encKey = 0xA0 | static_cast<uint8_t>(this->lastFrame.rollingCode & 0x000F);
+  this->lastFrame.proto = this->proto;
+  if(this->lastFrame.bitLength == 0) this->lastFrame.bitLength = bit_length;
+  if(this->lastFrame.rollingCode == 0) Serial.println("ERROR: Setting rcode to 0");
+  this->lastRollingCode = this->lastFrame.rollingCode;
+  Serial.print("CMD:");
+  Serial.print(translateSomfyCommand(this->lastFrame.cmd));
+  Serial.print(" ADDR:");
+  Serial.print(this->lastFrame.remoteAddress);
+  Serial.print(" RCODE:");
+  Serial.print(this->lastFrame.rollingCode);
+  Serial.print(" REPEAT:");
+  Serial.println(repeat);
+  somfy.sendFrame(this->lastFrame, repeat);
+  somfy.processFrame(this->lastFrame, true);
+}
+bool SomfyRemote::isLastCommand(somfy_commands cmd) {
+  if(this->lastFrame.cmd != cmd || this->lastFrame.rollingCode != this->lastRollingCode) {
+    Serial.printf("Not the last command %d: %d - %d\n", static_cast<uint8_t>(this->lastFrame.cmd), this->lastFrame.rollingCode, this->lastRollingCode);
+    return false;
+  }
+  return true;
+}
+void SomfyRemote::repeatFrame(uint8_t repeat) {
+  somfy.transceiver.beginTransmit();
+  byte frm[10];
+  this->lastFrame.encodeFrame(frm);
+  somfy.transceiver.sendFrame(frm, this->bitLength == 56 ? 2 : 12, this->bitLength);
+  for(uint8_t i = 0; i < repeat; i++) {
+    somfy.transceiver.sendFrame(frm, this->bitLength == 56 ? 7 : 6, this->bitLength);
+  }
+  somfy.transceiver.endTransmit();
+  //somfy.processFrame(this->lastFrame, true);
 }
 void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
   somfy.transceiver.beginTransmit();
-  //Serial.println("----------- Sending Raw -------------");
-  Serial.print("CMD:");
-  Serial.print(translateSomfyCommand(frame.cmd));
-  Serial.print(" ADDR:");
-  Serial.print(frame.remoteAddress);
-  Serial.print(" RCODE:");
-  Serial.print(frame.rollingCode);
-  Serial.print(" REPEAT:");
-  Serial.println(repeat);
-  
   byte frm[10];
   frame.encodeFrame(frm);
   this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 2 : 12, frame.bitLength);
@@ -2604,6 +2623,7 @@ uint16_t SomfyRemote::getNextRollingCode() {
   pref.putUShort(this->m_remotePrefId, code);
   pref.end();
   this->lastRollingCode = code;
+  Serial.printf("Getting Next Rolling code %d\n", this->lastRollingCode);
   return code;
 }
 uint16_t SomfyRemote::setRollingCode(uint16_t code) {
@@ -2612,6 +2632,7 @@ uint16_t SomfyRemote::setRollingCode(uint16_t code) {
     pref.putUShort(this->m_remotePrefId, code);
     pref.end();  
     this->lastRollingCode = code;
+    Serial.printf("Setting Last Rolling code %d\n", this->lastRollingCode);
   }
   return code;
 }
@@ -3035,15 +3056,15 @@ void Transceiver::clearReceived(void) {
       attachInterrupt(interruptPin, handleReceive, CHANGE);
 }
 void Transceiver::enableReceive(void) {
+    uint32_t timing = millis();
     if(rxmode > 0) return;
     if(this->config.enabled) {
-      Serial.print("Enabling receive on Pin #");
-      Serial.println(this->config.RXPin);
       rxmode = 1;
       pinMode(this->config.RXPin, INPUT);
       interruptPin = digitalPinToInterrupt(this->config.RXPin);
       ELECHOUSE_cc1101.SetRx();
       attachInterrupt(interruptPin, handleReceive, CHANGE);
+      Serial.printf("Enabled receive on Pin #%d Timing: %d\n", this->config.RXPin, millis() - timing);
     }
 }
 void Transceiver::disableReceive(void) { 
@@ -3382,7 +3403,7 @@ void Transceiver::beginTransmit() {
 void Transceiver::endTransmit() {
     if(this->config.enabled) {
       ELECHOUSE_cc1101.setSidle();
-      delay(100);
+      //delay(100);
       this->enableReceive();
     }
 }

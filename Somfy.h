@@ -175,21 +175,24 @@ class SomfyRemote {
     uint32_t m_remoteAddress = 0;
   public:
     radio_proto proto = radio_proto::RTS;
+    somfy_frame_t lastFrame;
     bool flipCommands = false;
+    uint16_t lastRollingCode = 0;
     uint8_t flags = 0;
     uint8_t bitLength = 0;
     uint8_t repeats = 1;
+    virtual bool isLastCommand(somfy_commands cmd);
     char *getRemotePrefId() {return m_remotePrefId;}
     virtual bool toJSON(JsonObject &obj);
     virtual void setRemoteAddress(uint32_t address);
     virtual uint32_t getRemoteAddress();
     virtual uint16_t getNextRollingCode();
     virtual uint16_t setRollingCode(uint16_t code);
-    uint16_t lastRollingCode = 0;
     bool hasSunSensor();
     void setSunSensor(bool bHasSensor);
     virtual void sendCommand(somfy_commands cmd);
     virtual void sendCommand(somfy_commands cmd, uint8_t repeat);
+    void repeatFrame(uint8_t repeat);
     somfy_commands transformCommand(somfy_commands cmd);
 };
 class SomfyLinkedRemote : public SomfyRemote {
@@ -222,7 +225,6 @@ class SomfyShade : public SomfyRemote {
     tilt_types tiltType = tilt_types::none;
     void load();
     somfy_tx_queue_t txQueue;
-    somfy_frame_t lastFrame;
     float currentPos = 0.0f;
     float currentTiltPos = 0.0f;
     //uint16_t movement = 0;
