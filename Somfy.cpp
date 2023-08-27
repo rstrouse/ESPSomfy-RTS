@@ -51,6 +51,7 @@ somfy_commands translateSomfyCommand(const String& string) {
     else if (string.equalsIgnoreCase("StepDown")) return somfy_commands::StepDown;
     else if (string.equalsIgnoreCase("Flag")) return somfy_commands::Flag;
     else if (string.equalsIgnoreCase("Sensor")) return somfy_commands::Sensor;
+    else if (string.equalsIgnoreCase("Toggle")) return somfy_commands::Toggle;
     else if (string.startsWith("mud") || string.startsWith("MUD")) return somfy_commands::MyUpDown;
     else if (string.startsWith("md") || string.startsWith("MD")) return somfy_commands::MyDown;
     else if (string.startsWith("ud") || string.startsWith("UD")) return somfy_commands::UpDown;
@@ -64,6 +65,7 @@ somfy_commands translateSomfyCommand(const String& string) {
     else if (string.startsWith("m") || string.startsWith("M")) return somfy_commands::My;
     else if (string.startsWith("f") || string.startsWith("F")) return somfy_commands::Flag;
     else if (string.startsWith("s") || string.startsWith("S")) return somfy_commands::SunFlag;
+    else if (string.startsWith("t") || string.startsWith("T")) return somfy_commands::Toggle;
     else if (string.length() == 1) return static_cast<somfy_commands>(strtol(string.c_str(), nullptr, 16));
     else return somfy_commands::My;
 }
@@ -95,6 +97,8 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Step Down";
     case somfy_commands::Sensor:
         return "Sensor";
+    case somfy_commands::Toggle:
+        return "Toggle";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
     }
@@ -119,57 +123,26 @@ void somfy_frame_t::decodeFrame(byte* frame) {
 
     this->checksum = decoded[1] & 0b1111;
     this->encKey = decoded[0];
-    // Pull in the 80-bit commands.  The upper nibble will be 0 even on 80 bit packets.
+    // Lets first determine the protocol.
     this->cmd = (somfy_commands)((decoded[1] >> 4));
-    // Pull in the data for an 80-bit step command.
-    if(this->cmd == somfy_commands::StepDown)
-      this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
     if(this->cmd == somfy_commands::RTWProto) {
-      this->proto = this->encKey > 142 ? radio_proto::RTV : radio_proto::RTW;
-      
-      switch(this->encKey) {
-        case 149:
-        case 133:
-          this->cmd = somfy_commands::My;
-          break;
-        case 150:
-        case 134:
-          this->cmd = somfy_commands::Up;
-          break;
-        case 151:
-        case 135:
-          this->cmd = somfy_commands::MyUp;
-          break;
-        case 152:
-        case 136:
-          this->cmd = somfy_commands::Down;
-          break;
-        case 153:
-        case 137:
-          this->cmd = somfy_commands::MyDown;
-          break;
-        case 154:
-        case 138:
-          this->cmd = somfy_commands::UpDown;
-          break;
-        case 155:
-        case 139:
-          this->cmd = somfy_commands::MyUpDown;
-          break;
-        case 156:
-        case 140:
-          this->cmd = somfy_commands::Prog;
-          break;
-        case 157:
-        case 141:
-          this->cmd = somfy_commands::SunFlag;
-          break;
-        case 158:
-        case 142:
-          this->cmd = somfy_commands::Flag;
-          break;
+      if(this->encKey >= 160) {
+        this->proto = radio_proto::RTS;
+        if(this->encKey == 164) this->cmd = somfy_commands::Toggle;
+      }
+      else if(this->encKey > 148) {
+        this->proto = radio_proto::RTV;
+        this->cmd = (somfy_commands)(this->encKey - 148);
+      }
+      else if(this->encKey > 133) {
+        this->proto = radio_proto::RTW;
+        this->cmd = (somfy_commands)(this->encKey - 133);
       }
     }
+
+    
+    // Pull in the data for an 80-bit step command.
+    if(this->cmd == somfy_commands::StepDown) this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
     this->rollingCode = decoded[3] + (decoded[2] << 8);
     this->remoteAddress = (decoded[6] + (decoded[5] << 8) + (decoded[4] << 16));
     this->valid = this->checksum == checksum && this->remoteAddress > 0 && this->remoteAddress < 16777215;
@@ -191,13 +164,13 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::SunFlag:
         case somfy_commands::Sensor:
             break;
-        case somfy_commands::UnknownC:
         case somfy_commands::UnknownD:
         case somfy_commands::RTWProto:
             this->valid = false;
             break;
         case somfy_commands::StepUp:
         case somfy_commands::StepDown:
+        case somfy_commands::Toggle:
             // These must be 80 bit commands
             break;
         default:
@@ -363,6 +336,8 @@ void somfy_frame_t::encodeFrame(byte *frame) {
         frame[8] = 48;
         frame[9] = 30;
         break;
+      case somfy_commands::Toggle:
+        frame[0] = 164;
       case somfy_commands::Prog:
         frame[7] = 196;
         frame[8] = 0;
@@ -834,7 +809,7 @@ void SomfyShade::checkMovement() {
   else if(this->direction != 0) this->tiltDirection = 0;
   uint8_t currPos = floor(this->currentPos);
   uint8_t currTiltPos = floor(this->currentTiltPos);
-
+  if(this->direction != 0) this->lastMovement = this->direction;
   if (sunFlag) {
     if (isSunny && !isWindy) {  // It is sunny and there is no wind so we should be extended
       if (this->noWindDone
@@ -1256,22 +1231,23 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
     char topic[32];
-    snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
+    //snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
+    //mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
+    //snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
+    //mqtt.publish(topic, this->getRemoteAddress());
+    //snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
+    //mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
+    //snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
+    //mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->currentPos));
     snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
     mqtt.publish(topic, this->direction);
     snprintf(topic, sizeof(topic), "shades/%u/target", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->target));
-    snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
-    mqtt.publish(topic, this->getRemoteAddress());
-    snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
-    mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->myPos));
-    snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
+
     snprintf(topic, sizeof(topic), "shades/%u/sunSensor", this->shadeId);
     mqtt.publish(topic, this->hasSunSensor());
     
@@ -1283,14 +1259,15 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
       snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
       mqtt.publish(topic, this->transformPosition(this->tiltTarget));
     }
-    const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
-    const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
     const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
-
-    snprintf(topic, sizeof(topic), "shades/%u/sunFlag", this->shadeId);
-    mqtt.publish(topic, sunFlag);
-    snprintf(topic, sizeof(topic), "shades/%u/sunny", this->shadeId);
-    mqtt.publish(topic, isSunny);
+    if(this->hasSunSensor()) {
+      const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
+      const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
+      snprintf(topic, sizeof(topic), "shades/%u/sunFlag", this->shadeId);
+      mqtt.publish(topic, sunFlag);
+      snprintf(topic, sizeof(topic), "shades/%u/sunny", this->shadeId);
+      mqtt.publish(topic, isSunny);
+    }
     snprintf(topic, sizeof(topic), "shades/%u/windy", this->shadeId);
     mqtt.publish(topic, isWindy);
   }
@@ -1662,6 +1639,14 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
+    case somfy_commands::Toggle:
+      if(!this->isIdle()) {
+        this->target = this->currentPos;
+      }
+      else if(this->currentPos == 100.0f) this->target = 0;
+      else if(this->currentPos == 0.0f) this->target = 100;
+      else this->target = this->lastMovement == -1 ? 100 : 0;
+      break;
     default:
       dir = 0;
       break;
@@ -1980,6 +1965,9 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
       this->tiltTarget = this->currentTiltPos;
     }
   }
+  else if(this->shadeType == shade_types::garage1 && cmd == somfy_commands::My) {
+    SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
+  }
   else {
     SomfyRemote::sendCommand(cmd, repeat);
   }
@@ -2054,6 +2042,12 @@ void SomfyShade::moveToTiltTarget(float target) {
 }
 void SomfyShade::moveToTarget(float pos, float tilt) {
   somfy_commands cmd = somfy_commands::My;
+  if(this->shadeType == shade_types::garage1) {
+    // Overload this as we cannot seek a position on a garage door.
+    this->target = this->currentPos = pos;
+    this->emitState();
+    return;
+  }
   if(this->tiltType == tilt_types::tiltonly) {
     this->currentPos = this->target = 100.0f;
     pos = 100;
@@ -2570,6 +2564,10 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
     case somfy_commands::Prog:
       frm[7] = 132;
       frm[9] = 63;
+      break;
+    case somfy_commands::Toggle:
+      frm[7] = 136;
+      frm[9] = 34;
       break;
     default:
       frm[9] = 46;

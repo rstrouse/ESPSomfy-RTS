@@ -149,7 +149,7 @@ Number.prototype.fmt = function (format, empty) {
     if (rd.length === 0 && rw.length === 0) return '';
     return pfx + rw + rd + sfx;
 };
-var baseUrl = window.location.protocol === 'file:' ? 'http://ESPSomfyRTS' : '';
+var baseUrl = window.location.protocol === 'file:' ? 'http://ESPSomfyRTS.local' : '';
 //var baseUrl = '';
 function makeBool(val) {
     if (typeof val === 'boolean') return val;
@@ -1961,6 +1961,10 @@ class Somfy {
                 case 4:
                     divCtl += ' icss-shutter';
                     break;
+                case 5:
+                case 6:
+                    divCtl += ' icss-garage';
+                    break;
                 default:
                     divCtl += ' icss-window-shade';
                     break;
@@ -1973,18 +1977,19 @@ class Somfy {
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
             if (shade.tiltType === 3)
                 divCtl += `<span class="shadectl-mypos"><label>My Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
-            else {
+            else if(shade.shadeType !== 5) {
                 divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`;
                 if (shade.myTiltPos > 0 && shade.tiltType !== 3) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`;
             }
             divCtl += '</div>';
-
-            divCtl += `<div class="shadectl-buttons">`;
+            divCtl += `<div class="shadectl-buttons" data-shadeType="${shade.shadeType}">`;
             divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-shadeid="${shade.shadeId}" data-on="${shade.flags & 0x01 ? 'true' : 'false'}" style="${!shade.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-shadeid="${shade.shadeId}"><i class="icss-somfy-up"></i></div>`;
             divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-shadeid="${shade.shadeId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-shadeid="${shade.shadeId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
+            divCtl += `<div class="button-outline cmd-button toggle-button" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="toggle" data-shadeid="${shade.shadeId}"><i class="icss-somfy-toggle" style="margin-top:-4px;"></i></div>`;
             divCtl += '</div></div>';
+            divCtl += '</div>';
         }
         document.getElementById('divShadeList').innerHTML = divCfg;
         let shadeControls = document.getElementById('divShadeControls');
@@ -2414,20 +2419,26 @@ class Somfy {
     onShadeTypeChanged(el) {
         let sel = document.getElementById('selShadeType');
         let tilt = parseInt(document.getElementById('selTiltType').value, 10);
+        let sun = true;
         let ico = document.getElementById('icoShade');
-        switch (parseInt(sel.value, 10)) {
+        let type = parseInt(sel.value, 10);
+        document.getElementById('somfyShade').setAttribute('data-shadetype', type);
+        document.getElementById('divSomfyButtons').setAttribute('data-shadetype', type);
+        switch (type) {
             case 1:
                 document.getElementById('divTiltSettings').style.display = '';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-window-blind')) ico.classList.add('icss-window-blind');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 break;
             case 3:
                 document.getElementById('divTiltSettings').style.display = 'none';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (!ico.classList.contains('icss-awning')) ico.classList.add('icss-awning');
                 tilt = false;
                 break;
@@ -2436,14 +2447,26 @@ class Somfy {
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (!ico.classList.contains('icss-shutter')) ico.classList.add('icss-shutter');
                 tilt = false;
                 break;
-
+            case 6:
+            case 5:
+                document.getElementById('divTiltSettings').style.display = 'none';
+                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
+                if (!ico.classList.contains('icss-garage')) ico.classList.add('icss-garage');
+                sun = false;
+                tilt = false;
+                break;
             default:
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (!ico.classList.contains('icss-window-shade')) ico.classList.add('icss-window-shade');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 document.getElementById('divTiltSettings').style.display = 'none';
                 tilt = false;
@@ -2452,9 +2475,11 @@ class Somfy {
         document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
         document.getElementById('divLiftSettings').style.display = tilt === 3 ? 'none' : '';
         document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
+        document.getElementById('divSunSensor').style.display = sun ? '' : 'none';
     }
     onShadeBitLengthChanged(el) {
-        document.getElementById('divStepSettings').style.display = parseInt(el.value, 10) === 80 ? '' : 'none';
+        document.getElementById('somfyShade').setAttribute('data-bitlength', el.value);
+        //document.getElementById('divStepSettings').style.display = parseInt(el.value, 10) === 80 ? '' : 'none';
     }
     openEditShade(shadeId) {
         if (typeof shadeId === 'undefined') {
@@ -2506,6 +2531,9 @@ class Somfy {
                     this.onShadeTypeChanged(document.getElementById('selShadeType'));
                     let ico = document.getElementById('icoShade');
                     switch (shade.shadeType) {
+                        case 0:
+                            document.getElementById('divSunSensor').style.display = '';
+                            break;
                         case 1:
                             ico.classList.remove('icss-window-shade');
                             ico.classList.add('icss-window-blind');
@@ -2513,11 +2541,19 @@ class Somfy {
                         case 3:
                             ico.classList.remove('icss-window-shade');
                             ico.classList.add('icss-awning');
+                            document.getElementById('divSunSensor').style.display = '';
                             break;
                         case 4:
                             ico.classList.remove('icss-window-shade');
                             ico.classList.add('icss-shutter');
+                            document.getElementById('divSunSensor').style.display = '';
                             break;
+                        case 5:
+                            ico.classList.remove('icss-window-shade');
+                            ico.classList.add('icss-garage');
+                            document.getElementById('divSunSensor').style.display = 'none';
+                            break;
+
                     }
                     let tilt = ico.parentElement.querySelector('i.icss-window-tilt');
                     tilt.style.display = shade.tiltType !== 0 ? '' : 'none';
@@ -2896,22 +2932,39 @@ class Somfy {
         });
     }
     pairShade(shadeId) {
+        let shadeType = parseInt(document.getElementById('somfyShade').getAttribute('data-shadetype'), 10);
         let div = document.createElement('div');
         let html = `<div id="divPairing" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
-        html += '<div>Follow the instructions below to pair this shade with a Somfy motor</div>';
-        html += '<hr style="width:100%;margin:0px;"></hr>';
-        html += '<ul style="width:100%;margin:0px;padding-left:20px;font-size:14px;">';
-        html += '<li>Open the shade memory using an existing remote by pressing the prog button on the back until the shade jogs.</li>';
-        html += '<li>After the shade jogs press the Prog button below</li>';
-        html += '<li>The shade should jog again indicating that the shade is paired. NOTE: On some motors you may need to press and hold the Prog button.</li>';
-        html += '<li>If the shade jogs, you can press the shade paired button.</li>';
-        html += '<li>If the shade does not jog, try pressing the prog button again.</li>';
-        html += '</ul>';
-        html += `<div class="button-container">`;
-        html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;">Prog</button>`;
-        html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, true);">Shade Paired</button>`;
-        html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" >Close</button>`;
-        html += `</div>`;
+        if (shadeType === 5 || shadeType === 6) {
+            html += '<div>Follow the instructions below to pair ESPSomfy RTS with an RTS Garage Door motor</div>';
+            html += '<hr style="width:100%;margin:0px;"></hr>';
+            html += '<ul style="width:100%;margin:0px;padding-left:20px;font-size:14px;">';
+            html += '<li>Open the garage door motor memory per instructions for your motor.</li>';
+            html += '<li>Once the memory is opened, press the prog button below</li>';
+            html += '<li>For single button control ESPSomfy RTS will send a toggle command but for a 3 button control it will send a prog command.</li>';
+            html += '</ul>';
+            html += `<div class="button-container">`;
+            html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;">Prog</button>`;
+            html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, true);">Door Paired</button>`;
+            html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" >Close</button>`;
+            html += `</div>`;
+        }
+        else {
+            html += '<div>Follow the instructions below to pair this shade with a Somfy motor</div>';
+            html += '<hr style="width:100%;margin:0px;"></hr>';
+            html += '<ul style="width:100%;margin:0px;padding-left:20px;font-size:14px;">';
+            html += '<li>Open the shade memory using an existing remote by pressing the prog button on the back until the shade jogs.</li>';
+            html += '<li>After the shade jogs press the Prog button below</li>';
+            html += '<li>The shade should jog again indicating that the shade is paired. NOTE: On some motors you may need to press and hold the Prog button.</li>';
+            html += '<li>If the shade jogs, you can press the shade paired button.</li>';
+            html += '<li>If the shade does not jog, try pressing the prog button again.</li>';
+            html += '</ul>';
+            html += `<div class="button-container">`;
+            html += `<button id="btnSendPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;">Prog</button>`;
+            html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, true);">Shade Paired</button>`;
+            html += `<button id="btnStopPairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" >Close</button>`;
+            html += `</div>`;
+        }
         let fnRepeatProg = (err, shade) => {
             if (this.btnTimer) {
                 clearTimeout(this.btnTimer);

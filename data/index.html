@@ -313,6 +313,8 @@
                                                 <option value="1">Blind</option>
                                                 <option value="2">Drapery</option>
                                                 <option value="3">Awning</option>
+                                                <option value="5">Garage (1-button)</option>
+                                                <option value="6">Garage (3-button)</option>
                                             </select>
                                             <label for="selShadeType">Type</label>
                                         </div>
@@ -322,11 +324,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div id="divSomfyButtons" style="float:right;margin-top:10px;position:relative">
+                                <div id="divSomfyButtons" class="shadectl-buttons" style="float:right;margin-top:10px;position:relative">
                                     <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
-                                    <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
-                                    <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
-                                    <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                                    <div class="button-outline" data-cmd="up" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
+                                    <div class="button-outline" data-cmd="my" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
+                                    <div class="button-outline" data-cmd="down" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                                    <div class="button-outline toggle-button" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="toggle" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'toggle');"><i class="icss-somfy-toggle" style="margin-top:-4px;"></i></div>
                                 </div>
                             </div>
                             <div class="field-group" style="padding:0px;">
@@ -358,7 +361,7 @@
                                     <label for="fldTiltTime">Tilt Time (ms)</label>
                                 </div>
                             </div>
-                            <div id="divStepSettings" style="display:none;">
+                            <div id="divStepSettings">
                                 <div class="field-group">
                                     <input id="slidStepSize" name="stepSize" type="range" min="1" max="1000" step="1" data-bind="stepSize" data-datatype="int" style="width:100%;" oninput="somfy.stepSizeChanged(this);" />
                                     <label for="slidStepSize" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;">
@@ -369,7 +372,7 @@
                                     </label>
                                 </div>
                             </div>
-                            <div style="margin-top:-10px;">
+                            <div id="divSunSensor" style="margin-top:-10px;">
                                 <div class="field-group">
                                     <input id="cbHasSunsensor" name="hasSunSensor" data-bind="sunSensor" type="checkbox" style="" />
                                     <label for="cbHasSunSensor" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Has Sun Sensor</label>

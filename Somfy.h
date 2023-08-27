@@ -39,12 +39,12 @@ enum class somfy_commands : byte {
     SunFlag = 0x9,
     Flag = 0xA,
     StepDown = 0xB,
-    UnknownC = 0xC,
+    Toggle = 0xC,
     UnknownD = 0xD,
     Sensor = 0xE,
     RTWProto = 0xF, // RTW Protocol
     // Command extensions for 80 bit frames
-    StepUp = 0x8B
+    StepUp = 0x8B,
 };
 enum class group_types : byte {
   channel = 0x00
@@ -54,7 +54,10 @@ enum class shade_types : byte {
   blind = 0x01,
   drapery = 0x02,
   awning = 0x03,
-  shutter = 0x04
+  shutter = 0x04,
+  garage1 = 0x05,
+  garage3 = 0x06
+  
 };
 enum class tilt_types : byte {
   none = 0x00,
@@ -228,6 +231,7 @@ class SomfyShade : public SomfyRemote {
     float currentPos = 0.0f;
     float currentTiltPos = 0.0f;
     //uint16_t movement = 0;
+    int8_t lastMovement = 0;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
     int8_t tiltDirection = 0; // 0=stopped, 1=clockwise, -1=counter clockwise
     float target = 0.0f;

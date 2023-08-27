@@ -664,16 +664,6 @@ div.wait-overlay > .lds-roller {
         padding: 7px;
         cursor: pointer;
     }
-#divSomfyButtons div.button-outline {
-    margin-top: -10px;
-    margin-left: 0px;
-    margin-right: 0px;
-    margin-bottom: 0px;
-    display: inline-block;
-    padding: 7px;
-    cursor: pointer;
-    vertical-align: middle;
-}
 
 .shade-positioner {
     position: absolute;
