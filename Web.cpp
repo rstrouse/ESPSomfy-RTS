@@ -381,6 +381,7 @@ void Web::handleRepeatCommand(WebServer& server) {
         server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade reference could not be found.\"}"));
         return;        
       }
+      if(shade->shadeType == shade_types::garage1 && command == somfy_commands::Prog) command = somfy_commands::Toggle;
       if(!shade->isLastCommand(command)) {
         // We are going to send this as a new command.
         shade->sendCommand(command, repeat >= 0 ? repeat : shade->repeats);

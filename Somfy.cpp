@@ -1965,7 +1965,7 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
       this->tiltTarget = this->currentTiltPos;
     }
   }
-  else if(this->shadeType == shade_types::garage1 && cmd == somfy_commands::My) {
+  else if(this->shadeType == shade_types::garage1 && cmd == somfy_commands::Prog) {
     SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
   }
   else {
