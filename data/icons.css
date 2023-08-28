@@ -707,12 +707,12 @@ i.icss-garage {
     i.icss-garage:before {
         width: calc(100% - .08em);
         height: calc(var(--shade-position, 0%) - 0em);
-        left: 0.05em;
+        left: 0.04em;
         border-bottom: outset 0.025em gray;
-        background-image: repeating-linear-gradient(var(--shade-color, currentColor) 0% 50%, rgba(71, 212, 255, 0) 0% 75%);
-        background-position: 0 0, 100% 100%;
+        background-image: repeating-linear-gradient(to top, var(--shade-color, currentColor), var(--shade-color, currentColor) 75%, rgba(255,255,255,0) 100%);
         background-size: 0.01em 0.2em;
         background-color: rgba(71, 212, 255, 0);
+        background-position:left bottom;
     }
 
 i.icss-upload {
