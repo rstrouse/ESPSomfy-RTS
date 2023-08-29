@@ -714,7 +714,34 @@ i.icss-garage {
         background-color: rgba(71, 212, 255, 0);
         background-position:left bottom;
     }
+i.icss-lightbulb-o {
+    width: .35em;
+    height: .1em;
+    border-radius: .1em;
+    margin: .7em .325em .2em;
+    box-shadow: 0 .13em, 0 .19em 0 -.03em, 0 .22em 0 -0.035em;
+}
 
+    i.icss-lightbulb-o:before {
+        width: .65em;
+        height: .65em;
+        border-width: 0.068em;
+        border-style: solid;
+        border-radius: 100% 100% 100% .2em;
+        background-color: transparent;
+        left: 50%;
+        transform: translateX(-50%) rotate(-45deg);
+        bottom: .11em;
+    }
+
+    i.icss-lightbulb-o:after {
+        width: .25em;
+        height: .2em;
+        border-radius: 100%;
+        box-shadow: inset -0.05em 0.05em;
+        left: .1em;
+        top: -.5em;
+    }
 i.icss-upload {
     width: 1em;
     height: .6em;
@@ -932,6 +959,32 @@ i.icss-sun-o {
         transform: translate(-50%, -50%) rotate(45deg);
         box-shadow: .45em 0, .38em 0, -.45em 0, -.38em 0, 0 .45em, 0 .38em, 0 -.45em, 0 -.38em;
     }
+div.button-light {
+    position:absolute;
+    margin-left:-30px;
+    cursor:pointer;
+}
+    div.button-light[data-on=false] i.icss-lightbulb-o:before {
+        background-color:lightgray;
+    }
+    div.button-light[data-on=true] i.icss-lightbulb-o:before {
+        background-color: yellow;
+    }
+
+    div.button-light > i.icss-lightbulb-c {
+        position: absolute;
+        font-size: 18px;
+        color: orange;
+        left: 6px;
+        top: 7px;
+    }
+
+    div.button-light > i.icss-lightbulb-o {
+        position: absolute;
+        font-size: 32px;
+        color: gray;
+    }
+
 
 div.button-sunflag {
     position: relative;
@@ -941,7 +994,6 @@ div.button-sunflag {
     div.button-sunflag[data-on=false] i.icss-sun-c {
         background-image: radial-gradient(ellipse at center, gainsboro 1%, #ccc 39%, silver 39%, gray 100%);
     }
-
 
     div.button-sunflag > i.icss-sun-c {
         position: absolute;

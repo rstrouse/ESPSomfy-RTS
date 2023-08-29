@@ -1983,6 +1983,7 @@ class Somfy {
             }
             divCtl += '</div>';
             divCtl += `<div class="shadectl-buttons" data-shadeType="${shade.shadeType}">`;
+            divCtl += `<div class="button-light cmd-button" data-cmd="light" data-shadeid="${shade.shadeId}" data-on="${shade.flags & 0x08 ? 'true' : 'false'}" style="${!shade.light ? 'display:none' : ''}"><i class="icss-lightbuld-c"></i><i class="icss-lightbulb-o"></i></div>`;
             divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-shadeid="${shade.shadeId}" data-on="${shade.flags & 0x01 ? 'true' : 'false'}" style="${!shade.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
             divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-shadeid="${shade.shadeId}"><i class="icss-somfy-up"></i></div>`;
             divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-shadeid="${shade.shadeId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
@@ -2009,6 +2010,9 @@ class Somfy {
                     this.btnTimer = null;
                     if (new Date().getTime() - this.btnDown > 2000) event.preventDefault();
                     else this.sendCommand(shadeId, cmd);
+                }
+                else if (cmd === 'light') {
+                    event.currentTarget.setAttribute('data-on', !makeBool(event.currentTarget.getAttribute('data-on')));
                 }
                 else if (cmd === 'sunflag') {
                     if (makeBool(event.currentTarget.getAttribute('data-on')))
@@ -2040,6 +2044,7 @@ class Somfy {
                         }, 2000);
                     }
                 }
+                else if (cmd === 'light') return;
                 else if (cmd === 'sunflag') return;
                 else if (makeBool(elShade.getAttribute('data-tilt'))) {
                     this.btnTimer = setTimeout(() => {
@@ -2420,6 +2425,7 @@ class Somfy {
         let sel = document.getElementById('selShadeType');
         let tilt = parseInt(document.getElementById('selTiltType').value, 10);
         let sun = true;
+        let light = false;
         let ico = document.getElementById('icoShade');
         let type = parseInt(sel.value, 10);
         document.getElementById('somfyShade').setAttribute('data-shadetype', type);
@@ -2459,6 +2465,7 @@ class Somfy {
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-garage')) ico.classList.add('icss-garage');
+                light = true;
                 sun = false;
                 tilt = false;
                 break;
@@ -2476,6 +2483,7 @@ class Somfy {
         document.getElementById('divLiftSettings').style.display = tilt === 3 ? 'none' : '';
         document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
         document.getElementById('divSunSensor').style.display = sun ? '' : 'none';
+        document.getElementById('divLightSwitch').style.display = light ? '' : 'none';
     }
     onShadeBitLengthChanged(el) {
         document.getElementById('somfyShade').setAttribute('data-bitlength', el.value);

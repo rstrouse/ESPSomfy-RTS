@@ -764,7 +764,9 @@ bool SomfyGroup::hasShadeId(uint8_t shadeId) {
 }
 bool SomfyShade::isAtTarget() { return this->currentPos == this->target && this->currentTiltPos == this->tiltTarget; }
 bool SomfyRemote::hasSunSensor() { return (this->flags & static_cast<uint8_t>(somfy_flags_t::SunSensor)) > 0;}
+bool SomfyRemote::hasLight() { return (this->flags & static_cast<uint8_t>(somfy_flags_t::Light)) > 0; }
 void SomfyRemote::setSunSensor(bool bHasSensor ) { bHasSensor ? this->flags |= static_cast<uint8_t>(somfy_flags_t::SunSensor) : this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunSensor)); }
+void SomfyRemote::setLight(bool bHasLight ) { bHasLight ? this->flags |= static_cast<uint8_t>(somfy_flags_t::Light) : this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Light)); }
 void SomfyGroup::updateFlags() { 
   this->flags = 0;
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
@@ -1217,16 +1219,16 @@ void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
   char buf[420];
   if(this->tiltType != tilt_types::none)
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s}", 
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s}", 
       this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
       this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), this->transformPosition(this->myTiltPos), static_cast<uint8_t>(this->tiltType), this->tiltDirection, 
       this->transformPosition(this->tiltTarget), this->transformPosition(this->currentTiltPos),
-      this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false");
+      this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false");
   else
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s}", 
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s}", 
       this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
       this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), 
-      static_cast<uint8_t>(this->tiltType), this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false");
+      static_cast<uint8_t>(this->tiltType), this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false");
   if(num >= 255) sockEmit.sendToClients(evt, buf);
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
@@ -2129,6 +2131,7 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
   if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
   if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
   if(obj.containsKey("sunSensor")) this->setSunSensor(obj["sunSensor"]);
+  if(obj.containsKey("light")) this->setLight(obj["light"]);
   if(obj.containsKey("shadeType")) {
     if(obj["shadeType"].is<const char *>()) {
       if(strncmp(obj["shadeType"].as<const char *>(), "roller", 7) == 0)
@@ -2189,6 +2192,7 @@ bool SomfyShade::toJSONRef(JsonObject &obj) {
   obj["proto"] = static_cast<uint8_t>(this->proto);
   obj["flags"] = this->flags;
   obj["sunSensor"] = this->hasSunSensor();
+  obj["hasLight"] = this->hasLight();
   obj["repeats"] = this->repeats;
   SomfyRemote::toJSON(obj);
   return true;
@@ -2226,6 +2230,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["flipPosition"] = this->flipPosition;
   obj["inGroup"] = this->isInGroup();
   obj["sunSensor"] = this->hasSunSensor();
+  obj["light"] = this->hasLight();
   obj["repeats"] = this->repeats;
   
   SomfyRemote::toJSON(obj);

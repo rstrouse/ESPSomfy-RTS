@@ -142,8 +142,10 @@ enum class somfy_flags_t : byte {
     SunFlag = 0x01,
     SunSensor = 0x02,
     DemoMode = 0x04,
+    Light = 0x08,
     Windy = 0x10,
-    Sunny = 0x20
+    Sunny = 0x20,
+    Lighted = 0x40
 };
 struct somfy_frame_t {
     bool valid = false;
@@ -192,7 +194,9 @@ class SomfyRemote {
     virtual uint16_t getNextRollingCode();
     virtual uint16_t setRollingCode(uint16_t code);
     bool hasSunSensor();
+    bool hasLight();
     void setSunSensor(bool bHasSensor);
+    void setLight(bool bHasLight);
     virtual void sendCommand(somfy_commands cmd);
     virtual void sendCommand(somfy_commands cmd, uint8_t repeat);
     void repeatFrame(uint8_t repeat);
