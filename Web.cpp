@@ -36,8 +36,9 @@ void Web::startup() {
 }
 void Web::loop() {
   server.handleClient();
-  yield();
+  delay(1);
   apiServer.handleClient();
+  delay(1);
 }
 void Web::sendCORSHeaders(WebServer &server) { 
     //server.sendHeader(F("Connection"), F("Keep-Alive")); 
