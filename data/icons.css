@@ -610,6 +610,69 @@ i.icss-window-shade {
         background-size: 0.05em 0.05em;
         background-color: rgba(71, 212, 255, 0);
     }
+i.icss-ldrapery {
+    width: 1.1em;
+    height: .9em;
+    background-color: transparent;
+    border: .05em solid transparent;
+    border-width: 0 .1em;
+    box-shadow: inset 0 0 0 .01em, inset 0 .01em 0 .07em, 0 .07em 0;
+    margin: .1em 0 .07em;
+}
+
+    i.icss-ldrapery:before {
+        width: 1.1em;
+        height: .2em;
+        border-bottom: .1em solid transparent;
+        box-shadow: inset 0 1em, 0 0em 0 -.1em;
+        top: -.05em;
+        left: -.09em;
+    }
+
+    i.icss-ldrapery:after {
+        width: var(--shade-position, 0%);
+        height: calc(100% - .05em);
+        left: 0em;
+        top: 0.025em;
+        border-bottom: solid 0.025em gray;
+        border-right:solid 0.025em gray;
+        background-image: repeating-conic-gradient(var(--shade-color, currentColor) 0% 25%, rgba(71, 212, 255, 0) 0% 50%);
+        background-position: 0 0, 100% 100%;
+        background-size: 0.05em 0.05em;
+        background-color: rgba(71, 212, 255, 0);
+    }
+i.icss-rdrapery {
+    width: 1.1em;
+    height: .9em;
+    background-color: transparent;
+    border: .05em solid transparent;
+    border-width: 0 .1em;
+    box-shadow: inset 0 0 0 .01em, inset 0 .01em 0 .07em, 0 .07em 0;
+    margin: .1em 0 .07em;
+}
+
+    i.icss-rdrapery:before {
+        width: 1.1em;
+        height: .2em;
+        border-bottom: .1em solid transparent;
+        box-shadow: inset 0 1em, 0 0em 0 -.1em;
+        top: -.05em;
+        left: -.09em;
+    }
+
+    i.icss-rdrapery:after {
+        width: var(--shade-position, 0%);
+        height: calc(100% - .05em);
+        left: calc(100% - var(--shade-position));
+        top: 0.025em;
+        border-bottom: solid 0.025em gray;
+        border-left: solid 0.025em gray;
+        background-image: repeating-conic-gradient(var(--shade-color, currentColor) 0% 25%, rgba(71, 212, 255, 0) 0% 50%);
+        background-position: 0 0, 100% 100%;
+        background-size: 0.05em 0.05em;
+        background-color: rgba(71, 212, 255, 0);
+    }
+
 i.icss-shutter {
     width: 1.1em;
     height: .75em;
@@ -816,6 +879,7 @@ i.icss-awning {
     background-color: transparent;
     border-width: 0 0;
     margin: .2em 0 .07em;
+    left:0.1em;
 }
 
     i.icss-awning:before {
@@ -1025,7 +1089,7 @@ div.indicator-wind {
     clip-path: polygon(48% 18%, 0% 95%, 110% 92%);
     background:yellow;
     top:30%;
-    left:13px;
+    left:.8em;
 }
 div.indicator-sun {
     color: darkorange;

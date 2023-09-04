@@ -1959,6 +1959,9 @@ class Somfy {
                 case 1:
                     divCtl += ' icss-window-blind';
                     break;
+                case 2:
+                    divCtl += ' icss-ldrapery';
+                    break;
                 case 3:
                     divCtl += ' icss-awning';
                     break;
@@ -1968,6 +1971,12 @@ class Somfy {
                 case 5:
                 case 6:
                     divCtl += ' icss-garage';
+                    break;
+                case 7:
+                    divCtl += ' icss-rdrapery';
+                    break;
+                case 8:
+                    divCtl += ' icss-cdrapery';
                     break;
                 default:
                     divCtl += ' icss-window-shade';
@@ -2529,14 +2538,32 @@ class Somfy {
             case 1:
                 document.getElementById('divTiltSettings').style.display = '';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-window-blind')) ico.classList.add('icss-window-blind');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 break;
+            case 2:
+                document.getElementById('divTiltSettings').style.display = 'none';
+                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (!ico.classList.contains('icss-ldrapery')) ico.classList.add('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
+                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                tilt = false;
+                break;
             case 3:
                 document.getElementById('divTiltSettings').style.display = 'none';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
@@ -2546,6 +2573,9 @@ class Somfy {
             case 4:
                 document.getElementById('divTiltSettings').style.display = 'none';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
@@ -2556,6 +2586,9 @@ class Somfy {
             case 5:
                 document.getElementById('divTiltSettings').style.display = 'none';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
@@ -2564,9 +2597,37 @@ class Somfy {
                 sun = false;
                 tilt = false;
                 break;
+            case 7:
+                document.getElementById('divTiltSettings').style.display = 'none';
+                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (!ico.classList.contains('icss-rdrapery')) ico.classList.add('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
+                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                tilt = false;
+                break;
+            case 8:
+                document.getElementById('divTiltSettings').style.display = 'none';
+                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (!ico.classList.contains('icss-cdrapery')) ico.classList.add('icss-cdrapery');
+                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                tilt = false;
+                break;
+
             default:
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
                 if (!ico.classList.contains('icss-window-shade')) ico.classList.add('icss-window-shade');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
@@ -2640,6 +2701,11 @@ class Somfy {
                         case 1:
                             ico.classList.remove('icss-window-shade');
                             ico.classList.add('icss-window-blind');
+                            break;
+                        case 2:
+                            ico.classList.remove('icss-window-shade');
+                            ico.classList.add('icss-ldrapery');
+                            document.getElementById('divSunSensor').style.display = '';
                             break;
                         case 3:
                             ico.classList.remove('icss-window-shade');

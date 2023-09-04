@@ -52,12 +52,13 @@ enum class group_types : byte {
 enum class shade_types : byte {
   roller = 0x00,
   blind = 0x01,
-  drapery = 0x02,
+  ldrapery = 0x02,
   awning = 0x03,
   shutter = 0x04,
   garage1 = 0x05,
-  garage3 = 0x06
-  
+  garage3 = 0x06,
+  rdrapery = 0x07,
+  cdrapery = 0x08
 };
 enum class tilt_types : byte {
   none = 0x00,

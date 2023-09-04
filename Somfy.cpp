@@ -2137,8 +2137,16 @@ bool SomfyShade::fromJSON(JsonObject &obj) {
     if(obj["shadeType"].is<const char *>()) {
       if(strncmp(obj["shadeType"].as<const char *>(), "roller", 7) == 0)
         this->shadeType = shade_types::roller;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "drapery", 8) == 0)
-        this->shadeType = shade_types::drapery;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "ldrapery", 9) == 0)
+        this->shadeType = shade_types::ldrapery;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "rdrapery", 9) == 0)
+        this->shadeType = shade_types::rdrapery;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "cdrapery", 9) == 0)
+        this->shadeType = shade_types::cdrapery;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "garage1", 7) == 0)
+        this->shadeType = shade_types::garage1;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "garage3", 7) == 0)
+        this->shadeType = shade_types::garage3;
       else if(strncmp(obj["shadeType"].as<const char *>(), "blind", 5) == 0)
         this->shadeType = shade_types::blind;
       else if(strncmp(obj["shadeType"].as<const char *>(), "awning", 7) == 0)
