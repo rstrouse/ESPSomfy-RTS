@@ -128,6 +128,7 @@
 .shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="down"] {
     display: none;
 }
+.shadectl-buttons:not([data-shadetype="5"]) > .button-outline[data-cmd="toggle"],
 .shadectl-buttons[data-shadetype="0"] > .button-outline[data-cmd="toggle"],
 .shadectl-buttons[data-shadetype="1"] > .button-outline[data-cmd="toggle"],
 .shadectl-buttons[data-shadetype="2"] > .button-outline[data-cmd="toggle"],
@@ -141,3 +142,19 @@
 #somfyShade[data-shadetype="6"] #divStepSettings {
     display:none;
 }
+.group-draggable,
+.shade-draggable {
+    height:32px;
+    border-top:solid 2px transparent;
+    cursor:grab;
+}
+    .group-draggable.dragging *,
+    .group-draggable.over *,
+    .shade-draggable.dragging *,
+    .shade-draggable.over * {
+        pointer-events: none;
+    }
+    .group-draggable.over,
+    .shade-draggable.over {
+        border-top: solid 2px var(--shade-color, '#00bcd4');
+    }

@@ -10,11 +10,11 @@
 
 struct config_header_t {
   uint8_t version = 1;
-  uint8_t shadeRecordSize = 0;
+  uint16_t shadeRecordSize = 0;
   uint8_t shadeRecords = 0;
-  uint8_t groupRecordSize = 0;
+  uint16_t groupRecordSize = 0;
   uint8_t groupRecords = 0;
-  uint8_t length = 0;
+  int8_t length = 0;
 };
 class ConfigFile {
   protected:

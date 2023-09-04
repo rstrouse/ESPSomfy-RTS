@@ -227,6 +227,7 @@ class SomfyShade : public SomfyRemote {
     bool settingTiltPos = false;
     uint32_t awaitMy = 0;
   public:
+    int8_t sortOrder = 0;
     bool flipPosition = false;
     shade_types shadeType = shade_types::roller;
     tilt_types tiltType = tilt_types::none;
@@ -290,6 +291,7 @@ class SomfyGroup : public SomfyRemote {
   protected:
     uint8_t groupId = 255;
   public:
+    int8_t sortOrder = 0;
     group_types groupType = group_types::channel;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
     char name[21] = "";
@@ -419,6 +421,8 @@ class SomfyShadeController {
     uint32_t startingAddress;
     uint8_t getNextShadeId();
     uint8_t getNextGroupId();
+    int8_t getMaxShadeOrder();
+    int8_t getMaxGroupOrder();
     uint32_t getNextRemoteAddress(uint8_t shadeId);
     SomfyShadeController();
     Transceiver transceiver;

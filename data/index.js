@@ -1197,7 +1197,7 @@ var security = new Security();
 
 class General {
     initialized = false;
-    appVersion = 'v2.1.4';
+    appVersion = 'v2.1.5';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1931,12 +1931,16 @@ class Somfy {
     }
     btnDown = null;
     btnTimer = null;
+    // Sort the array first to allow the user to drag and drop where they want the shade.
+
     setShadesList(shades) {
         let divCfg = '';
         let divCtl = '';
+        shades.sort((a, b) => { return a.sortOrder - b.sortOrder });
+        console.log(shades);
         for (let i = 0; i < shades.length; i++) {
             let shade = shades[i];
-            divCfg += `<div class="somfyShade" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType}">`;
+            divCfg += `<div class="somfyShade shade-draggable" draggable="true" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType}">`;
             divCfg += `<div class="button-outline" onclick="somfy.openEditShade(${shade.shadeId});"><i class="icss-edit"></i></div>`;
             //divCfg += `<i class="shade-icon" data-position="${shade.position || 0}%"></i>`;
             divCfg += `<span class="shade-name">${shade.name}</span>`;
@@ -2083,14 +2087,87 @@ class Somfy {
                 }
             }, true);
         }
+        this.setListDraggable(document.getElementById('divShadeList'), '.shade-draggable', (list) => {
+            // Get the shade order
+            let items = list.querySelectorAll('.shade-draggable');
+            let order = [];
+            for (let i = 0; i < items.length; i++) {
+                order.push(parseInt(items[i].getAttribute('data-shadeid'), 10));
+                // Reorder the shades on the main page.
+            }
+            putJSONSync('/shadeSortOrder', order, (err) => {
+                for (let i = order.length - 1; i >= 0; i--) {
+                    let el = shadeControls.querySelector(`.somfyShadeCtl[data-shadeid="${order[i]}"`);
+                    if (el) {
+                        shadeControls.prepend(el);
+                    }
+                }
+            });
+        });
+    }
+    setListDraggable(list, itemclass, onChanged) {
+        let items = list.querySelectorAll(itemclass);
+        let changed = false;
+        [].forEach.call(items, (item) => {
+            item.addEventListener('dragstart', function(e) {
+                console.log({ evt: 'dragStart', e: e, this: this });
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.innerHTML);
+                e.stopPropagation();
+                this.style.opacity = '0.4';
+                this.classList.add('dragging');
+            });
+            item.addEventListener('dragenter', function (e) {
+                this.classList.add('over');
+            });
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                return false;
+            });
+            item.addEventListener('dragleave', function(e) {
+                this.classList.remove('over');
+            });
+            item.addEventListener('drop', function(e) {
+                // Shift around the items.
+                console.log({ evt: 'drop', e: e, this: this });
+                let elDrag = list.querySelector('.dragging');
+                if (elDrag !== this) {
+                    let curr = 0, end = 0;
+                    for (let i = 0; i < items.length; i++) {
+                        if (this === items[i]) end = i;
+                        if (elDrag === items[i]) curr = i;
+                    }
+                    console.log({ drag: elDrag, curr: curr, end: end, before: curr < end });
+                    if (curr !== end) {
+                        this.before(elDrag);
+                        changed = true;
+                    }
+                }
+
+
+            });
+            item.addEventListener('dragend', function (e) {
+
+                [].forEach.call(items, (item) => { item.classList.remove('over') });
+                this.style.opacity = '1';
+                //overCounter = 0;
+                this.classList.remove('dragging');
+                if (changed && typeof onChanged === 'function') {
+                    onChanged(list);
+                }
+                //console.log(e);
+            });
+        });
     }
     setGroupsList(groups) {
         let divCfg = '';
         let divCtl = '';
         if (typeof groups !== 'undefined') {
+            groups.sort((a, b) => { return a.sortOrder - b.sortOrder });
             for (let i = 0; i < groups.length; i++) {
                 let group = groups[i];
-                divCfg += `<div class="somfyGroup" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
+                divCfg += `<div class="somfyGroup group-draggable" draggable="true" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
                 divCfg += `<div class="button-outline" onclick="somfy.openEditGroup(${group.groupId});"><i class="icss-edit"></i></div>`;
                 //divCfg += `<i class="Group-icon" data-position="${Group.position || 0}%"></i>`;
                 divCfg += `<span class="group-name">${group.name}</span>`;
@@ -2140,6 +2217,24 @@ class Somfy {
                     this.sendGroupCommand(groupId, cmd);
             }, true);
         }
+        this.setListDraggable(document.getElementById('divGroupList'), '.group-draggable', (list) => {
+            // Get the shade order
+            let items = list.querySelectorAll('.group-draggable');
+            let order = [];
+            for (let i = 0; i < items.length; i++) {
+                order.push(parseInt(items[i].getAttribute('data-groupid'), 10));
+                // Reorder the shades on the main page.
+            }
+            putJSONSync('/groupSortOrder', order, (err) => {
+                for (let i = order.length - 1; i >= 0; i--) {
+                    let el = groupControls.querySelector(`.somfyGroupCtl[data-groupid="${order[i]}"`);
+                    if (el) {
+                        groupControls.prepend(el);
+                    }
+                }
+            });
+        });
+
     }
     closeShadePositioners() {
         let ctls = document.querySelectorAll('.shade-positioner');

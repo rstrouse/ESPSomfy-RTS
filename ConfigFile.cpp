@@ -6,10 +6,10 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 12
-#define SHADE_HDR_SIZE 24
-#define SHADE_REC_SIZE 252
-#define GROUP_REC_SIZE 180
+#define SHADE_HDR_VER 13
+#define SHADE_HDR_SIZE 28
+#define SHADE_REC_SIZE 256
+#define GROUP_REC_SIZE 184
 
 bool ConfigFile::begin(const char* filename, bool readOnly) {
   this->file = LittleFS.open(filename, readOnly ? "r" : "w");
@@ -40,9 +40,9 @@ bool ConfigFile::writeHeader(const config_header_t &hdr) {
   if(!this->isOpen()) return false;
   this->writeUInt8(hdr.version);
   this->writeUInt8(hdr.length);
-  this->writeUInt8(hdr.shadeRecordSize);
+  this->writeUInt16(hdr.shadeRecordSize);
   this->writeUInt8(hdr.shadeRecords);
-  this->writeUInt8(hdr.groupRecordSize);
+  this->writeUInt16(hdr.groupRecordSize);
   this->writeUInt8(hdr.groupRecords, CFG_REC_END);
   return true;
 }
@@ -52,10 +52,12 @@ bool ConfigFile::readHeader() {
   Serial.printf("Reading header at %u\n", this->file.position());
   this->header.version = this->readUInt8(this->header.version);
   this->header.length = this->readUInt8(0);
-  this->header.shadeRecordSize = this->readUInt8(this->header.shadeRecordSize);
+  if(this->header.version >= 13) this->header.shadeRecordSize = this->readUInt16(this->header.shadeRecordSize);
+  else this->header.shadeRecordSize = this->readUInt8((uint8_t)this->header.shadeRecordSize);
   this->header.shadeRecords = this->readUInt8(this->header.shadeRecords);
   if(this->header.version > 10) {
-    this->header.groupRecordSize = this->readUInt8(this->header.groupRecordSize);
+    if(this->header.version >= 13) this->header.groupRecordSize = this->readUInt16(this->header.groupRecordSize);
+    else this->header.groupRecordSize = this->readUInt8(this->header.groupRecordSize);
     this->header.groupRecords = this->readUInt8(this->header.groupRecords);
   }
   Serial.printf("version:%u len:%u shadeSize:%u shadeRecs:%u groupSize:%u groupRecs: %u pos:%d\n", this->header.version, this->header.length, this->header.shadeRecordSize, this->header.shadeRecords, this->header.groupRecordSize, this->header.groupRecords, this->file.position());
@@ -332,18 +334,12 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
       shade->tiltType = this->readBool(false) ? tilt_types::none : tilt_types::tiltmotor;
     else
       shade->tiltType = static_cast<tilt_types>(this->readUInt8(0));
-    if(this->header.version > 6) {
-      shade->proto = static_cast<radio_proto>(this->readUInt8(0));
-    }
-    if(this->header.version > 1) {
-      shade->bitLength = this->readUInt8(56);
-    }
+    if(this->header.version > 6) shade->proto = static_cast<radio_proto>(this->readUInt8(0));
+    if(this->header.version > 1) shade->bitLength = this->readUInt8(56);
     shade->upTime = this->readUInt32(shade->upTime);
     shade->downTime = this->readUInt32(shade->downTime);
     shade->tiltTime = this->readUInt32(shade->tiltTime);
-    if(this->header.version > 5) {
-      shade->stepSize = this->readUInt16(100);
-    }
+    if(this->header.version > 5) shade->stepSize = this->readUInt16(100);
     for(uint8_t j = 0; j < SOMFY_MAX_LINKED_REMOTES; j++) {
       SomfyLinkedRemote *rem = &shade->linkedRemotes[j];
       rem->setRemoteAddress(this->readUInt32(0));
@@ -381,15 +377,14 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
     }
     shade->target = floor(shade->currentPos);
     shade->tiltTarget = floor(shade->currentTiltPos);
-    if(this->header.version >= 9) {
-      shade->flipCommands = this->readBool(false);
-    }
-    if(this->header.version >= 10) {
-      shade->flipPosition = this->readBool(false);
-    }
+    if(this->header.version >= 9) shade->flipCommands = this->readBool(false);
+    if(this->header.version >= 10) shade->flipPosition = this->readBool(false);
     if(this->header.version >= 12) shade->repeats = this->readUInt8(1);
+    if(this->header.version >= 13) shade->sortOrder = this->readUInt8(shade->getShadeId() - 1);
+    else shade->sortOrder = shade->getShadeId() - 1;
     if(shade->getShadeId() == 255) shade->clear();
   }
+  
   for(uint8_t i = 0; i < this->header.groupRecords; i++) {
     SomfyGroup *group = &s->groups[i];
     group->setGroupId(this->readUInt8(255));
@@ -410,6 +405,9 @@ bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
       if(shadeId > 0) group->linkedShades[lsd++] = shadeId;
     }
     if(this->header.version >= 12) group->repeats = this->readUInt8(1);
+    if(this->header.version >= 13) group->sortOrder = this->readUInt8(group->getGroupId() - 1);
+    else group->sortOrder = group->getGroupId() - 1;
+    
     if(group->getGroupId() == 255) group->clear();
     else group->compressLinkedShadeIds();
   }
@@ -430,7 +428,8 @@ bool ShadeConfigFile::writeGroupRecord(SomfyGroup *group) {
   for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
     this->writeUInt8(group->linkedShades[j]);
   }
-  this->writeUInt8(group->repeats, CFG_REC_END);
+  this->writeUInt8(group->repeats);
+  this->writeUInt8(group->sortOrder, CFG_REC_END);
   return true;
 }
 bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
@@ -473,7 +472,8 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   }
   this->writeBool(shade->flipCommands);
   this->writeBool(shade->flipPosition);
-  this->writeUInt8(shade->repeats, CFG_REC_END);
+  this->writeUInt8(shade->repeats);
+  this->writeUInt8(shade->sortOrder, CFG_REC_END);
   return true;  
 }
 bool ShadeConfigFile::exists() { return LittleFS.exists("/shades.cfg"); }

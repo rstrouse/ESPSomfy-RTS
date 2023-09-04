@@ -14,19 +14,21 @@ static char g_content[MQTT_MAX_RESPONSE];
 extern ConfigSettings settings;
 extern SomfyShadeController somfy;
 bool MQTTClass::begin() {
+  this->suspended = false;
   return true;
 }
 bool MQTTClass::end() {
+  this->suspended = true;
   this->disconnect();
-  this->lastConnect = 0;
-  this->connect();
   return true;
 }
 void MQTTClass::reset() {
   this->disconnect();
+  this->lastConnect = 0;
+  this->connect();
 }
 bool MQTTClass::loop() {
-  if(settings.MQTT.enabled && !mqttClient.connected())
+  if(settings.MQTT.enabled && !this->suspended && !mqttClient.connected())
     this->connect();
   if(settings.MQTT.enabled) mqttClient.loop();
   return true;
@@ -149,12 +151,12 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
 }
 bool MQTTClass::connect() {
   if(mqttClient.connected()) {
-    if(!settings.MQTT.enabled)
+    if(!settings.MQTT.enabled || this->suspended)
       return this->disconnect();
     else
       return true;
   }
-  if(settings.MQTT.enabled) {
+  if(settings.MQTT.enabled && !this->suspended) {
     if(this->lastConnect + 10000 > millis()) return false;    
     uint64_t mac = ESP.getEfuseMac();
     snprintf(this->clientId, sizeof(this->clientId), "client-%08x%08x", (uint32_t)((mac >> 32) & 0xFFFFFFFF), (uint32_t)(mac & 0xFFFFFFFF));

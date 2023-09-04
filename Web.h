@@ -15,6 +15,10 @@ class Web {
     void handleGetGroups(WebServer &server);
     void handleShadeCommand(WebServer &server);
     void handleRepeatCommand(WebServer &server);
+    void handleGroupCommand(WebServer &server);
+    void handleTiltCommand(WebServer &server);
+    void handleDiscovery(WebServer &server);
+    void handleNotFound(WebServer &server);
     void begin();
     void loop();
     void end();

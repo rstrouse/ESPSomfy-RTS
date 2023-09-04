@@ -599,6 +599,7 @@ void SomfyShade::clear() {
   this->tiltTime = 7000;
   this->stepSize = 100;
   this->repeats = 1;
+  this->sortOrder = 255;
 }
 void SomfyGroup::clear() {
   this->setGroupId(255);
@@ -1219,16 +1220,16 @@ void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
   char buf[420];
   if(this->tiltType != tilt_types::none)
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s}", 
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s,\"sortOrder\":%d}", 
       this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
       this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), this->transformPosition(this->myTiltPos), static_cast<uint8_t>(this->tiltType), this->tiltDirection, 
       this->transformPosition(this->tiltTarget), this->transformPosition(this->currentTiltPos),
-      this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false");
+      this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false", this->sortOrder);
   else
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s}", 
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s,\"sortOrder\":%d}", 
       this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
       this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), 
-      static_cast<uint8_t>(this->tiltType), this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false");
+      static_cast<uint8_t>(this->tiltType), this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false", this->sortOrder);
   if(num >= 255) sockEmit.sendToClients(evt, buf);
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
@@ -2232,7 +2233,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["sunSensor"] = this->hasSunSensor();
   obj["light"] = this->hasLight();
   obj["repeats"] = this->repeats;
-  
+  obj["sortOrder"] = this->sortOrder;  
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -2273,6 +2274,7 @@ bool SomfyGroup::toJSON(JsonObject &obj) {
   obj["sunSensor"] = this->hasSunSensor();
   obj["flags"] = this->flags;
   obj["repeats"] = this->repeats;
+  obj["sortOrder"] = this->sortOrder;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedShades");
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
@@ -2351,6 +2353,25 @@ uint8_t SomfyShadeController::getNextShadeId() {
   }
   return 255;
 }
+int8_t SomfyShadeController::getMaxShadeOrder() {
+  int8_t order = -1;
+  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
+    SomfyShade *shade = &this->shades[i];
+    if(shade->getShadeId() == 255) continue;
+    if(order < shade->sortOrder) order = shade->sortOrder;
+  }
+  return order;
+}
+int8_t SomfyShadeController::getMaxGroupOrder() {
+  int8_t order = -1;
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    SomfyGroup *group = &this->groups[i];
+    if(group->getGroupId() == 255) continue;
+    if(order < group->sortOrder) order = group->sortOrder;
+  }
+  return order;
+}
+
 uint8_t SomfyShadeController::getNextGroupId() {
   // There is no shortcut for this since the deletion of
   // a group in the middle makes all of this very difficult.
@@ -2415,11 +2436,13 @@ SomfyShade *SomfyShadeController::addShade() {
   // So the next shade id will be the first one we run into with an id of 255 so
   // if it gets deleted in the middle then it will get the first slot that is empty.
   // There is no apparent way around this.  In the future we might actually add an indexer
-  // to it for sorting later.
+  // to it for sorting later.  The time has come so the sort order is set below.
   if(shadeId == 255) return nullptr;
   SomfyShade *shade = &this->shades[shadeId - 1];
   if(shade) {
     shade->setShadeId(shadeId);
+    shade->sortOrder = this->getMaxShadeOrder() + 1;
+    Serial.printf("Sort order set to %d\n", shade->sortOrder);
     this->isDirty = true;
     if(this->useNVS()) {
       for(uint8_t i = 0; i < sizeof(this->m_shadeIds); i++) {
@@ -2489,6 +2512,7 @@ SomfyGroup *SomfyShadeController::addGroup() {
   SomfyGroup *group = &this->groups[groupId - 1];
   if(group) {
     group->setGroupId(groupId);
+    group->sortOrder = this->getMaxGroupOrder() + 1;
     this->isDirty = true;
   }
   return group;

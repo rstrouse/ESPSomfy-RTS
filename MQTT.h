@@ -6,6 +6,7 @@
 class MQTTClass {
   public:
     uint64_t lastConnect = 0;
+    bool suspended = false;
     char clientId[32] = {'\0'};
     bool begin();
     bool loop();
@@ -26,7 +27,5 @@ class MQTTClass {
     bool subscribe(const char *topic);
     bool unsubscribe(const char *topic);
     static void receive(const char *topic, byte *payload, uint32_t length);
-    
-    
 };
 #endif

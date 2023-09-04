@@ -310,27 +310,29 @@ void Web::handleShadeCommand(WebServer& server) {
       }
     }
     else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+    SomfyShade* shade = somfy.getShadeById(shadeId);
+    if (shade) {
+        Serial.print("Received:");
+        Serial.println(server.arg("plain"));
+        // Send the command to the shade.
+        if (target <= 100)
+            shade->moveToTarget(shade->transformPosition(target));
+        else if (repeat > 0)
+            shade->sendCommand(command, repeat);
+        else
+            shade->sendCommand(command);
+        DynamicJsonDocument sdoc(512);
+        JsonObject sobj = sdoc.to<JsonObject>();
+        shade->toJSON(sobj);
+        serializeJson(sdoc, g_content);
+        server.send(200, _encoding_json, g_content);
+    }
+    else {
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+    }
   }
-  SomfyShade* shade = somfy.getShadeById(shadeId);
-  if (shade) {
-      Serial.print("Received:");
-      Serial.println(server.arg("plain"));
-      // Send the command to the shade.
-      if (target <= 100)
-          shade->moveToTarget(shade->transformPosition(target));
-      else if (repeat > 0)
-          shade->sendCommand(command, repeat);
-      else
-          shade->sendCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      shade->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      server.send(200, _encoding_json, g_content);
-  }
-  else {
-      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
-  }
+  else
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
 void Web::handleRepeatCommand(WebServer& server) {
   webServer.sendCORSHeaders(server);
@@ -415,40 +417,161 @@ void Web::handleRepeatCommand(WebServer& server) {
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
   }
 }
-void Web::begin() {
-  Serial.println("Creating Web MicroServices...");
-  server.enableCORS(true);
-  const char *keys[1] = {"apikey"};
-  server.collectHeaders(keys, 1);
-  apiServer.collectHeaders(keys, 1);  
-  apiServer.enableCORS(true);
-  apiServer.on("/discovery", []() {
-    HTTPMethod method = apiServer.method();
-    if (method == HTTP_POST || method == HTTP_GET) {
-      Serial.println("Discovery Requested");
-      DynamicJsonDocument doc(16384);
-      JsonObject obj = doc.to<JsonObject>();
-      obj["serverId"] = settings.serverId;
-      obj["version"] = settings.fwVersion;
-      obj["model"] = "ESPSomfyRTS";
-      obj["hostname"] = settings.hostname;
-      obj["authType"] = static_cast<uint8_t>(settings.Security.type);
-      obj["permissions"] = settings.Security.permissions;
-      JsonArray arrShades = obj.createNestedArray("shades");
-      somfy.toJSONShades(arrShades);
-      JsonArray arrGroups = obj.createNestedArray("groups");
-      somfy.toJSONGroups(arrGroups);
-      serializeJson(doc, g_content);
-      apiServer.send(200, _encoding_json, g_content);
+void Web::handleGroupCommand(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  uint8_t groupId = 255;
+  int8_t repeat = -1;
+  somfy_commands command = somfy_commands::My;
+  if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+    if (server.hasArg("groupId")) {
+      groupId = atoi(server.arg("groupId").c_str());
+      if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
+      if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
     }
-    apiServer.send(500, _encoding_text, "Invalid http method");
-    });
-  apiServer.on("/shades", []() { webServer.handleGetShades(apiServer); });
-  apiServer.on("/groups", []() { webServer.handleGetGroups(apiServer); });
-  apiServer.on("/login", []() { webServer.handleLogin(apiServer); });
-  apiServer.onNotFound([]() {
-    Serial.print("Request 404:");
-    HTTPMethod method = apiServer.method();
+    else if (server.hasArg("plain")) {
+      Serial.println("Sending Group Command");
+      DynamicJsonDocument doc(256);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+          break;
+        case DeserializationError::NoMemory:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+          break;
+        default:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+          break;
+        }
+        return;
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("groupId")) groupId = obj["groupId"];
+        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}"));
+        if (obj.containsKey("command")) {
+          String scmd = obj["command"];
+          command = translateSomfyCommand(scmd);
+        }
+        if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+      }
+    }
+    else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
+    SomfyGroup * group = somfy.getGroupById(groupId);
+    if (group) {
+      Serial.print("Received:");
+      Serial.println(server.arg("plain"));
+      // Send the command to the group.
+      if(repeat > 0) group->sendCommand(command, repeat);
+      else group->sendCommand(command);
+      DynamicJsonDocument sdoc(512);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      group->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group with the specified id not found.\"}"));
+    }
+  }
+  else
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
+void Web::handleTiltCommand(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  uint8_t shadeId = 255;
+  uint8_t target = 255;
+  somfy_commands command = somfy_commands::My;
+  if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+    if (server.hasArg("shadeId")) {
+      shadeId = atoi(server.arg("shadeId").c_str());
+      if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
+      else if(server.hasArg("target")) target = atoi(server.arg("target").c_str());
+    }
+    else if (server.hasArg("plain")) {
+      Serial.println("Sending Shade Tilt Command");
+      DynamicJsonDocument doc(256);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+          break;
+        case DeserializationError::NoMemory:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+          break;
+        default:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+          break;
+        }
+        return;
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
+        if (obj.containsKey("command")) {
+          String scmd = obj["command"];
+          command = translateSomfyCommand(scmd);
+        }
+        else if(obj.containsKey("target")) {
+          target = obj["target"].as<uint8_t>();
+        }
+      }
+    }
+    else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+    SomfyShade* shade = somfy.getShadeById(shadeId);
+    if (shade) {
+      Serial.print("Received:");
+      Serial.println(server.arg("plain"));
+      // Send the command to the shade.
+      if(target <= 100)
+        shade->moveToTiltTarget(shade->transformPosition(target));
+      else
+        shade->sendTiltCommand(command);
+      DynamicJsonDocument sdoc(512);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+    }  
+  }
+  else
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
+void Web::handleDiscovery(WebServer &server) {
+  HTTPMethod method = apiServer.method();
+  if (method == HTTP_POST || method == HTTP_GET) {
+    Serial.println("Discovery Requested");
+    DynamicJsonDocument doc(16384);
+    JsonObject obj = doc.to<JsonObject>();
+    obj["serverId"] = settings.serverId;
+    obj["version"] = settings.fwVersion;
+    obj["model"] = "ESPSomfyRTS";
+    obj["hostname"] = settings.hostname;
+    obj["authType"] = static_cast<uint8_t>(settings.Security.type);
+    obj["permissions"] = settings.Security.permissions;
+    JsonArray arrShades = obj.createNestedArray("shades");
+    somfy.toJSONShades(arrShades);
+    JsonArray arrGroups = obj.createNestedArray("groups");
+    somfy.toJSONGroups(arrGroups);
+    serializeJson(doc, g_content);
+    server.send(200, _encoding_json, g_content);
+  }
+  else
+    server.send(500, _encoding_text, "Invalid http method");
+}
+void Web::handleNotFound(WebServer &server) {
+    HTTPMethod method = server.method();
+    Serial.printf("Request %s 404-%d ", server.uri().c_str(), method);
     switch (method) {
     case HTTP_POST:
       Serial.print("POST ");
@@ -460,8 +583,8 @@ void Web::begin() {
       Serial.print("PUT ");
       break;
     case HTTP_OPTIONS:
-      Serial.print("OPTIONS ");
-      apiServer.send(200, "OK");
+      Serial.println("OPTIONS ");
+      server.send(200, "OK");
       return;
     default:
       Serial.print("[");
@@ -470,210 +593,35 @@ void Web::begin() {
       break;
 
     }
-    snprintf(g_content, sizeof(g_content), "404 Service Not Found: %s", apiServer.uri().c_str());
-    apiServer.send(404, _encoding_text, g_content);
-    });
+    snprintf(g_content, sizeof(g_content), "404 Service Not Found: %s", server.uri().c_str());
+    server.send(404, _encoding_text, g_content);
+}
+void Web::begin() {
+  Serial.println("Creating Web MicroServices...");
+  server.enableCORS(true);
+  const char *keys[1] = {"apikey"};
+  server.collectHeaders(keys, 1);
+  // API Server Handlers
+  apiServer.collectHeaders(keys, 1);  
+  apiServer.enableCORS(true);
+  apiServer.on("/discovery", []() { webServer.handleDiscovery(apiServer); });
+  apiServer.on("/shades", []() { webServer.handleGetShades(apiServer); });
+  apiServer.on("/groups", []() { webServer.handleGetGroups(apiServer); });
+  apiServer.on("/login", []() { webServer.handleLogin(apiServer); });
+  apiServer.onNotFound([]() { webServer.handleNotFound(apiServer); });
   apiServer.on("/controller", []() { webServer.handleController(apiServer); });
-  apiServer.on("/shadeCommand", []() {
-    webServer.sendCORSHeaders(apiServer);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = apiServer.method();
-    uint8_t shadeId = 255;
-    uint8_t target = 255;
-    int8_t repeat = -1;
-    somfy_commands command = somfy_commands::My;
-    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (apiServer.hasArg("shadeId")) {
-        shadeId = atoi(apiServer.arg("shadeId").c_str());
-        if (apiServer.hasArg("command")) command = translateSomfyCommand(apiServer.arg("command"));
-        else if(apiServer.hasArg("target")) target = atoi(apiServer.arg("target").c_str());
-        if(apiServer.hasArg("repeat")) repeat = atoi(apiServer.arg("repeat").c_str());
-      }
-      else if (apiServer.hasArg("plain")) {
-        Serial.println("Sending Shade Command");
-        DynamicJsonDocument doc(256);
-        DeserializationError err = deserializeJson(doc, apiServer.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-          return;
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
-          else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
-          if (obj.containsKey("command")) {
-            String scmd = obj["command"];
-            command = translateSomfyCommand(scmd);
-          }
-          else if(obj.containsKey("target")) {
-            target = obj["target"].as<uint8_t>();
-          }
-          if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
-        }
-      }
-      else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
-    }
-    SomfyShade* shade = somfy.getShadeById(shadeId);
-    if (shade) {
-      Serial.print("Received:");
-      Serial.println(apiServer.arg("plain"));
-      // Send the command to the shade.
-      if(target <= 100)
-        shade->moveToTarget(shade->transformPosition(target));
-      else if(repeat > 0)
-        shade->sendCommand(command, repeat);
-      else
-        shade->sendCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      shade->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      apiServer.send(200, _encoding_json, g_content);
-    }
-    else {
-      apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
-    }
-    });
-  apiServer.on("/groupCommand", []() {
-    webServer.sendCORSHeaders(apiServer);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = apiServer.method();
-    uint8_t groupId = 255;
-    int8_t repeat = -1;
-    somfy_commands command = somfy_commands::My;
-    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (apiServer.hasArg("groupId")) {
-        groupId = atoi(apiServer.arg("groupId").c_str());
-        if (apiServer.hasArg("command")) command = translateSomfyCommand(apiServer.arg("command"));
-        if(apiServer.hasArg("repeat")) repeat = atoi(apiServer.arg("repeat").c_str());
-      }
-      else if (apiServer.hasArg("plain")) {
-        Serial.println("Sending Group Command");
-        DynamicJsonDocument doc(256);
-        DeserializationError err = deserializeJson(doc, apiServer.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-          return;
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("groupId")) groupId = obj["groupId"];
-          else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}"));
-          if (obj.containsKey("command")) {
-            String scmd = obj["command"];
-            command = translateSomfyCommand(scmd);
-          }
-          if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
-        }
-      }
-      else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
-    }
-    SomfyGroup * group = somfy.getGroupById(groupId);
-    if (group) {
-      Serial.print("Received:");
-      Serial.println(apiServer.arg("plain"));
-      // Send the command to the group.
-      if(repeat != -1) group->sendCommand(command, repeat);
-      else group->sendCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      group->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      apiServer.send(200, _encoding_json, g_content);
-    }
-    else {
-      apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group with the specified id not found.\"}"));
-    }
-    });
-  apiServer.on("/tiltCommand", []() {
-    webServer.sendCORSHeaders(apiServer);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = apiServer.method();
-    uint8_t shadeId = 255;
-    uint8_t target = 255;
-    somfy_commands command = somfy_commands::My;
-    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (apiServer.hasArg("shadeId")) {
-        shadeId = atoi(apiServer.arg("shadeId").c_str());
-        if (apiServer.hasArg("command")) command = translateSomfyCommand(apiServer.arg("command"));
-        else if(apiServer.hasArg("target")) target = atoi(apiServer.arg("target").c_str());
-      }
-      else if (apiServer.hasArg("plain")) {
-        Serial.println("Sending Shade Tilt Command");
-        DynamicJsonDocument doc(256);
-        DeserializationError err = deserializeJson(doc, apiServer.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-          return;
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
-          else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
-          if (obj.containsKey("command")) {
-            String scmd = obj["command"];
-            command = translateSomfyCommand(scmd);
-          }
-          else if(obj.containsKey("target")) {
-            target = obj["target"].as<uint8_t>();
-          }
-        }
-      }
-      else apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
-    }
-    SomfyShade* shade = somfy.getShadeById(shadeId);
-    if (shade) {
-      Serial.print("Received:");
-      Serial.println(apiServer.arg("plain"));
-      // Send the command to the shade.
-      if(target <= 100)
-        shade->moveToTiltTarget(shade->transformPosition(target));
-      else
-        shade->sendTiltCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      shade->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      apiServer.send(200, _encoding_json, g_content);
-    }
-    else {
-      apiServer.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
-    }
-    });
+  apiServer.on("/shadeCommand", []() { webServer.handleShadeCommand(apiServer); });
+  apiServer.on("/groupCommand", []() { webServer.handleGroupCommand(apiServer); });
+  apiServer.on("/tiltCommand", []() { webServer.handleTiltCommand(apiServer); });
+  apiServer.on("/repeatCommand", []() { webServer.handleRepeatCommand(apiServer); });
 
-  server.on("/upnp.xml", []() {
-    SSDP.schema(server.client());
-    });
+  // Web Interface
+  server.on("/tiltCommand", []() { webServer.handleTiltCommand(server); });
+  server.on("/repeatCommand", []() { webServer.handleRepeatCommand(server); });
+  server.on("/shadeCommand", []() { webServer.handleShadeCommand(server); });
+  server.on("/groupCommand", []() { webServer.handleGroupCommand(server); });
+  
+  server.on("/upnp.xml", []() { SSDP.schema(server.client()); });
   server.on("/", []() { webServer.handleStreamFile(server, "/index.html", _encoding_html); });
   server.on("/login", []() { webServer.handleLogin(server); });
   server.on("/loginContext", []() { webServer.handleLoginContext(server); });
@@ -739,33 +687,7 @@ void Web::begin() {
   server.on("/icons.css", []() {  webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icons.css", "text/css"); });
   server.on("/favicon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/favicon.png", "image/png"); });
   server.on("/icon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icon.png", "image/png"); });
-  server.onNotFound([]() {
-    HTTPMethod method = server.method();
-    Serial.printf("Request %s 404-%d ", server.uri().c_str(), method);
-    switch (method) {
-    case HTTP_POST:
-      Serial.print("POST ");
-      break;
-    case HTTP_GET:
-      Serial.print("GET ");
-      break;
-    case HTTP_PUT:
-      Serial.print("PUT ");
-      break;
-    case HTTP_OPTIONS:
-      Serial.println("OPTIONS ");
-      server.send(200, "OK");
-      return;
-    default:
-      Serial.print("[");
-      Serial.print(method);
-      Serial.print("]");
-      break;
-
-    }
-    snprintf(g_content, sizeof(g_content), "404 Service Not Found: %s", server.uri().c_str());
-    server.send(404, _encoding_text, g_content);
-    });
+  server.onNotFound([]() { webServer.handleNotFound(server); });
   server.on("/controller", []() { webServer.handleController(server); });
   server.on("/shades", []() { webServer.handleGetShades(server); });
   server.on("/groups", []() { webServer.handleGetGroups(server); });
@@ -845,7 +767,7 @@ void Web::begin() {
       JsonObject obj = doc.to<JsonObject>();
       shade->toJSON(obj);
       serializeJson(doc, g_content);
-      Serial.println(g_content);
+      //Serial.println(g_content);
       server.send(200, _encoding_json, g_content);
     }
     else {
@@ -1157,134 +1079,6 @@ void Web::begin() {
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
     }
     });
-  server.on("/tiltCommand", []() {
-    webServer.sendCORSHeaders(server);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = server.method();
-    uint8_t shadeId = 255;
-    uint8_t target = 255;
-    somfy_commands command = somfy_commands::My;
-    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (server.hasArg("shadeId")) {
-        shadeId = atoi(server.arg("shadeId").c_str());
-        if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
-        else if(server.hasArg("target")) target = atoi(server.arg("target").c_str());
-      }
-      else if (server.hasArg("plain")) {
-        Serial.println("Sending Shade Tilt Command");
-        DynamicJsonDocument doc(256);
-        DeserializationError err = deserializeJson(doc, server.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-          return;
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
-          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
-          if (obj.containsKey("command")) {
-            String scmd = obj["command"];
-            command = translateSomfyCommand(scmd);
-          }
-          else if(obj.containsKey("target")) {
-            target = obj["target"].as<uint8_t>();
-          }
-        }
-      }
-      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
-    }
-    SomfyShade* shade = somfy.getShadeById(shadeId);
-    if (shade) {
-      Serial.print("Received:");
-      Serial.println(server.arg("plain"));
-      // Send the command to the shade.
-      if(target <= 100)
-        shade->moveToTiltTarget(shade->transformPosition(target));
-      else
-        shade->sendTiltCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      shade->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      server.send(200, _encoding_json, g_content);
-    }
-    else {
-      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
-    }
-    });
-  server.on("/repeatCommand", []() { webServer.handleRepeatCommand(server); });
-  server.on("/shadeCommand", []() { webServer.handleShadeCommand(server); });
-  server.on("/groupCommand", []() {
-    webServer.sendCORSHeaders(server);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = server.method();
-    uint8_t groupId = 255;
-    int8_t repeat = -1;
-    somfy_commands command = somfy_commands::My;
-    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
-      if (server.hasArg("groupId")) {
-        groupId = atoi(server.arg("groupId").c_str());
-        if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
-        if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
-      }
-      else if (server.hasArg("plain")) {
-        Serial.println("Sending Group Command");
-        DynamicJsonDocument doc(256);
-        DeserializationError err = deserializeJson(doc, server.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-          return;
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("groupId")) groupId = obj["groupId"];
-          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}"));
-          if (obj.containsKey("command")) {
-            String scmd = obj["command"];
-            command = translateSomfyCommand(scmd);
-          }
-          if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
-        }
-      }
-      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
-    }
-    SomfyGroup * group = somfy.getGroupById(groupId);
-    if (group) {
-      Serial.print("Received:");
-      Serial.println(server.arg("plain"));
-      // Send the command to the group.
-      if(repeat > 0) group->sendCommand(command, repeat);
-      else group->sendCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      group->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      server.send(200, _encoding_json, g_content);
-    }
-    else {
-      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group with the specified id not found.\"}"));
-    }
-    });
   server.on("/setMyPosition", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -1324,23 +1118,25 @@ void Web::begin() {
         }
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+      SomfyShade* shade = somfy.getShadeById(shadeId);
+      if (shade) {
+        // Send the command to the shade.
+        if(tilt < 0) tilt = shade->myPos;
+        if(shade->tiltType == tilt_types::none) tilt = -1;
+        if(pos >= 0 && pos <= 100)
+          shade->setMyPosition(shade->transformPosition(pos), shade->transformPosition(tilt));
+        DynamicJsonDocument sdoc(512);
+        JsonObject sobj = sdoc.to<JsonObject>();
+        shade->toJSON(sobj);
+        serializeJson(sdoc, g_content);
+        server.send(200, _encoding_json, g_content);
+      }
+      else {
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+      }
     }
-    SomfyShade* shade = somfy.getShadeById(shadeId);
-    if (shade) {
-      // Send the command to the shade.
-      if(tilt < 0) tilt = shade->myPos;
-      if(shade->tiltType == tilt_types::none) tilt = -1;
-      if(pos >= 0 && pos <= 100)
-        shade->setMyPosition(shade->transformPosition(pos), shade->transformPosition(tilt));
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      shade->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      server.send(200, _encoding_json, g_content);
-    }
-    else {
-      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
-    }
+    else 
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
     });
   server.on("/setRollingCode", []() {
     webServer.sendCORSHeaders(server);
@@ -1780,7 +1576,6 @@ void Web::begin() {
     });
   server.on("/updateFirmware", HTTP_POST, []() {
     webServer.sendCORSHeaders(server);
-    somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     if (Update.hasError())
       server.send(500, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Error updating firmware: \"}");
@@ -1794,6 +1589,10 @@ void Web::begin() {
         Serial.printf("Update: %s\n", upload.filename.c_str());
         if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
           Update.printError(Serial);
+        }
+        else {
+          somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
+          mqtt.end();
         }
       }
       else if (upload.status == UPLOAD_FILE_WRITE) {
@@ -1837,7 +1636,6 @@ void Web::begin() {
     });
   server.on("/updateApplication", HTTP_POST, []() {
     webServer.sendCORSHeaders(server);
-    somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
     server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Application: \"}");
@@ -1849,6 +1647,10 @@ void Web::begin() {
         Serial.printf("Update: %s\n", upload.filename.c_str());
         if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) { //start with max available size and tell it we are updating the file system.
           Update.printError(Serial);
+        }
+        else {
+          somfy.transceiver.end(); // Shut down the radio so we do not get any interrupts during this process.
+          mqtt.end();
         }
       }
       else if (upload.status == UPLOAD_FILE_WRITE) {
@@ -2265,6 +2067,72 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     });
+  server.on("/shadeSortOrder", []() {
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    DynamicJsonDocument doc(512);
+    Serial.print("Plain: ");
+    Serial.print(server.method());
+    Serial.println(server.arg("plain"));
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (err) {
+      Serial.print("Error parsing JSON ");
+      Serial.println(err.c_str());
+      String msg = err.c_str();
+      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+    }
+    else {
+      JsonArray arr = doc.as<JsonArray>();
+      HTTPMethod method = server.method();
+      if (method == HTTP_POST || method == HTTP_PUT) {
+        // Parse out all the inputs.
+        uint8_t order = 0;
+        for(JsonVariant v : arr) {
+          uint8_t shadeId = v.as<uint8_t>();
+          if (shadeId != 255) {
+            SomfyShade *shade = somfy.getShadeById(shadeId);
+            if(shade) shade->sortOrder = order++;
+          }
+        }
+        server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Successfully set shade order\"}");
+      }
+      else {
+        server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
+      }
+    }
+  });
+  server.on("/groupSortOrder", []() {
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    DynamicJsonDocument doc(512);
+    Serial.print("Plain: ");
+    Serial.print(server.method());
+    Serial.println(server.arg("plain"));
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (err) {
+      Serial.print("Error parsing JSON ");
+      Serial.println(err.c_str());
+      String msg = err.c_str();
+      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+    }
+    else {
+      JsonArray arr = doc.as<JsonArray>();
+      HTTPMethod method = server.method();
+      if (method == HTTP_POST || method == HTTP_PUT) {
+        // Parse out all the inputs.
+        uint8_t order = 0;
+        for(JsonVariant v : arr) {
+          uint8_t groupId = v.as<uint8_t>();
+          if (groupId != 255) {
+            SomfyGroup *group = somfy.getGroupById(groupId);
+            if(group) group->sortOrder = order++;
+          }
+        }
+        server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Successfully set group order\"}");
+      }
+      else {
+        server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
+      }
+    }
+  });  
   server.begin();
   apiServer.begin();
 }

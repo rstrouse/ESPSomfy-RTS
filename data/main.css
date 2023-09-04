@@ -43,6 +43,7 @@ input[type="range"] {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    cursor:pointer;
 }
     .button-outline:active {
         -webkit-animation: flicker .5s infinite linear;
