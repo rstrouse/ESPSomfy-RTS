@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.1.5p" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.1.5p" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.1.5p" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.1.5" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.1.5" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.1.5" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.1.5p"></script>
+    <script type="text/javascript" src="index.js?v=2.1.5"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -313,7 +313,8 @@
                                                 <option value="4">Shutter</option>
                                                 <option value="1">Blind</option>
                                                 <option value="2">Drapery (left)</option>
-                                                <option value="7">Drapery (Right)</option>
+                                                <option value="7">Drapery (right)</option>
+                                                <option value="8">Drapery (center)</option>
                                                 <option value="3">Awning</option>
                                                 <option value="5">Garage (1-button)</option>
                                                 <option value="6">Garage (3-button)</option>
@@ -327,7 +328,7 @@
                                     </div>
                                 </div>
                                 <div id="divSomfyButtons" class="shadectl-buttons" style="float:right;margin-top:10px;position:relative">
-                                    <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
+                                    <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"><span class="icss-panel-left"></span><span class="icss-panel-right"></span></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
                                     <div class="button-outline" data-cmd="up" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
                                     <div class="button-outline" data-cmd="my" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
                                     <div class="button-outline" data-cmd="down" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>

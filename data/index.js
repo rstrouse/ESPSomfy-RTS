@@ -1196,7 +1196,7 @@ class Security {
 var security = new Security();
 
 class General {
-    initialized = false;
+    initialized = false; 
     appVersion = 'v2.1.5';
     reloadApp = false;
     init() {
@@ -1982,7 +1982,7 @@ class Somfy {
                     divCtl += ' icss-window-shade';
                     break;
             }
-            divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.flipPosition ? 100 - shade.position : shade.position}%;vertical-align: top;"></i>`;
+            divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.flipPosition ? 100 - shade.position : shade.position}%;vertical-align: top;"><span class="icss-panel-left"></span><span class="icss-panel-right"></span></i>`;
             divCtl += shade.tiltType !== 0 ? `<i class="icss-window-tilt" data-shadeid="${shade.shadeId}" data-tiltposition="${shade.tiltPosition}"></i></div>` : '</div>';
             divCtl += `<div class="indicator indicator-wind"><i class="icss-warning"></i></div><div class="indicator indicator-sun"><i class="icss-sun"></i></div>`;
             divCtl += `<div class="shade-name">`;
@@ -2718,10 +2718,22 @@ class Somfy {
                             document.getElementById('divSunSensor').style.display = '';
                             break;
                         case 5:
+                        case 6:
                             ico.classList.remove('icss-window-shade');
                             ico.classList.add('icss-garage');
                             document.getElementById('divSunSensor').style.display = 'none';
                             break;
+                        case 7:
+                            ico.classList.remove('icss-window-shade');
+                            ico.classList.add('icss-rdrapery');
+                            document.getElementById('divSunSensor').style.display = '';
+                            break;
+                        case 8:
+                            ico.classList.remove('icss-window-shade');
+                            ico.classList.add('icss-cdrapery');
+                            document.getElementById('divSunSensor').style.display = '';
+                            break;
+
 
                     }
                     let tilt = ico.parentElement.querySelector('i.icss-window-tilt');

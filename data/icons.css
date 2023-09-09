@@ -296,7 +296,12 @@ i.icss-anim:after {
 [class*="-hover"].icss-reverse:hover {
     animation-direction: reverse;
 }
-
+.icss-panel-left {
+    display:none;
+}
+.icss-panel-right {
+    display: none;
+}
 /* Stack icons */
 .icss-stack {
     position: relative;
@@ -632,14 +637,16 @@ i.icss-ldrapery {
     i.icss-ldrapery:after {
         width: var(--shade-position, 0%);
         height: calc(100% - .05em);
-        left: 0em;
+        right: calc(100% - var(--shade-position));
+        left:0em;
         top: 0.025em;
         border-bottom: solid 0.025em gray;
-        border-right:solid 0.025em gray;
-        background-image: repeating-conic-gradient(var(--shade-color, currentColor) 0% 25%, rgba(71, 212, 255, 0) 0% 50%);
+        border-right: solid 0.025em gray;
+        background-image: repeating-linear-gradient(to left, var(--shade-color, currentColor), var(--shade-color, currentColor) 75%, rgba(255,255,255,0) 100%);
         background-position: 0 0, 100% 100%;
-        background-size: 0.05em 0.05em;
+        background-size: 0.1em 0.1em;
         background-color: rgba(71, 212, 255, 0);
+        transform:rotate(180deg);
     }
 i.icss-rdrapery {
     width: 1.1em;
@@ -667,11 +674,62 @@ i.icss-rdrapery {
         top: 0.025em;
         border-bottom: solid 0.025em gray;
         border-left: solid 0.025em gray;
-        background-image: repeating-conic-gradient(var(--shade-color, currentColor) 0% 25%, rgba(71, 212, 255, 0) 0% 50%);
+        background-image: repeating-linear-gradient(to left, var(--shade-color, currentColor), var(--shade-color, currentColor) 75%, rgba(255,255,255,0) 100%);
         background-position: 0 0, 100% 100%;
-        background-size: 0.05em 0.05em;
+        background-size: 0.1em 0.1em;
         background-color: rgba(71, 212, 255, 0);
     }
+i.icss-cdrapery {
+    width: 1.1em;
+    height: .9em;
+    background-color: transparent;
+    border: .05em solid transparent;
+    border-width: 0 .1em;
+    box-shadow: inset 0 0 0 .01em, inset 0 .01em 0 .07em, 0 .07em 0;
+    margin: .1em 0 .07em;
+}
+
+    i.icss-cdrapery:before {
+        width: 1.1em;
+        height: .2em;
+        border-bottom: .1em solid transparent;
+        box-shadow: inset 0 1em, 0 0em 0 -.1em;
+        top: -.05em;
+        left: -.09em;
+    }
+
+    i.icss-cdrapery:after {
+    }
+    i.icss-cdrapery > span.icss-panel-left {
+        width: calc(var(--shade-position, 0%) * .5);
+        height: calc(100% - .05em);
+        display:inline-block;
+        position:absolute;
+        right: calc(50% - (var(--shade-position, 0%) *.5));
+        left: 0em;
+        top: 0.025em;
+        border-bottom: solid 0.025em gray;
+        border-right: solid 0.025em gray;
+        background-image: repeating-linear-gradient(to left, var(--shade-color, currentColor), var(--shade-color, currentColor) 75%, rgba(255,255,255,0) 100%);
+        background-position: 0 0, 100% 100%;
+        background-size: 0.1em 0.1em;
+        background-color: rgba(71, 212, 255, 0);
+        transform: rotate(180deg);
+    }
+    i.icss-cdrapery > span.icss-panel-right {
+        width: calc(var(--shade-position, 0%) * .5);
+        height: calc(100% - .05em);
+        display: inline-block;
+        position: absolute;
+        left: calc(100% - ((var(--shade-position, 0%) *.5)) - .015em);
+        top: 0.025em;
+        border-bottom: solid 0.025em gray;
+        background-image: repeating-linear-gradient(to left, var(--shade-color, currentColor), var(--shade-color, currentColor) 75%, rgba(255,255,255,0) 100%);
+        background-position: 0 0, 100% 100%;
+        background-size: 0.1em 0.1em;
+        background-color: rgba(71, 212, 255, 0);
+    }
+
 
 i.icss-shutter {
     width: 1.1em;
@@ -776,6 +834,17 @@ i.icss-garage {
         background-size: 0.01em 0.2em;
         background-color: rgba(71, 212, 255, 0);
         background-position:left bottom;
+    }
+    i.icss-garage > span.icss-panel-left {
+        position: absolute;
+        display:inline-block;
+        border-radius:50%;
+        border:solid 1px white;
+        width: .1em;
+        height:.05em;
+        top: calc(var(--shade-position, 0%) - .32em);
+        background: white;
+        left: calc(50% - .05em);
     }
 i.icss-lightbulb-o {
     width: .35em;
