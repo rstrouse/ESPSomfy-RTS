@@ -3,11 +3,18 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v2.1.5"
+#define FW_VERSION "v2.1.6"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
   DS_FWUPDATE = 2
+};
+struct restore_options_t {
+  bool settings = false;
+  bool shades = false;
+  bool network = false;
+  bool transceiver = false;
+  void fromJSON(JsonObject &obj);
 };
 
 class BaseSettings {
@@ -50,6 +57,7 @@ class WifiSettings: BaseSettings {
     bool save();
     bool load();
     void print();
+    
 };
 class EthernetSettings: BaseSettings {
   public:
@@ -153,6 +161,8 @@ class ConfigSettings: BaseSettings {
     void emitSockets();
     void emitSockets(uint8_t num);
     bool toJSON(DynamicJsonDocument &doc);
+    uint16_t calcSettingsRecSize();
+    uint16_t calcNetRecSize();
 };
 
 #endif

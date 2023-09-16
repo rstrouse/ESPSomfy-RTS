@@ -4,6 +4,7 @@
 #include <Update.h>
 #include "mbedtls/md.h"
 #include "ConfigSettings.h"
+#include "ConfigFile.h"
 #include "Web.h"
 #include "Utils.h"
 #include "SSDP.h"
@@ -345,7 +346,7 @@ void Web::handleRepeatCommand(WebServer& server) {
   somfy_commands command = somfy_commands::My;
   if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
     if(server.hasArg("shadeId")) shadeId = atoi(server.arg("shadeId").c_str());
-    else if(server.hasArg("groupId")) shadeId = atoi(server.arg("groupId").c_str());
+    else if(server.hasArg("groupId")) groupId = atoi(server.arg("groupId").c_str());
     if(server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
     if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
     if(shadeId == 255 && groupId == 255 && server.hasArg("plain")) {
@@ -547,6 +548,132 @@ void Web::handleTiltCommand(WebServer &server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
+void Web::handleShade(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  if (method == HTTP_GET) {
+    if (server.hasArg("shadeId")) {
+      int shadeId = atoi(server.arg("shadeId").c_str());
+      SomfyShade* shade = somfy.getShadeById(shadeId);
+      if (shade) {
+        DynamicJsonDocument doc(2048);
+        JsonObject obj = doc.to<JsonObject>();
+        shade->toJSON(obj);
+        serializeJson(doc, g_content);
+        server.send(200, _encoding_json, g_content);
+      }
+      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade Id not found.\"}"));
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid shade id.\"}"));
+    }
+  }
+  else if (method == HTTP_PUT || method == HTTP_POST) {
+    // We are updating an existing shade.
+    if (server.hasArg("plain")) {
+      Serial.println("Updating a shade");
+      DynamicJsonDocument doc(512);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+          break;
+        case DeserializationError::NoMemory:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+          break;
+        default:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+          break;
+        }
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("shadeId")) {
+          SomfyShade* shade = somfy.getShadeById(obj["shadeId"]);
+          if (shade) {
+            shade->fromJSON(obj);
+            shade->save();
+            DynamicJsonDocument sdoc(2048);
+            JsonObject sobj = sdoc.to<JsonObject>();
+            shade->toJSON(sobj);
+            serializeJson(sdoc, g_content);
+            server.send(200, _encoding_json, g_content);
+          }
+          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade Id not found.\"}"));
+        }
+        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
+      }
+    }
+    else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
+  }
+  else
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
+void Web::handleGroup(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  if (method == HTTP_GET) {
+    if (server.hasArg("groupId")) {
+      int groupId = atoi(server.arg("groupId").c_str());
+      SomfyGroup* group = somfy.getGroupById(groupId);
+      if (group) {
+        DynamicJsonDocument doc(2048);
+        JsonObject obj = doc.to<JsonObject>();
+        group->toJSON(obj);
+        serializeJson(doc, g_content);
+        server.send(200, _encoding_json, g_content);
+      }
+      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group Id not found.\"}"));
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid shade id.\"}"));
+    }
+  }
+  else if (method == HTTP_PUT || method == HTTP_POST) {
+    // We are updating an existing group.
+    if (server.hasArg("plain")) {
+      Serial.println("Updating a group");
+      DynamicJsonDocument doc(512);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+          break;
+        case DeserializationError::NoMemory:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+          break;
+        default:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+          break;
+        }
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("groupId")) {
+          SomfyGroup* group = somfy.getGroupById(obj["groupId"]);
+          if (group) {
+            group->fromJSON(obj);
+            group->save();
+            DynamicJsonDocument sdoc(2048);
+            JsonObject sobj = sdoc.to<JsonObject>();
+            group->toJSON(sobj);
+            serializeJson(sdoc, g_content);
+            server.send(200, _encoding_json, g_content);
+          }
+          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group Id not found.\"}"));
+        }
+        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}"));
+      }
+    }
+    else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
+  }
+  else
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
 void Web::handleDiscovery(WebServer &server) {
   HTTPMethod method = apiServer.method();
   if (method == HTTP_POST || method == HTTP_GET) {
@@ -614,6 +741,8 @@ void Web::begin() {
   apiServer.on("/groupCommand", []() { webServer.handleGroupCommand(apiServer); });
   apiServer.on("/tiltCommand", []() { webServer.handleTiltCommand(apiServer); });
   apiServer.on("/repeatCommand", []() { webServer.handleRepeatCommand(apiServer); });
+  apiServer.on("/shade", HTTP_GET, [] () { webServer.handleShade(apiServer); });
+  apiServer.on("/group", HTTP_GET, [] () { webServer.handleGroup(apiServer); });
 
   // Web Interface
   server.on("/tiltCommand", []() { webServer.handleTiltCommand(server); });
@@ -647,9 +776,10 @@ void Web::begin() {
     snprintf(filename, sizeof(filename), "attachment; filename=\"ESPSomfyRTS %s.backup\"", iso);
     Serial.println(filename);
     server.sendHeader(F("Content-Disposition"), filename);
+    server.sendHeader(F("Access-Control-Expose-Headers"), F("Content-Disposition"));
     Serial.println("Saving current shade information");
-    somfy.commit();
-    File file = LittleFS.open("/shades.cfg", "r");
+    somfy.writeBackup();
+    File file = LittleFS.open("/controller.backup", "r");
     if (!file) {
       Serial.println("Error opening shades.cfg");
       server.send(500, _encoding_text, "shades.cfg");
@@ -660,10 +790,46 @@ void Web::begin() {
   server.on("/restore", HTTP_POST, []() {
     webServer.sendCORSHeaders(server);
     server.sendHeader("Connection", "close");
-    server.send(200, _encoding_json, "{\"status\":\"Success\",\"desc\":\"Restoring Shade settings\"}");
+    if(webServer.uploadSuccess) {
+      server.send(200, _encoding_json, "{\"status\":\"Success\",\"desc\":\"Restoring Shade settings\"}");
+      restore_options_t opts;
+      if(server.hasArg("data")) {
+        Serial.println(server.arg("data"));
+        StaticJsonDocument<256> doc;
+        DeserializationError err = deserializeJson(doc, server.arg("data"));
+        if (err) {
+          switch (err.code()) {
+          case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+          case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+          default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+          }
+          Serial.println("An error occurred when deserializing the restore data");
+          return;
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          opts.fromJSON(obj);
+        }
+      }
+      else {
+        Serial.println("No restore options sent.  Using defaults...");
+        opts.shades = true;
+      }
+      ShadeConfigFile::restore(&somfy, "/shades.tmp", opts);
+      Serial.println("Rebooting ESP for restored settings...");
+      rebootDelay.reboot = true;
+      rebootDelay.rebootTime = millis() + 1000;
+    }
     }, []() {
       HTTPUpload& upload = server.upload();
       if (upload.status == UPLOAD_FILE_START) {
+        webServer.uploadSuccess = false;
         Serial.printf("Restore: %s\n", upload.filename.c_str());
         // Begin by opening a new temporary file.
         File fup = LittleFS.open("/shades.tmp", "w");
@@ -675,10 +841,7 @@ void Web::begin() {
         fup.close();
       }
       else if (upload.status == UPLOAD_FILE_END) {
-        // TODO: Do some validation of the file.
-        Serial.println("Validating restore");
-        // Go through the uploaded file to determine if it is valid.
-        if(somfy.loadShadesFile("/shades.tmp")) somfy.commit();
+        webServer.uploadSuccess = true;
       }
     });
   server.on("/index.js", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/index.js", "text/javascript"); });
@@ -691,6 +854,8 @@ void Web::begin() {
   server.on("/controller", []() { webServer.handleController(server); });
   server.on("/shades", []() { webServer.handleGetShades(server); });
   server.on("/groups", []() { webServer.handleGetGroups(server); });
+  server.on("/shade", []() { webServer.handleShade(server); });
+  server.on("/group", []() { webServer.handleGroup(server); });
   server.on("/getNextShade", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -827,128 +992,6 @@ void Web::begin() {
     }
     else {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error saving Somfy Group.\"}"));
-    }
-    });
-  server.on("/shade", []() {
-    webServer.sendCORSHeaders(server);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = server.method();
-    if (method == HTTP_GET) {
-      if (server.hasArg("shadeId")) {
-        int shadeId = atoi(server.arg("shadeId").c_str());
-        SomfyShade* shade = somfy.getShadeById(shadeId);
-        if (shade) {
-          DynamicJsonDocument doc(2048);
-          JsonObject obj = doc.to<JsonObject>();
-          shade->toJSON(obj);
-          serializeJson(doc, g_content);
-          server.send(200, _encoding_json, g_content);
-        }
-        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade Id not found.\"}"));
-      }
-      else {
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid shade id.\"}"));
-      }
-    }
-    else if (method == HTTP_PUT || method == HTTP_POST) {
-      // We are updating an existing shade.
-      if (server.hasArg("plain")) {
-        Serial.println("Updating a shade");
-        DynamicJsonDocument doc(512);
-        DeserializationError err = deserializeJson(doc, server.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("shadeId")) {
-            SomfyShade* shade = somfy.getShadeById(obj["shadeId"]);
-            if (shade) {
-              shade->fromJSON(obj);
-              shade->save();
-              DynamicJsonDocument sdoc(2048);
-              JsonObject sobj = sdoc.to<JsonObject>();
-              shade->toJSON(sobj);
-              serializeJson(sdoc, g_content);
-              server.send(200, _encoding_json, g_content);
-            }
-            else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade Id not found.\"}"));
-          }
-          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}"));
-        }
-      }
-      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
-    }
-    });
-  server.on("/group", []() {
-    webServer.sendCORSHeaders(server);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = server.method();
-    if (method == HTTP_GET) {
-      if (server.hasArg("groupId")) {
-        int groupId = atoi(server.arg("groupId").c_str());
-        SomfyGroup* group = somfy.getGroupById(groupId);
-        if (group) {
-          DynamicJsonDocument doc(2048);
-          JsonObject obj = doc.to<JsonObject>();
-          group->toJSON(obj);
-          serializeJson(doc, g_content);
-          server.send(200, _encoding_json, g_content);
-        }
-        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group Id not found.\"}"));
-      }
-      else {
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid shade id.\"}"));
-      }
-    }
-    else if (method == HTTP_PUT || method == HTTP_POST) {
-      // We are updating an existing group.
-      if (server.hasArg("plain")) {
-        Serial.println("Updating a group");
-        DynamicJsonDocument doc(512);
-        DeserializationError err = deserializeJson(doc, server.arg("plain"));
-        if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-        }
-        else {
-          JsonObject obj = doc.as<JsonObject>();
-          if (obj.containsKey("groupId")) {
-            SomfyGroup* group = somfy.getGroupById(obj["groupId"]);
-            if (group) {
-              group->fromJSON(obj);
-              group->save();
-              DynamicJsonDocument sdoc(2048);
-              JsonObject sobj = sdoc.to<JsonObject>();
-              group->toJSON(sobj);
-              serializeJson(sdoc, g_content);
-              server.send(200, _encoding_json, g_content);
-            }
-            else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group Id not found.\"}"));
-          }
-          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}"));
-        }
-      }
-      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
     }
     });
   server.on("/groupOptions", []() {
@@ -1586,6 +1629,7 @@ void Web::begin() {
     }, []() {
       HTTPUpload& upload = server.upload();
       if (upload.status == UPLOAD_FILE_START) {
+        webServer.uploadSuccess = false;
         Serial.printf("Update: %s\n", upload.filename.c_str());
         if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
           Update.printError(Serial);
@@ -1604,6 +1648,7 @@ void Web::begin() {
       else if (upload.status == UPLOAD_FILE_END) {
         if (Update.end(true)) { //true to set the size to the current progress
           Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+          webServer.uploadSuccess = true;
         }
         else {
           Update.printError(Serial);
@@ -1644,6 +1689,7 @@ void Web::begin() {
     }, []() {
       HTTPUpload& upload = server.upload();
       if (upload.status == UPLOAD_FILE_START) {
+        webServer.uploadSuccess = false;
         Serial.printf("Update: %s\n", upload.filename.c_str());
         if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) { //start with max available size and tell it we are updating the file system.
           Update.printError(Serial);
@@ -1661,6 +1707,7 @@ void Web::begin() {
       }
       else if (upload.status == UPLOAD_FILE_END) {
         if (Update.end(true)) { //true to set the size to the current progress
+          webServer.uploadSuccess = true;
           Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
           somfy.commit();
         }

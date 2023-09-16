@@ -608,6 +608,7 @@ div.wait-overlay > .lds-roller {
         display: block;
         overflow: hidden;
     }
+.vr-button,
 .somfyGroupCtl,
 .somfyShadeCtl {
     height:60px;
@@ -627,6 +628,11 @@ div.wait-overlay > .lds-roller {
         font-size: 48px;
         position:relative;
     }
+.vr-button {
+    align-items:center;
+    margin-top:-4px;
+}
+.vr-button > span,
 .somfyGroupCtl .group-name,
 .somfyShadeCtl .shade-name {
     display:inline-block;
@@ -652,6 +658,7 @@ div.wait-overlay > .lds-roller {
         white-space: nowrap;
         font-size: 12px;
     }
+.vr-button > div,
 .somfyGroupCtl .groupctl-buttons,
 .somfyShadeCtl .shadectl-buttons {
     margin-top:3px;

@@ -139,15 +139,17 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         this->cmd = (somfy_commands)(this->encKey - 133);
       }
     }
-
-    
+    else this->proto = radio_proto::RTS;
+    // We reuse this memory address so we must reset the processed
+    // flag.  This will ensure we can see frames on the first beat.
+    this->processed = false;
+    Serial.println("Processed set to false");
     // Pull in the data for an 80-bit step command.
     if(this->cmd == somfy_commands::StepDown) this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
     this->rollingCode = decoded[3] + (decoded[2] << 8);
     this->remoteAddress = (decoded[6] + (decoded[5] << 8) + (decoded[4] << 16));
     this->valid = this->checksum == checksum && this->remoteAddress > 0 && this->remoteAddress < 16777215;
-    if (this->cmd != somfy_commands::Sensor)
-      this->valid &= (this->rollingCode > 0);
+    if (this->cmd != somfy_commands::Sensor && this->valid) this->valid = (this->rollingCode > 0);
     if (this->valid) {
         // Check for valid command.
         switch (this->cmd) {
@@ -542,6 +544,12 @@ void SomfyShadeController::commit() {
   this->isDirty = false;
   this->lastCommit = millis();
 }
+void SomfyShadeController::writeBackup() {
+  ShadeConfigFile file;
+  file.begin("/controller.backup", false);
+  file.backup(this);
+  file.end();
+}
 SomfyShade * SomfyShadeController::getShadeById(uint8_t shadeId) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() == shadeId) return &this->shades[i];
@@ -793,7 +801,10 @@ void SomfyShade::checkMovement() {
   const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
   // We need to first evaluate the sensor flags as these could be triggering movement from previous sensor inputs. So
   // we must check this before setting the directional items or it will not get processed until the next loop.
-
+  int32_t downTime = (int32_t)this->downTime;
+  int32_t upTime = (int32_t)this->upTime;
+  int32_t tiltTime = (int32_t)this->tiltTime;
+  if(this->shadeType == shade_types::drycontact) downTime = upTime = tiltTime = 1;
   
 
   // We are checking movement for essentially 3 types of motors.
@@ -855,7 +866,7 @@ void SomfyShade::checkMovement() {
   }
 
   if(!tilt_first && this->direction > 0) {
-    if(this->downTime == 0) {
+    if(downTime == 0) {
       this->direction = 0;
       this->currentPos = 100.0;
     }
@@ -865,15 +876,15 @@ void SomfyShade::checkMovement() {
       // The starting posion is a float value from 0-1 that indicates how much the shade is open. So
       // if we take the starting position * the total down time then this will tell us how many ms it
       // has moved in the down position.
-      int32_t msFrom0 = (int32_t)floor((this->startPos/100) * this->downTime);
+      int32_t msFrom0 = (int32_t)floor((this->startPos/100) * downTime);
       
       // So if the start position is .1 it is 10% closed so we have a 1000ms (1sec) of time to account for
       // before we add any more time.
       msFrom0 += (curTime - this->moveStart);
       // Now we should have the total number of ms that the shade moved from the top.  But just so we
       // don't have any rounding errors make sure that it is not greater than the max down time.
-      msFrom0 = min((int32_t)this->downTime, msFrom0);
-      if(msFrom0 >= this->downTime) {
+      msFrom0 = min(downTime, msFrom0);
+      if(msFrom0 >= downTime) {
         this->currentPos = 100.0f;
         this->direction = 0;        
       }
@@ -882,7 +893,7 @@ void SomfyShade::checkMovement() {
         // a ratio of how much time has travelled over the total time to go 100%.
   
         // We should now have the number of ms it will take to reach the shade fully close.
-        this->currentPos = (min(max((float)0.0, (float)msFrom0 / (float)this->downTime), (float)1.0)) * 100;
+        this->currentPos = (min(max((float)0.0, (float)msFrom0 / (float)downTime), (float)1.0)) * 100;
         // If the current position is >= 1 then we are at the bottom of the shade.
         if(this->currentPos >= 100) {
           this->direction = 0;
@@ -911,7 +922,7 @@ void SomfyShade::checkMovement() {
     }
   }
   else if(!tilt_first && this->direction < 0) {
-    if(this->upTime == 0) {
+    if(upTime == 0) {
       this->direction = 0;
       this->currentPos = 0;
     }
@@ -920,15 +931,15 @@ void SomfyShade::checkMovement() {
       // often move slower in the up position so since we are using a relative position the up time
       // can be calculated.
       // 10000ms from 100 to 0;
-      int32_t msFrom100 = (int32_t)this->upTime - (int32_t)floor((this->startPos/100) * this->upTime);
+      int32_t msFrom100 = upTime - (int32_t)floor((this->startPos/100) * upTime);
       msFrom100 += (curTime - this->moveStart);
-      msFrom100 = min((int32_t)this->upTime, msFrom100);
-      if(msFrom100 >= this->upTime) {
+      msFrom100 = min(upTime, msFrom100);
+      if(msFrom100 >= upTime) {
         this->currentPos = 0.0;
         this->direction = 0;
       }
       // We should now have the number of ms it will take to reach the shade fully open.
-      this->currentPos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)this->upTime), (float)1.0)) * 100;
+      this->currentPos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)upTime), (float)1.0)) * 100;
       // If we are at the top of the shade then set the movement to 0.
       if(this->currentPos <= 0.0) {
         this->direction = 0;
@@ -957,15 +968,15 @@ void SomfyShade::checkMovement() {
   }
   if(this->tiltDirection > 0) {
     if(tilt_first) this->moveStart = curTime;
-    int32_t msFrom0 = (int32_t)floor((this->startTiltPos/100) * this->tiltTime);
+    int32_t msFrom0 = (int32_t)floor((this->startTiltPos/100) * tiltTime);
     msFrom0 += (curTime - this->tiltStart);
-    msFrom0 = min((int32_t)this->tiltTime, msFrom0);
-    if(msFrom0 >= this->tiltTime) {
+    msFrom0 = min(tiltTime, msFrom0);
+    if(msFrom0 >= tiltTime) {
       this->currentTiltPos = 100.0f;
       this->tiltDirection = 0;        
     }
     else {
-      this->currentTiltPos = (min(max((float)0.0, (float)msFrom0 / (float)this->tiltTime), (float)1.0)) * 100;
+      this->currentTiltPos = (min(max((float)0.0, (float)msFrom0 / (float)tiltTime), (float)1.0)) * 100;
       if(this->currentTiltPos >= 100) {
         this->tiltDirection = 0;
         this->currentTiltPos = 100.0f;
@@ -1000,19 +1011,19 @@ void SomfyShade::checkMovement() {
   }
   else if(this->tiltDirection < 0) {
     if(tilt_first) this->moveStart = curTime;
-    if(this->tiltTime == 0) {
+    if(tiltTime == 0) {
       this->tiltDirection = 0;
       this->currentTiltPos = 0;
     }
     else {
-      int32_t msFrom100 = (int32_t)this->tiltTime - (int32_t)floor((this->startTiltPos/100) * this->tiltTime);
+      int32_t msFrom100 = tiltTime - (int32_t)floor((this->startTiltPos/100) * tiltTime);
       msFrom100 += (curTime - this->tiltStart);
-      msFrom100 = min((int32_t)this->tiltTime, msFrom100);
-      if(msFrom100 >= this->tiltTime) {
+      msFrom100 = min(tiltTime, msFrom100);
+      if(msFrom100 >= tiltTime) {
         this->currentTiltPos = 0.0f;
         this->tiltDirection = 0;
       }
-      this->currentTiltPos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)this->tiltTime), (float)1.0)) * 100;
+      this->currentTiltPos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)tiltTime), (float)1.0)) * 100;
       // If we are at the top of the shade then set the movement to 0.
       if(this->currentTiltPos <= 0.0f) {
         this->tiltDirection = 0;
@@ -1133,15 +1144,9 @@ void SomfyShade::load() {
     }
     pref.end();
 }
-void SomfyShade::publish() {
+void SomfyShade::publishState() {
   if(mqtt.connected()) {
     char topic[32];
-    snprintf(topic, sizeof(topic), "shades/%u/shadeId", this->shadeId);
-    mqtt.publish(topic, this->shadeId);
-    snprintf(topic, sizeof(topic), "shades/%u/name", this->shadeId);
-    mqtt.publish(topic, this->name);
-    snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
-    mqtt.publish(topic, this->getRemoteAddress());
     snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->currentPos));
     snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
@@ -1154,16 +1159,6 @@ void SomfyShade::publish() {
     mqtt.publish(topic, this->transformPosition(this->myPos));
     snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->myTiltPos));
-    snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
-    snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
-    snprintf(topic, sizeof(topic), "shades/%u/flags", this->shadeId);
-    mqtt.publish(topic, this->flags);
-    snprintf(topic, sizeof(topic), "shades/%u/flipCommands", this->shadeId);
-    mqtt.publish(topic, this->flipCommands);
-    snprintf(topic, sizeof(topic), "shades/%u/flipPosition", this->shadeId);
-    mqtt.publish(topic, this->flipPosition);
     if(this->tiltType != tilt_types::none) {
       snprintf(topic, sizeof(topic), "shades/%u/tiltDirection", this->shadeId);
       mqtt.publish(topic, this->tiltDirection);
@@ -1177,13 +1172,55 @@ void SomfyShade::publish() {
     const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
     snprintf(topic, sizeof(topic), "shades/%u/sunSensor", this->shadeId);
     mqtt.publish(topic, this->hasSunSensor());
-    snprintf(topic, sizeof(topic), "shades/%u/sunFlag", this->shadeId);
-    mqtt.publish(topic, sunFlag);
-    snprintf(topic, sizeof(topic), "shades/%u/sunny", this->shadeId);
-    mqtt.publish(topic, isSunny);
-    snprintf(topic, sizeof(topic), "shades/%u/windy", this->shadeId);
+    if(this->hasSunSensor()) {
+      snprintf(topic, sizeof(topic), "shades/%u/sunFlag", this->shadeId);
+      mqtt.publish(topic, sunFlag);
+      snprintf(topic, sizeof(topic), "shades/%u/sunny", this->shadeId);
+      mqtt.publish(topic, isSunny);
+      snprintf(topic, sizeof(topic), "shades/%u/windy", this->shadeId);
+    }
     mqtt.publish(topic, isWindy);
   }
+}
+void SomfyShade::publish() {
+  if(mqtt.connected()) {
+    char topic[32];
+    snprintf(topic, sizeof(topic), "shades/%u/shadeId", this->shadeId);
+    mqtt.publish(topic, this->shadeId);
+    snprintf(topic, sizeof(topic), "shades/%u/name", this->shadeId);
+    mqtt.publish(topic, this->name);
+    snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
+    mqtt.publish(topic, this->getRemoteAddress());
+    snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
+    mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
+    snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
+    mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
+    snprintf(topic, sizeof(topic), "shades/%u/flags", this->shadeId);
+    mqtt.publish(topic, this->flags);
+    snprintf(topic, sizeof(topic), "shades/%u/flipCommands", this->shadeId);
+    mqtt.publish(topic, this->flipCommands);
+    snprintf(topic, sizeof(topic), "shades/%u/flipPosition", this->shadeId);
+    mqtt.publish(topic, this->flipPosition);
+    this->publishState();
+  }
+}
+void SomfyGroup::publishState() {
+  if(mqtt.connected()) {
+    char topic[32];
+    snprintf(topic, sizeof(topic), "groups/%u/direction", this->groupId);
+    mqtt.publish(topic, this->direction);
+    snprintf(topic, sizeof(topic), "groups/%u/lastRollingCode", this->groupId);
+    mqtt.publish(topic, this->lastRollingCode);
+    const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
+    const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
+    const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
+    snprintf(topic, sizeof(topic), "groups/%u/sunFlag", this->groupId);
+    mqtt.publish(topic, sunFlag);
+    snprintf(topic, sizeof(topic), "groups/%u/sunny", this->groupId);
+    mqtt.publish(topic, isSunny);
+    snprintf(topic, sizeof(topic), "groups/%u/windy", this->groupId);
+    mqtt.publish(topic, isWindy);
+  }  
 }
 void SomfyGroup::publish() {
   if(mqtt.connected()) {
@@ -1194,25 +1231,13 @@ void SomfyGroup::publish() {
     mqtt.publish(topic, this->name);
     snprintf(topic, sizeof(topic), "groups/%u/remoteAddress", this->groupId);
     mqtt.publish(topic, this->getRemoteAddress());
-    snprintf(topic, sizeof(topic), "groups/%u/direction", this->groupId);
-    mqtt.publish(topic, this->direction);
-    snprintf(topic, sizeof(topic), "groups/%u/lastRollingCode", this->groupId);
-    mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "groups/%u/groupType", this->groupId);
     mqtt.publish(topic, static_cast<uint8_t>(this->groupType));
     snprintf(topic, sizeof(topic), "groups/%u/flags", this->groupId);
     mqtt.publish(topic, this->flags);
-    const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
-    const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
-    const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
     snprintf(topic, sizeof(topic), "groups/%u/sunSensor", this->groupId);
     mqtt.publish(topic, this->hasSunSensor());
-    snprintf(topic, sizeof(topic), "groups/%u/sunFlag", this->groupId);
-    mqtt.publish(topic, sunFlag);
-    snprintf(topic, sizeof(topic), "groups/%u/sunny", this->groupId);
-    mqtt.publish(topic, isSunny);
-    snprintf(topic, sizeof(topic), "groups/%u/windy", this->groupId);
-    mqtt.publish(topic, isWindy);
+    this->publishState();
   }
 }
 
@@ -1234,14 +1259,6 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
   else sockEmit.sendToClient(num, evt, buf);
   if(mqtt.connected()) {
     char topic[32];
-    //snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
-    //mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
-    //snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
-    //mqtt.publish(topic, this->getRemoteAddress());
-    //snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
-    //mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
-    //snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
-    //mqtt.publish(topic, this->lastRollingCode);
     snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->currentPos));
     snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
@@ -1450,12 +1467,13 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   this->startTiltPos = this->currentTiltPos;
   // If the command is coming from a remote then we are aborting all these positioning operations.
   if(!internal) this->settingMyPos = this->settingPos = this->settingTiltPos = false;
-
   somfy_commands cmd = this->transformCommand(frame.cmd);
   // At this point we are not processing the combo buttons
   // will need to see what the shade does when you press both.
   switch(cmd) {
     case somfy_commands::Sensor:
+      this->lastFrame.processed = true;
+      if(this->shadeType == shade_types::drycontact) return;
       {
         const uint8_t prevFlags = this->flags;
         const bool wasSunny = prevFlags & static_cast<uint8_t>(somfy_flags_t::Sunny);
@@ -1529,10 +1547,14 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::MyDown:
     case somfy_commands::MyUpDown:
     case somfy_commands::UpDown:
+      this->lastFrame.processed = true;
+      if(this->shadeType == shade_types::drycontact) return;
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
       
     case somfy_commands::Flag:
+      this->lastFrame.processed = true;
+      if(this->shadeType == shade_types::drycontact) return;
       this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
       somfy.isDirty = true;
       this->emitState();
@@ -1540,16 +1562,25 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       somfy.updateGroupFlags();
       break;    
     case somfy_commands::SunFlag:
+      if(this->shadeType == shade_types::drycontact) return;
       {
         const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
         this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
         if (!isWindy)
         {
           const bool isSunny = this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny);
-          if (isSunny && this->sunDone)
-            this->target = this->myPos >= 0 ? this->myPos : 100.0f;
-          else if (!isSunny && this->noSunDone)
-            this->target = 0.0f;
+          if (isSunny && this->sunDone) {
+            if(this->tiltType == tilt_types::tiltonly) 
+              this->tiltTarget = this->myTiltPos >= 0 ? this->myTiltPos : 100.0f;
+            else
+              this->target = this->myPos >= 0 ? this->myPos : 100.0f;
+          }
+          else if (!isSunny && this->noSunDone) {
+            if(this->tiltType == tilt_types::tiltonly)
+              this->tiltTarget = 0.0f;
+            else
+              this->target = 0.0f;
+          }
         }
         somfy.isDirty = true;
         this->emitState();
@@ -1558,6 +1589,10 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       break;
     case somfy_commands::Up:
+      if(this->shadeType == shade_types::drycontact) {
+        this->lastFrame.processed = true;
+        return;
+      }
       if(this->tiltType == tilt_types::tiltmotor) {
         // Wait another half second just in case we are potentially processing a tilt.
         if(!internal) this->lastFrame.await = curTime + 500;
@@ -1565,12 +1600,20 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       else {
         // If from a remote we will simply be going up.
-        if(!internal) this->target = this->tiltTarget = 0.0f;
+        if(this->tiltType == tilt_types::tiltonly && !internal) this->tiltTarget = 0.0f;
+        else if(!internal) {
+          if(this->tiltType != tilt_types::tiltonly) this->target = 0.0f;
+          this->tiltTarget = 0.0f;
+        }
         this->lastFrame.processed = true;
         this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       }
       break;
     case somfy_commands::Down:
+      if(this->shadeType == shade_types::drycontact) {
+        this->lastFrame.processed = true;
+        return;
+      }
       if (!this->windLast || (curTime - this->windLast) >= SOMFY_NO_WIND_REMOTE_TIMEOUT) {
         if(this->tiltType == tilt_types::tiltmotor) {
           // Wait another half seccond just in case we are potentially processing a tilt.
@@ -1580,7 +1623,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         else {
           this->lastFrame.processed = true;
           if(!internal) {
-            this->target = 100.0f;
+            if(this->tiltType != tilt_types::tiltonly) this->target = 100.0f;
             if(this->tiltType != tilt_types::none) this->tiltTarget = 100.0f;
           }
         }
@@ -1588,6 +1631,15 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       break;
     case somfy_commands::My:
+      if(this->shadeType == shade_types::drycontact) {
+        // In this case we need to toggle the contact but we only should do this if
+        // this is not a repeat.
+        if(this->lastFrame.processed) return;
+        this->lastFrame.processed = true;
+        this->target = this->currentPos = this->currentPos > 0 ? 0 : 100;
+        this->emitState();
+        return;
+      }
       if(this->isIdle()) {
         if(!internal) {
           // This frame is coming from a remote. We are potentially setting
@@ -1597,26 +1649,31 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         else {
           this->lastFrame.processed = true;
           if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->tiltTarget = this->myTiltPos;
-          if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
+          if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->target = this->myPos;
           this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
         }
       }
       else {
         this->lastFrame.processed = true;
         if(!internal) {
-          this->target = this->currentPos;
+          if(this->tiltType != tilt_types::tiltonly) this->target = this->currentPos;
           this->tiltTarget = this->currentTiltPos;
         }
       }
       break;
     case somfy_commands::StepUp:
       this->lastFrame.processed = true;
+      if(this->shadeType == shade_types::drycontact) return;
       if(this->lastFrame.repeats != 0) return;
       dir = 0;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
       if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
+        if(this->tiltTime == 0 || this->stepSize == 0) return;
+        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+      }
+      else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
         this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
       }
@@ -1627,7 +1684,6 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;
     case somfy_commands::StepDown:
       this->lastFrame.processed = true;
-      if(this->lastFrame.repeats != 0) return;
       dir = 1;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
@@ -1636,6 +1692,10 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
         this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
       }
+      else if(this->tiltType == tilt_types::tiltonly) {
+        if(this->tiltTime == 0 || this->stepSize == 0) return;
+        this->target = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+      }
       else if(this->currentPos < 100.0f) {
         if(this->downTime == 0 || this->stepSize == 0) return;
         this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize)))));
@@ -1643,9 +1703,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
     case somfy_commands::Toggle:
-      if(!this->isIdle()) {
-        this->target = this->currentPos;
-      }
+      if(this->lastFrame.processed) return;
+      this->lastFrame.processed = true;
+      if(!this->isIdle()) this->target = this->currentPos;
       else if(this->currentPos == 100.0f) this->target = 0;
       else if(this->currentPos == 0.0f) this->target = 100;
       else this->target = this->lastMovement == -1 ? 100 : 0;
@@ -1677,7 +1737,7 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
           this->target = 0.0f;
       }
       else if(this->tiltType == tilt_types::tiltonly) {
-        this->currentPos = this->target = 100.0f; // We are always 100% with this.
+        this->myPos = this->currentPos = this->target = 100.0f; // We are always 100% with this.
         this->tiltTarget = 0.0f;
       }
       else
@@ -1692,7 +1752,7 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
             this->target = 100.0f;
         }
         else if(this->tiltType == tilt_types::tiltonly) {
-          this->currentPos = this->target = 100.0f;
+          this->myPos = this->currentPos = this->target = 100.0f;
           this->tiltTarget = 100.0f;
         }
         else {
@@ -1708,7 +1768,7 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
         if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->target = this->myPos;
       }
       else {
-        if(this->tiltType == tilt_types::tiltonly) this->currentPos = this->target = 100.0f;
+        if(this->tiltType == tilt_types::tiltonly) this->myPos = this->currentPos = this->target = 100.0f;
         else this->target = this->currentPos;
         this->tiltTarget = this->currentTiltPos;
       }
@@ -1948,13 +2008,19 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
   if(cmd == somfy_commands::Up) {
     SomfyRemote::sendCommand(cmd, repeat);
     if(this->tiltType != tilt_types::tiltonly) this->target = 0.0f;
-    else this->tiltTarget = 0.0f;
+    else {
+      this->myPos = this->currentPos = this->target = 100.0f;
+      this->tiltTarget = 0.0f;
+    }
     if(this->tiltType == tilt_types::integrated) this->tiltTarget = 0.0f;
   }
   else if(cmd == somfy_commands::Down) {
     SomfyRemote::sendCommand(cmd, repeat);
     if(this->tiltType != tilt_types::tiltonly) this->target = 100.0f;
-    else this->tiltTarget = 100.0f;
+    else {
+      this->myPos = this->currentPos = this->target = 100.0f;
+      this->tiltTarget = 100.0f;
+    }
     if(this->tiltType == tilt_types::integrated) this->tiltTarget = 100.0f;
   }
   else if(cmd == somfy_commands::My) {
@@ -2052,7 +2118,7 @@ void SomfyShade::moveToTarget(float pos, float tilt) {
     return;
   }
   if(this->tiltType == tilt_types::tiltonly) {
-    this->currentPos = this->target = 100.0f;
+    this->myPos = this->currentPos = this->target = 100.0f;
     pos = 100;
     if(tilt < this->currentTiltPos) cmd = somfy_commands::Up;
     else if(tilt > this->currentTiltPos) cmd = somfy_commands::Down;
@@ -2567,6 +2633,9 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   Serial.print(this->lastFrame.rollingCode);
   Serial.print(" REPEAT:");
   Serial.println(repeat);
+  // We have to set the processed to clear this if we are sending
+  // another command.
+  this->lastFrame.processed = false;
   somfy.sendFrame(this->lastFrame, repeat);
   somfy.processFrame(this->lastFrame, true);
 }
@@ -2661,6 +2730,7 @@ uint16_t SomfyRemote::getNextRollingCode() {
   Serial.printf("Getting Next Rolling code %d\n", this->lastRollingCode);
   return code;
 }
+
 uint16_t SomfyRemote::setRollingCode(uint16_t code) {
   if(this->lastRollingCode != code) {
     pref.begin("ShadeCodes");

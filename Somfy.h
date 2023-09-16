@@ -58,7 +58,8 @@ enum class shade_types : byte {
   garage1 = 0x05,
   garage3 = 0x06,
   rdrapery = 0x07,
-  cdrapery = 0x08
+  cdrapery = 0x08,
+  drycontact = 0x09,
 };
 enum class tilt_types : byte {
   none = 0x00,
@@ -281,6 +282,7 @@ class SomfyShade : public SomfyRemote {
     void moveToMyPosition();
     void processWaitingFrame();
     void publish();
+    void publishState();
     void commit();
     void commitShadePosition();
     void commitTiltPosition();
@@ -308,6 +310,7 @@ class SomfyGroup : public SomfyRemote {
     bool hasShadeId(uint8_t shadeId);
     void compressLinkedShadeIds();
     void publish();
+    void publishState();
     void updateFlags();
     void emitState(const char *evt = "groupState");
     void emitState(uint8_t num, const char *evt = "groupState");
@@ -455,6 +458,7 @@ class SomfyShadeController {
     void publish();
     void processWaitingFrame();
     void commit();
+    void writeBackup();
     bool loadShadesFile(const char *filename);
     bool loadLegacy();
 };

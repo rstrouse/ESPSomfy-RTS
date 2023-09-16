@@ -197,6 +197,7 @@ bool MQTTClass::disconnect() {
     this->unsubscribe("shades/+/mypos/set");
     this->unsubscribe("shades/+/myTiltPos/set");
     this->unsubscribe("shades/+/sunFlag/set");
+    this->unsubscribe("groups/+/direction/set");
     mqttClient.disconnect();
   }
   return true;

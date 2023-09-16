@@ -7,6 +7,15 @@
 
 
 Preferences pref;
+
+void restore_options_t::fromJSON(JsonObject &obj) {
+  if(obj.containsKey("shades")) this->shades = obj["shades"];
+  if(obj.containsKey("settings")) this->settings = obj["settings"];
+  if(obj.containsKey("network")) this->network = obj["network"];
+  if(obj.containsKey("transceiver")) this->transceiver = obj["transceiver"];
+}
+
+
 bool BaseSettings::load() { return true; }
 bool BaseSettings::loadFile(const char *filename) { 
   size_t filesize = 10;
@@ -126,6 +135,29 @@ void ConfigSettings::print() {
 }
 void ConfigSettings::emitSockets() {}
 void ConfigSettings::emitSockets(uint8_t num) {}
+uint16_t ConfigSettings::calcSettingsRecSize() {
+  return strlen(this->fwVersion) + 3 
+    + strlen(this->hostname) + 3
+    + strlen(this->NTP.ntpServer) + 3
+    + strlen(this->NTP.posixZone) + 3
+    + 6; // ssdpbroadcast
+}
+uint16_t ConfigSettings::calcNetRecSize() {
+  return 4 // connType
+    + 6 // dhcp
+    + this->IP.ip.toString().length() + 3
+    + this->IP.gateway.toString().length() + 3
+    + this->IP.subnet.toString().length() + 3
+    + this->IP.dns1.toString().length() + 3
+    + this->IP.dns2.toString().length() + 3
+    + 4 // ETH.boardType
+    + 4 // ETH.phyType
+    + 4 // ETH.clkMode
+    + 5 // ETH.phyAddress
+    + 5 // ETH.PWRPin
+    + 5 // ETH.MDCPin
+    + 5; // ETH.MDIOPin
+}
 bool MQTTSettings::begin() {
   this->load();
   return true;
@@ -309,7 +341,6 @@ bool SecuritySettings::fromJSON(JsonObject &obj) {
   return true;
 }
 bool SecuritySettings::toJSON(JsonObject &obj) {
-  IPAddress ipEmpty(0,0,0,0);
   obj["type"] = static_cast<uint8_t>(this->type);
   obj["username"] = this->username;
   obj["password"] = this->password;

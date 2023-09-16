@@ -3,6 +3,7 @@
 #define webserver_h
 class Web {
   public:
+    bool uploadSuccess = false;
     void sendCORSHeaders(WebServer &server);
     void sendCacheHeaders(uint32_t seconds=604800);
     void startup();
@@ -19,6 +20,8 @@ class Web {
     void handleTiltCommand(WebServer &server);
     void handleDiscovery(WebServer &server);
     void handleNotFound(WebServer &server);
+    void handleShade(WebServer &server);
+    void handleGroup(WebServer &server);
     void begin();
     void loop();
     void end();

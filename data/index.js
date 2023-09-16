@@ -712,7 +712,7 @@ class UIBinder {
                             tval = tval.fmt(fld.getAttribute('data-fmtmask'), fld.getAttribute('data-fmtempty') || '');
                             break;
                         case 'duration':
-                            tval = dataBinder.formatDuration(tval, $this.attr('data-fmtmask'));
+                            tval = ui.formatDuration(tval, $this.attr('data-fmtmask'));
                             break;
                     }
                     this.setValue(fld, tval);
@@ -1197,7 +1197,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.1.5';
+    appVersion = 'v2.1.6';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1938,6 +1938,24 @@ class Somfy {
         let divCtl = '';
         shades.sort((a, b) => { return a.sortOrder - b.sortOrder });
         console.log(shades);
+
+        let vrList = document.getElementById('selVRMotor');
+        // First get the optiongroup for the shades.
+        let optGroup = document.getElementById('optgrpVRShades');
+        if (typeof shades === 'undefined' || shades.length === 0) {
+            if (typeof optGroup !== 'undefined') optGroup.remove();
+        }
+        else {
+            if (typeof optGroup === 'undefined' || !optGroup) {
+                optGroup = document.createElement('optgroup');
+                optGroup.setAttribute('id', 'optgrpVRShades');
+                optGroup.setAttribute('label', 'Shades');
+                vrList.appendChild(optGroup);
+            }
+            else {
+                optGroup.innerHTML = '';
+            }
+        }
         for (let i = 0; i < shades.length; i++) {
             let shade = shades[i];
             divCfg += `<div class="somfyShade shade-draggable" draggable="true" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType}">`;
@@ -1978,6 +1996,9 @@ class Somfy {
                 case 8:
                     divCtl += ' icss-cdrapery';
                     break;
+                case 9:
+                    divCtl += ' icss-lightbulb';
+                    break;
                 default:
                     divCtl += ' icss-window-shade';
                     break;
@@ -1990,7 +2011,7 @@ class Somfy {
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
             if (shade.tiltType === 3)
                 divCtl += `<span class="shadectl-mypos"><label>My Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
-            else if(shade.shadeType !== 5) {
+            else if(shade.shadeType !== 5 && shade.shadeType !== 9) {
                 divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`;
                 if (shade.myTiltPos > 0 && shade.tiltType !== 3) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`;
             }
@@ -2004,6 +2025,13 @@ class Somfy {
             divCtl += `<div class="button-outline cmd-button toggle-button" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="toggle" data-shadeid="${shade.shadeId}"><i class="icss-somfy-toggle" style="margin-top:-4px;"></i></div>`;
             divCtl += '</div></div>';
             divCtl += '</div>';
+            let opt = document.createElement('option');
+            opt.innerHTML = shade.name;
+            opt.setAttribute('data-address', shade.remoteAddress);
+            opt.setAttribute('data-type', 'shade');
+            opt.setAttribute('data-shadetype', shade.shadeType);
+            opt.setAttribute('data-shadeid', shade.shadeId);
+            optGroup.appendChild(opt);
         }
         document.getElementById('divShadeList').innerHTML = divCfg;
         let shadeControls = document.getElementById('divShadeControls');
@@ -2172,8 +2200,28 @@ class Somfy {
     setGroupsList(groups) {
         let divCfg = '';
         let divCtl = '';
+        let vrList = document.getElementById('selVRMotor');
+        // First get the optiongroup for the shades.
+        let optGroup = document.getElementById('optgrpVRGroups');
+        if (typeof groups === 'undefined' || groups.length === 0) {
+            if (typeof optGroup !== 'undefined') optGroup.remove();
+        }
+        else {
+            if (typeof optGroup === 'undefined' || !optGroup) {
+                optGroup = document.createElement('optgroup');
+                optGroup.setAttribute('id', 'optgrpVRGroups');
+                optGroup.setAttribute('label', 'Groups');
+                vrList.appendChild(optGroup);
+            }
+            else {
+                optGroup.innerHTML = '';
+            }
+        }
+
         if (typeof groups !== 'undefined') {
             groups.sort((a, b) => { return a.sortOrder - b.sortOrder });
+
+
             for (let i = 0; i < groups.length; i++) {
                 let group = groups[i];
                 divCfg += `<div class="somfyGroup group-draggable" draggable="true" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
@@ -2203,6 +2251,12 @@ class Somfy {
                 divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-groupid="${group.groupId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
                 divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-groupid="${group.groupId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
                 divCtl += '</div></div>';
+                let opt = document.createElement('option');
+                opt.innerHTML = group.name;
+                opt.setAttribute('data-address', group.remoteAddress);
+                opt.setAttribute('data-type', 'group');
+                opt.setAttribute('data-groupid', group.groupId);
+                optGroup.appendChild(opt);
             }
         }
         document.getElementById('divGroupList').innerHTML = divCfg;
@@ -2530,6 +2584,7 @@ class Somfy {
         let tilt = parseInt(document.getElementById('selTiltType').value, 10);
         let sun = true;
         let light = false;
+        let lift = true;
         let ico = document.getElementById('icoShade');
         let type = parseInt(sel.value, 10);
         document.getElementById('somfyShade').setAttribute('data-shadetype', type);
@@ -2545,6 +2600,7 @@ class Somfy {
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-window-blind')) ico.classList.add('icss-window-blind');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 break;
             case 2:
                 document.getElementById('divTiltSettings').style.display = 'none';
@@ -2556,6 +2612,7 @@ class Somfy {
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 tilt = false;
                 break;
             case 3:
@@ -2568,6 +2625,7 @@ class Somfy {
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (!ico.classList.contains('icss-awning')) ico.classList.add('icss-awning');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 tilt = false;
                 break;
             case 4:
@@ -2580,6 +2638,7 @@ class Somfy {
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (!ico.classList.contains('icss-shutter')) ico.classList.add('icss-shutter');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 tilt = false;
                 break;
             case 6:
@@ -2593,6 +2652,7 @@ class Somfy {
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (!ico.classList.contains('icss-garage')) ico.classList.add('icss-garage');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 light = true;
                 sun = false;
                 tilt = false;
@@ -2607,6 +2667,7 @@ class Somfy {
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 tilt = false;
                 break;
             case 8:
@@ -2619,8 +2680,26 @@ class Somfy {
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 tilt = false;
                 break;
+            case 9:
+                document.getElementById('divTiltSettings').style.display = 'none';
+                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
+                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
+                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
+                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
+                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
+                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
+                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
+                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
+                if (!ico.classList.contains('icss-lightbulb')) ico.classList.add('icss-lightbulb');
+                lift = false;
+                tilt = false;
+                light = false;
+                sun = false;
+                break;
+
 
             default:
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
@@ -2636,10 +2715,13 @@ class Somfy {
                 break;
         }
         document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
-        document.getElementById('divLiftSettings').style.display = tilt === 3 ? 'none' : '';
+        if (lift && tilt == 3) lift = false;
+        document.getElementById('divLiftSettings').style.display = lift ? '' : 'none';
         document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
         document.getElementById('divSunSensor').style.display = sun ? '' : 'none';
         document.getElementById('divLightSwitch').style.display = light ? '' : 'none';
+        if (!light) document.getElementById('cbHasLight').checked = false;
+        if (!sun) document.getElementById('cbHasSunsensor').checked = false;
     }
     onShadeBitLengthChanged(el) {
         document.getElementById('somfyShade').setAttribute('data-bitlength', el.value);
@@ -2664,12 +2746,14 @@ class Somfy {
                 }
                 else {
                     console.log(shade);
+                    let elShade = document.getElementById('somfyShade')
                     shade.name = '';
                     shade.downTime = shade.upTime = 10000;
                     shade.tiltTime = 7000;
                     shade.flipCommands = shade.flipPosition = false;
-                    ui.toElement(document.getElementById('somfyShade'), shade);
+                    ui.toElement(elShade, shade);
                     this.showEditShade(true);
+                    elShade.setAttribute('data-bitlength', shade.bitLength);
                 }
             });
         }
@@ -3183,7 +3267,6 @@ class Somfy {
         }, true);
         return div;
     }
-
     unpairShade(shadeId) {
         let div = document.createElement('div');
         let html = `<div id="divPairing" class="instructions" data-type="link-remote" data-shadeid="${shadeId}">`;
@@ -3224,23 +3307,68 @@ class Somfy {
             if(typeof cb === 'function') cb(err, shade);
         });
     }
-
-    sendGroupCommand(groupId, command, repeat) {
+    sendGroupRepeat(groupId, command, repeat, cb) {
+        let obj = { groupId: groupId, command: command };
+        if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        putJSON(`/repeatCommand?groupId=${groupId}&command=${command}`, null, (err, group) => {
+            if (typeof cb === 'function') cb(err, group);
+        });
+    }
+    sendVRCommand(el) {
+        let pnl = document.getElementById('divVirtualRemote');
+        let dd = pnl.querySelector('#selVRMotor');
+        let opt = dd.selectedOptions[0];
+        let o = {
+            type: opt.getAttribute('data-type'),
+            address: opt.getAttribute('data-address'),
+            cmd: el.getAttribute('data-cmd')
+        };
+        switch (o.type) {
+            case 'shade':
+                o.shadeId = parseInt(opt.getAttribute('data-shadeId'), 10);
+                o.shadeType = parseInt(opt.getAttribute('data-shadeType'), 10);
+                break;
+            case 'group':
+                o.groupId = parseInt(opt.getAttribute('data-groupId'), 10);
+                break;
+        }
+        console.log(o);
+        let fnRepeatCommand = (err, shade) => {
+            if (this.btnTimer) {
+                clearTimeout(this.btnTimer);
+                this.btnTimer = null;
+            }
+            if (err) return;
+            if (mouseDown) {
+                if (o.type === 'group')
+                    somfy.sendGroupRepeat(o.groupId, o.cmd, null, fnRepeatCommand);
+                else
+                    somfy.sendCommandRepeat(o.shadeId, o.cmd, null, fnRepeatCommand);
+            }
+        }
+        if (o.type === 'group')
+            somfy.sendGroupCommand(o.groupId, o.cmd, null, (err, group) => { fnRepeatCommand(err, group); });
+        else
+            somfy.sendCommand(o.shadeId, o.cmd, null, (err, shade) => { fnRepeatCommand(err, shade); });
+    }
+    sendGroupCommand(groupId, command, repeat, cb) {
         console.log(`Sending Group command ${groupId}-${command}`);
         let obj = { groupId: groupId };
         if (isNaN(parseInt(command, 10))) obj.command = command;
         if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
         putJSON('/groupCommand', obj, (err, group) => {
-
+            if (typeof cb === 'function') cb(err, group);
         });
     }
-    sendTiltCommand(shadeId, command) {
+    sendTiltCommand(shadeId, command, cb) {
         console.log(`Sending Tilt command ${shadeId}-${command}`);
         if (isNaN(parseInt(command, 10)))
             putJSON('/tiltCommand', { shadeId: shadeId, command: command }, (err, shade) => {
+                if (typeof cb === 'function') cb(err, shade);
             });
         else
             putJSON('/tiltCommand', { shadeId: shadeId, target: parseInt(command, 10) }, (err, shade) => {
+                if (typeof cb === 'function') cb(err, shade);
             });
     }
     linkRemote(shadeId) {
@@ -3602,18 +3730,80 @@ class Firmware {
         let agt = navigator.userAgent.toLowerCase();
         return /Android|iPhone|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
     }
-    backup() {
-        var link = document.createElement('a');
-        link.href = baseUrl.length > 0 ? `${baseUrl}/backup` : '/backup';
-        link.setAttribute('download', 'backup');
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+    async backup() {
+        let overlay = ui.waitMessage(document.getElementById('divContainer'));
+        return await new Promise((resolve, reject) => {
+            let xhr = new XMLHttpRequest();
+            xhr.responseType = 'blob';
+            xhr.onreadystatechange = (evt) => {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    let obj = window.URL.createObjectURL(xhr.response);
+                    var link = document.createElement('a');
+                    document.body.appendChild(link);
+                    let header = xhr.getResponseHeader('content-disposition');
+                    let fname = 'backup';
+                    if (typeof header !== 'undefined') {
+                        let start = header.indexOf('filename="');
+                        if (start >= 0) {
+                            let length = header.length;
+                            fname = header.substring(start + 10, length - 1);
+                        }
+                    }
+                    console.log(fname);
+                    link.setAttribute('download', fname);
+                    link.setAttribute('href', obj);
+                    link.click();
+                    link.remove();
+                    setTimeout(() => { window.URL.revokeObjectURL(obj); console.log('Revoked object'); }, 0);
+                }
+            };
+            xhr.onload = (evt) => {
+                if (typeof overlay !== 'undefined') overlay.remove();
+                let status = xhr.status;
+                if (status !== 200) {
+                    let err = xhr.response || {};
+                    err.htmlError = status;
+                    err.service = `GET /backup`;
+                    if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+                    console.log('Done');
+                    reject(err);
+                }
+                else {
+                    resolve();
+                }
+            };
+            xhr.onerror = (evt) => {
+                if (typeof overlay !== 'undefined') overlay.remove();
+                let err = {
+                    htmlError: xhr.status || 500,
+                    service: `GET /backup`
+                };
+                if (typeof err.desc === 'undefined') err.desc = xhr.statusText || httpStatusText[xhr.status || 500];
+                console.log(err);
+                reject(err);
+            };
+            xhr.onabort = (evt) => {
+                if (typeof overlay !== 'undefined') overlay.remove();
+                console.log('Aborted');
+                if (typeof overlay !== 'undefined') overlay.remove();
+                reject({ htmlError: status, service: 'GET /backup' });
+            };
+            xhr.open('GET', baseUrl.length > 0 ? `${baseUrl}/backup` : '/backup', true);
+            xhr.send();
+        });
     }
     restore() {
         let div = this.createFileUploader('/restore');
         let inst = div.querySelector('div[id=divInstText]');
-        inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a backup file that you would like to restore then press the Upload File button.</div>';
+        let html = '<div style="font-size:14px;">Select a backup file that you would like to restore and the options you would like to restore then press the Upload File button.</div><hr />';
+        html += `<div style="font-size:14px;">Restoring network settings from a different board than the original will ignore Ethernet chip settings. Security, MQTT and WiFi will also not be restored since backup files do not contain passwords.</div><hr/>`;
+        html += '<div style="font-size:14px;margin-bottom:27px;text-align:left;margin-left:70px;">';
+        html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreShades" type="checkbox" data-bind="shades" style="display:inline-block;" checked="true" /><label for="cbRestoreShades" style="display:inline-block;cursor:pointer;color:white;">Restore Shades and Groups</label></div>`;
+        html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreSystem" type="checkbox" data-bind="settings" style="display:inline-block;" /><label for="cbRestoreSystem" style="display:inline-block;cursor:pointer;color:white;">Restore System Settings</label></div>`;
+        html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreNetwork" type="checkbox" data-bind="network" style="display:inline-block;" /><label for="cbRestoreNetwork" style="display:inline-block;cursor:pointer;color:white;">Restore Network Settings</label></div>`
+        html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreTransceiver" type="checkbox" data-bind="transceiver" style="display:inline-block;" /><label for="cbRestoreTransceiver" style="display:inline-block;cursor:pointer;color:white;">Restore Radio Settings</label></div>`;
+        html += '</div>';
+        inst.innerHTML = html;
         document.getElementById('divContainer').appendChild(div);
     }
     createFileUploader(service) {
@@ -3632,7 +3822,7 @@ class Firmware {
         html += `<div class="progress-bar" id="progFileUpload" style="--progress:0%;margin-top:10px;display:none;"></div>`;
         html += `<div class="button-container">`;
         html += `<button id="btnBackupCfg" type="button" style="display:none;width:auto;padding-left:20px;padding-right:20px;margin-right:4px;" onclick="firmware.backup();">Backup</button>`;
-        html += `<button id="btnUploadFile" type="button" style="width:auto;padding-left:20px;padding-right:20px;margin-right:4px;display:inline-block;" onclick="firmware.uploadFile('${service}', document.getElementById('divUploadFile'));">Upload File</button>`;
+        html += `<button id="btnUploadFile" type="button" style="width:auto;padding-left:20px;padding-right:20px;margin-right:4px;display:inline-block;" onclick="firmware.uploadFile('${service}', document.getElementById('divUploadFile'), ui.fromElement(document.getElementById('divUploadFile')));">Upload File</button>`;
         html += `<button id="btnClose" type="button" style="width:auto;padding-left:20px;padding-right:20px;display:inline-block;" onclick="document.getElementById('divUploadFile').remove();">Cancel</button></div>`;
         html += `</form><div>`;
         div.innerHTML = html;
@@ -3641,8 +3831,16 @@ class Firmware {
     updateFirmware() {
         let div = this.createFileUploader('/updateFirmware');
         let inst = div.querySelector('div[id=divInstText]');
-        inst.innerHTML = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file [SomfyController.ino.esp32.bin] containing the device firmware then press the Upload File button.</div>';
+        let html = '<div style="font-size:14px;margin-bottom:20px;">Select a binary file [SomfyController.ino.esp32.bin] containing the device firmware then press the Upload File button.</div>';
+        if (this.isMobile()) {
+            html += `<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="margin-top:7px;width:100%;background:yellow;padding:3px;display:inline-block;border-radius:5px;background:white;">WARNING<span></div>`;
+            html += '<hr/><div style="font-size:14px;margin-bottom:10px;">This browser does not support automatic backups.  It is highly recommended that you back up your configuration using the backup button before proceeding.</div>';
+        }
+        else
+            html += '<hr/><div style="font-size:14px;margin-bottom:10px;">A backup file for your configuration will be downloaded to your browser.  If the firmware update process fails please restore this file using the restore button after going through the onboarding process.</div>'
+        inst.innerHTML = html;
         document.getElementById('divContainer').appendChild(div);
+        if (this.isMobile()) document.getElementById('btnBackupCfg').style.display = 'inline-block';
     }
     updateApplication() {
         let div = this.createFileUploader('/updateApplication');
@@ -3658,10 +3856,12 @@ class Firmware {
         document.getElementById('divContainer').appendChild(div);
         if(this.isMobile()) document.getElementById('btnBackupCfg').style.display = 'inline-block';
     }
-    async uploadFile(service, el) {
+    async uploadFile(service, el, data) {
         let field = el.querySelector('input[type="file"]');
         let filename = field.value;
         console.log(filename);
+        let formData = new FormData();
+        formData.append('file', field.files[0]);
         switch (service) {
             case '/updateApplication':
                 if (typeof filename !== 'string' || filename.length === 0) {
@@ -3673,28 +3873,15 @@ class Firmware {
                     return;
                 }
                 if (!this.isMobile()) {
-                    // The first thing we need to do is backup the configuration. So lets do this
-                    // in a promise.
-                    await new Promise((resolve, reject) => {
-                        firmware.backup();
-                        try {
-                            // Next we need to download the current configuration data.
-                            getText('/shades.cfg', (err, cfg) => {
-                                if (err)
-                                    reject(err);
-                                else {
-                                    resolve();
-                                    console.log(cfg);
-                                }
-                            });
-                        } catch (err) {
-                            ui.serviceError(el, err);
-                            reject(err);
-                            return;
-                        }
-                    }).catch((err) => {
+                    console.log('Starting backup');
+                    try {
+                        await firmware.backup();
+                        console.log('Backup Complete');
+                    }
+                    catch (err) {
                         ui.serviceError(el, err);
-                    });
+                        return;
+                    }
                 }
                 break;
             case '/updateFirmware':
@@ -3706,6 +3893,17 @@ class Firmware {
                     ui.errorMessage(el, 'This file is not a valid firmware binary file.');
                     return;
                 }
+                if (!this.isMobile()) {
+                    console.log('Starting backup');
+                    try {
+                        await firmware.backup();
+                        console.log('Backup Complete');
+                    }
+                    catch(err) {
+                        ui.serviceError(el, err);
+                        return;
+                    }
+                }
                 break;
             case '/restore':
                 if (typeof filename !== 'string' || filename.length === 0) {
@@ -3716,9 +3914,16 @@ class Firmware {
                     ui.errorMessage(el, 'This file is not a valid backup file');
                     return;
                 }
+                if (!data.shades && !data.settings && !data.network && !data.transceiver) {
+                    ui.errorMessage(el, 'No restore options have been selected');
+                    return;
+                }
+                console.log(data);
+                formData.append('data', JSON.stringify(data));
+                console.log(formData.get('data'));
+                //return;
                 break;
         }
-        let formData = new FormData();
         let btnUpload = el.querySelector('button[id="btnUploadFile"]');
         let btnCancel = el.querySelector('button[id="btnClose"]');
         let btnBackup = el.querySelector('button[id="btnBackupCfg"]');
@@ -3729,7 +3934,6 @@ class Firmware {
         let prog = el.querySelector('div[id="progFileUpload"]');
         prog.style.display = '';
         btnSelectFile.style.visibility = 'hidden';
-        formData.append('file', field.files[0]);
 
         let xhr = new XMLHttpRequest();
         //xhr.open('POST', service, true);
