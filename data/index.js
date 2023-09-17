@@ -1943,7 +1943,7 @@ class Somfy {
         // First get the optiongroup for the shades.
         let optGroup = document.getElementById('optgrpVRShades');
         if (typeof shades === 'undefined' || shades.length === 0) {
-            if (typeof optGroup !== 'undefined') optGroup.remove();
+            if (optGroup && typeof optGroup !== 'undefined') optGroup.remove();
         }
         else {
             if (typeof optGroup === 'undefined' || !optGroup) {
@@ -2204,7 +2204,7 @@ class Somfy {
         // First get the optiongroup for the shades.
         let optGroup = document.getElementById('optgrpVRGroups');
         if (typeof groups === 'undefined' || groups.length === 0) {
-            if (typeof optGroup !== 'undefined') optGroup.remove();
+            if (optGroup && typeof optGroup !== 'undefined') optGroup.remove();
         }
         else {
             if (typeof optGroup === 'undefined' || !optGroup) {
