@@ -340,6 +340,12 @@ void somfy_frame_t::encodeFrame(byte *frame) {
         break;
       case somfy_commands::Toggle:
         frame[0] = 164;
+        // This also needs to be a command val of 15.
+        frame[1] |= 0xF0;
+        frame[7] = 196;
+        frame[8] = 0;
+        frame[9] = 25;
+        break;
       case somfy_commands::Prog:
         frame[7] = 196;
         frame[8] = 0;
