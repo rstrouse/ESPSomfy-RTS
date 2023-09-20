@@ -1200,7 +1200,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.1.6';
+    appVersion = 'v2.1.7';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1962,8 +1962,10 @@ class Somfy {
             div.classList.add('prompt-message');
             let html = '<div class="sub-message">Frequency Scanning has started.  Press and hold any button on your remote and ESPSomfy RTS will find the closest frequency to the remote.</div>';
             html += '<hr style="width:100%;margin:0px;"></hr>';
+            html += '<div style="width:100%;text-align:center;">';
             html += '<div class="" style="font-size:20px;"><label style="padding-right:7px;display:inline-block;width:87px;">Scanning</label><span id="spanTestFreq" style="display:inline-block;width:4em;text-align:right;">433.00</span><span>MHz</span><label style="padding-left:12px;padding-right:7px;">RSSI</label><span id="spanTestRSSI">----</span><span>dBm</span></div>';
             html += '<div class="" style="font-size:20px;"><label style="padding-right:7px;display:inline-block;width:87px;">Frequency</label><span id="spanBestFreq" style="display:inline-block;width:4em;text-align:right;">---.--</span><span>MHz</span><label style="padding-left:12px;padding-right:7px;">RSSI</label><span id="spanBestRSSI">----</span><span>dBm</span></div>';
+            html += '</div>';
             html += `<div class="button-container">`;
             html += `<button id="btnStopScanning" type="button" style="padding-left:20px;padding-right:20px;" onclick="somfy.stopScanningFrequency(true);">Stop Scanning</button>`;
             html += `<button id="btnRestartScanning" type="button" style="padding-left:20px;padding-right:20px;display:none;" onclick="somfy.scanFrequency(true);">Start Scanning</button>`;
@@ -2006,7 +2008,7 @@ class Somfy {
                     let freq = parseFloat(div.getAttribute('data-frequency'));
                     document.getElementById('btnStopScanning').style.display = 'none';
                     document.getElementById('btnRestartScanning').style.display = '';
-                    if(typeof freq === 'number') document.getElementById('btnCopyFrequency').style.display = '';
+                    if (typeof freq === 'number' && !isNaN(freq)) document.getElementById('btnCopyFrequency').style.display = '';
                     document.getElementById('btnCloseScanning').style.display = '';
                 }
             });
