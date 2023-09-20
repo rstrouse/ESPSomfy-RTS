@@ -347,6 +347,7 @@ void somfy_frame_t::encodeFrame(byte *frame) {
         frame[9] = 25;
         break;
       case somfy_commands::Prog:
+        //frame[0] = 0xA6;
         frame[7] = 196;
         frame[8] = 0;
         frame[9] = 25;
@@ -1637,13 +1638,23 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       break;
     case somfy_commands::My:
-      if(this->shadeType == shade_types::drycontact) {
+      if(this->shadeType == shade_types::garage1) {
+        if(this->lastFrame.processed) return;
+        this->lastFrame.processed = true;
+        if(!this->isIdle()) this->target = this->currentPos;
+        else if(this->currentPos == 100.0f) this->target = 0;
+        else if(this->currentPos == 0.0f) this->target = 100;
+        else this->target = this->lastMovement == -1 ? 100 : 0;
+        return;
+      }
+      else if(this->shadeType == shade_types::drycontact) {
         // In this case we need to toggle the contact but we only should do this if
         // this is not a repeat.
         if(this->lastFrame.processed) return;
         this->lastFrame.processed = true;
-        this->target = this->currentPos = this->currentPos > 0 ? 0 : 100;
-        this->emitState();
+        if(this->currentPos == 100.0f) this->target = 0;
+        else if(this->currentPos == 0.0f) this->target = 100;
+        else this->target = this->lastMovement == -1 ? 100 : 0;
         return;
       }
       if(this->isIdle()) {
@@ -2030,7 +2041,9 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     if(this->tiltType == tilt_types::integrated) this->tiltTarget = 100.0f;
   }
   else if(cmd == somfy_commands::My) {
-    if(this->isIdle()) {
+    if(this->shadeType == shade_types::garage1 || this->shadeType == shade_types::drycontact)
+      SomfyRemote::sendCommand(cmd, repeat);
+    else if(this->isIdle()) {
       this->moveToMyPosition();      
       return;
     }
@@ -2039,6 +2052,10 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
       if(this->tiltType != tilt_types::tiltonly) this->target = this->currentPos;
       this->tiltTarget = this->currentTiltPos;
     }
+  }
+  else if(cmd == somfy_commands::Toggle) {
+    if(this->bitLength != 80) SomfyRemote::sendCommand(somfy_commands::My, repeat);
+    else SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
   }
   else if(this->shadeType == shade_types::garage1 && cmd == somfy_commands::Prog) {
     SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
@@ -3114,6 +3131,69 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         somfy_rx.status = waiting_synchro;
     }
 }
+float currFreq = 433.0f;
+int currRSSI = -100;
+float markFreq = 433.0f;
+int markRSSI = -100;
+uint32_t lastScan = 0;
+void Transceiver::beginFrequencyScan() {
+  if(this->config.enabled) {
+    this->disableReceive();
+    rxmode = 3;
+    pinMode(this->config.RXPin, INPUT);
+    interruptPin = digitalPinToInterrupt(this->config.RXPin);
+    ELECHOUSE_cc1101.setRxBW(this->config.rxBandwidth);              // Set the Receive Bandwidth in kHz. Value from 58.03 to 812.50. Default is 812.50 kHz.
+    ELECHOUSE_cc1101.SetRx();
+    markFreq = currFreq = 433.0f;
+    markRSSI = -100;
+    ELECHOUSE_cc1101.setMHZ(currFreq);
+    Serial.printf("Begin frequency scan on Pin #%d\n", this->config.RXPin);
+    attachInterrupt(interruptPin, handleReceive, CHANGE);
+    this->emitFrequencyScan();
+  }
+}
+void Transceiver::processFrequencyScan(bool received) {
+  if(this->config.enabled && rxmode == 3) {
+    if(received) {
+      currRSSI = ELECHOUSE_cc1101.getRssi();
+      if((long)(markFreq * 100) == (long)(currFreq * 100)) {
+        markRSSI = currRSSI;
+      }
+      else if(currRSSI >-75) {
+        if(currRSSI > markRSSI) {
+          markRSSI = currRSSI;
+          markFreq = currFreq;
+        }
+      }
+    }
+    else {
+      currRSSI = -100;
+    }
+    
+    if(millis() - lastScan > 100 && somfy_rx.status == waiting_synchro) {
+      lastScan = millis();
+      this->emitFrequencyScan();
+      currFreq += 0.01f;
+      if(currFreq > 434.0f) currFreq = 433.0f;
+      ELECHOUSE_cc1101.setMHZ(currFreq);
+    }
+  }
+}
+void Transceiver::endFrequencyScan() {
+  if(rxmode == 3) {
+    rxmode = 0;
+    if(interruptPin > 0) detachInterrupt(interruptPin); 
+    interruptPin = 0;
+    this->config.apply();
+    this->emitFrequencyScan();
+  }
+}
+void Transceiver::emitFrequencyScan(uint8_t num) {
+  char buf[420];
+  snprintf(buf, sizeof(buf), "{\"scanning\":%s,\"testFreq\":%f,\"testRSSI\":%d,\"frequency\":%f,\"RSSI\":%d}", rxmode == 3 ? "true" : "false", currFreq, currRSSI, markFreq, markRSSI); 
+  if(num >= 255) sockEmit.sendToClients("frequencyScan", buf);
+  else sockEmit.sendToClient(num, "frequencyScan", buf);
+}
 bool Transceiver::receive() {
     // Check to see if there is anything in the buffer
     if(rx_queue.length > 0) {
@@ -3123,7 +3203,6 @@ bool Transceiver::receive() {
       this->frame.decodeFrame(&rx);
       this->emitFrame(&this->frame, &rx);
       return this->frame.valid;
-      
     }
     return false;
 }
@@ -3494,13 +3573,21 @@ bool Transceiver::begin() {
     return true;
 }
 void Transceiver::loop() {
-    if (this->receive()) {
-        //this->clearReceived();
-        somfy.processFrame(this->frame, false);
+  if(rxmode == 3) {
+    if(rx_queue.length > 0) {
+      //Serial.printf("Processing receive %d\n", rx_queue.length);
+      somfy_rx_t rx;
+      rx_queue.pop(&rx);
+      this->frame.decodeFrame(&rx);
+      this->processFrequencyScan(this->frame.valid);
     }
-    else {
-      somfy.processWaitingFrame();
-    }
+    else
+      this->processFrequencyScan(false);
+  }
+  else if (this->receive()) 
+    somfy.processFrame(this->frame, false);
+  else
+    somfy.processWaitingFrame();
 }
 somfy_frame_t& Transceiver::lastFrame() { return this->frame; }
 void Transceiver::beginTransmit() {

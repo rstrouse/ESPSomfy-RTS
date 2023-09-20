@@ -413,6 +413,10 @@ class Transceiver {
     void beginTransmit();
     void endTransmit();
     void emitFrame(somfy_frame_t *frame, somfy_rx_t *rx = nullptr);
+    void beginFrequencyScan();
+    void endFrequencyScan();
+    void processFrequencyScan(bool received = false);
+    void emitFrequencyScan(uint8_t num = 255);
 };
 class SomfyShadeController {
   protected:

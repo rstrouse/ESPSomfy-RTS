@@ -2180,6 +2180,25 @@ void Web::begin() {
       }
     }
   });  
+  server.on("/beginFrequencyScan", []() {
+    webServer.sendCORSHeaders(server);
+    somfy.transceiver.beginFrequencyScan();
+    DynamicJsonDocument doc(1024);
+    JsonObject obj = doc.to<JsonObject>();
+    somfy.transceiver.toJSON(obj);
+    serializeJson(doc, g_content);
+    server.send(200, _encoding_json, g_content);
+  });
+  server.on("/endFrequencyScan", []() {
+    webServer.sendCORSHeaders(server);
+    somfy.transceiver.endFrequencyScan();
+    DynamicJsonDocument doc(1024);
+    JsonObject obj = doc.to<JsonObject>();
+    somfy.transceiver.toJSON(obj);
+    serializeJson(doc, g_content);
+    server.send(200, _encoding_json, g_content);
+  });
+  
   server.begin();
   apiServer.begin();
 }

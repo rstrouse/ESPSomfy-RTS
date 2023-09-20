@@ -489,6 +489,9 @@ async function initSockets() {
                         case 'packetPulses':
                             console.log(msg);
                             break;
+                        case 'frequencyScan':
+                            somfy.procFrequencyScan(msg);
+                            break;
 
                     }
                 } catch (err) {
@@ -1929,6 +1932,86 @@ class Somfy {
             }
         }
     }
+    procFrequencyScan(scan) {
+        //console.log(scan);
+        let div = this.scanFrequency();
+        let spanTestFreq = document.getElementById('spanTestFreq');
+        let spanTestRSSI = document.getElementById('spanTestRSSI');
+        let spanBestFreq = document.getElementById('spanBestFreq');
+        let spanBestRSSI = document.getElementById('spanBestRSSI');
+        if (spanBestFreq) {
+            spanBestFreq.innerHTML = scan.RSSI !== -100 ? scan.frequency.fmt('###.00') : '----';
+        }
+        if (spanBestRSSI) {
+            spanBestRSSI.innerHTML = scan.RSSI !== -100 ? scan.RSSI : '----';
+        }
+        if (spanTestFreq) {
+            spanTestFreq.innerHTML = scan.testFreq.fmt('###.00');
+        }
+        if (spanTestRSSI) {
+            spanTestRSSI.innerHTML = scan.testRSSI !== -100 ? scan.testRSSI : '----';
+        }
+        if (scan.RSSI !== -100)
+            div.setAttribute('data-frequency', scan.frequency);
+    }
+    scanFrequency(initScan) {
+        let div = document.getElementById('divScanFrequency');
+        if (!div || typeof div === 'undefined') {
+            div = document.createElement('div');
+            div.setAttribute('id', 'divScanFrequency');
+            div.classList.add('prompt-message');
+            let html = '<div class="sub-message">Frequency Scanning has started.  Press and hold any button on your remote and ESPSomfy RTS will find the closest frequency to the remote.</div>';
+            html += '<hr style="width:100%;margin:0px;"></hr>';
+            html += '<div class="" style="font-size:20px;"><label style="padding-right:7px;display:inline-block;width:87px;">Scanning</label><span id="spanTestFreq" style="display:inline-block;width:4em;text-align:right;">433.00</span><span>MHz</span><label style="padding-left:12px;padding-right:7px;">RSSI</label><span id="spanTestRSSI">----</span><span>dBm</span></div>';
+            html += '<div class="" style="font-size:20px;"><label style="padding-right:7px;display:inline-block;width:87px;">Frequency</label><span id="spanBestFreq" style="display:inline-block;width:4em;text-align:right;">---.--</span><span>MHz</span><label style="padding-left:12px;padding-right:7px;">RSSI</label><span id="spanBestRSSI">----</span><span>dBm</span></div>';
+            html += `<div class="button-container">`;
+            html += `<button id="btnStopScanning" type="button" style="padding-left:20px;padding-right:20px;" onclick="somfy.stopScanningFrequency(true);">Stop Scanning</button>`;
+            html += `<button id="btnRestartScanning" type="button" style="padding-left:20px;padding-right:20px;display:none;" onclick="somfy.scanFrequency(true);">Start Scanning</button>`;
+            html += `<button id="btnCopyFrequency" type="button" style="padding-left:20px;padding-right:20px;display:none;" onclick="somfy.setScannedFrequency();">Set Frequency</button>`;
+            html += `<button id="btnCloseScanning" type="button" style="padding-left:20px;padding-right:20px;width:100%;display:none;" onclick="document.getElementById('divScanFrequency').remove();">Close</button>`;
+            html += `</div>`;
+            div.innerHTML = html;
+            document.getElementById('divRadioSettings').appendChild(div);
+        }
+        if (initScan) {
+            div.setAttribute('data-initscan', true);
+            putJSONSync('/beginFrequencyScan', {}, (err, trans) => {
+                if (!err) {
+                    document.getElementById('btnStopScanning').style.display = '';
+                    document.getElementById('btnRestartScanning').style.display = 'none';
+                    document.getElementById('btnCopyFrequency').style.display = 'none';
+                    document.getElementById('btnCloseScanning').style.display = 'none';
+                }
+            });
+        }
+        return div;
+    }
+    setScannedFrequency() {
+        let div = document.getElementById('divScanFrequency');
+        let freq = parseFloat(div.getAttribute('data-frequency'));
+        let slid = document.getElementById('slidFrequency');
+        slid.value = Math.round(freq * 1000);
+        somfy.frequencyChanged(slid);
+        div.remove();
+    }
+    stopScanningFrequency(killScan) {
+        let div = document.getElementById('divScanFrequency');
+        if (div && killScan !== true) {
+            div.remove();
+        }
+        else {
+            putJSONSync('/endFrequencyScan', {}, (err, trans) => {
+                if (err) ui.serviceError(err);
+                else {
+                    let freq = parseFloat(div.getAttribute('data-frequency'));
+                    document.getElementById('btnStopScanning').style.display = 'none';
+                    document.getElementById('btnRestartScanning').style.display = '';
+                    if(typeof freq === 'number') document.getElementById('btnCopyFrequency').style.display = '';
+                    document.getElementById('btnCloseScanning').style.display = '';
+                }
+            });
+        }
+    }
     btnDown = null;
     btnTimer = null;
     // Sort the array first to allow the user to drag and drop where they want the shade.
@@ -2585,6 +2668,8 @@ class Somfy {
         let sun = true;
         let light = false;
         let lift = true;
+        let flipCommands = true;
+        let flipPosition = true;
         let ico = document.getElementById('icoShade');
         let type = parseInt(sel.value, 10);
         document.getElementById('somfyShade').setAttribute('data-shadetype', type);
@@ -2641,8 +2726,9 @@ class Somfy {
                 if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 tilt = false;
                 break;
-            case 6:
             case 5:
+                flipCommands = false;
+            case 6:
                 document.getElementById('divTiltSettings').style.display = 'none';
                 if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
                 if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
@@ -2698,6 +2784,8 @@ class Somfy {
                 tilt = false;
                 light = false;
                 sun = false;
+                flipPosition = false;
+                flipCommands = false;
                 break;
 
 
@@ -2720,6 +2808,8 @@ class Somfy {
         document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
         document.getElementById('divSunSensor').style.display = sun ? '' : 'none';
         document.getElementById('divLightSwitch').style.display = light ? '' : 'none';
+        document.getElementById('divFlipPosition').style.display = flipPosition ? '' : 'none';
+        document.getElementById('divFlipCommands').style.display = flipCommands ? '' : 'none';
         if (!light) document.getElementById('cbHasLight').checked = false;
         if (!sun) document.getElementById('cbHasSunsensor').checked = false;
     }
