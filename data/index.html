@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.1.7" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.1.7" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.1.7" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.1.8" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.1.8" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.1.8" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.1.7"></script>
+    <script type="text/javascript" src="index.js?v=2.1.8"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -609,6 +609,24 @@
                             <span>Sun Flag Off</span>
                             <div>
                                 <div class="button-outline" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="Flag" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><div class="button-sunflag" data-on="false" style="margin:0px;"><i class="icss-sun-c" style="background:transparent;"></i><i class="icss-sun-o" style="left:0px;color:white;"></i></div><span>off</span></div>
+                            </div>
+                        </div>
+                        <div class="vr-button">
+                            <span>
+                                <span>Sensor</span>
+                                <span style="display:inline-block;vertical-align:middle;margin-left:14px;">
+                                    <span style="display:block">
+                                        <input id="cbSunny" type="checkbox" data-bind="sunny" style="display:inline-block;" />
+                                        <label for="cbSunny" style="display:inline-block;cursor:pointer;">Sunny</label>
+                                    </span>
+                                    <span style="display:block">
+                                        <input id="cbWindy" type="checkbox" data-bind="windy" style="display:inline-block;" />
+                                        <label for="cbWindy" style="display:inline-block;cursor:pointer;">Windy</label>
+                                    </span>
+                                </span>
+                            </span>
+                            <div>
+                                <div class="button-outline" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="Sensor" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><div class="button-sunflag" data-on="false" style="margin:0px;"></div><span>send</span></div>
                             </div>
                         </div>
                     </div>

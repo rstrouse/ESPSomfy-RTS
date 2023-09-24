@@ -696,6 +696,133 @@ void Web::handleDiscovery(WebServer &server) {
   else
     server.send(500, _encoding_text, "Invalid http method");
 }
+void Web::handleSetPositions(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = apiServer.method();
+  uint8_t shadeId = (server.hasArg("shadeId")) ? atoi(server.arg("shadeId").c_str()) : 255;
+  int8_t pos = (server.hasArg("position")) ? atoi(server.arg("position").c_str()) : -1;
+  int8_t tiltPos = (server.hasArg("tiltPosition")) ? atoi(server.arg("tiltPosition").c_str()) : -1;
+  if(server.hasArg("plain")) {
+    DynamicJsonDocument doc(512);
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (err) {
+      switch (err.code()) {
+      case DeserializationError::InvalidInput:
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+        break;
+      case DeserializationError::NoMemory:
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+        break;
+      default:
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+        break;
+      }
+    }
+    else {
+      JsonObject obj = doc.as<JsonObject>();
+      if(obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+      if(obj.containsKey("position")) pos = obj["position"];
+      if(obj.containsKey("tiltPosition")) tiltPos = obj["tiltPosition"];
+    }
+  }
+  if(shadeId != 255) {
+    SomfyShade *shade = somfy.getShadeById(shadeId);
+    if(shade) {
+      if(pos >= 0) shade->target = shade->currentPos = pos;
+      if(tiltPos >= 0 && shade->tiltType != tilt_types::none) shade->tiltTarget = shade->currentTiltPos = tiltPos;
+      shade->emitState();
+      DynamicJsonDocument sdoc(2048);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"An invalid shadeId was provided\"}"));
+  }
+  else {
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"shadeId was not provided\"}"));
+  }
+}
+void Web::handleSetSensor(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = apiServer.method();
+  uint8_t shadeId = (server.hasArg("shadeId")) ? atoi(server.arg("shadeId").c_str()) : 255;
+  uint8_t groupId = (server.hasArg("groupId")) ? atoi(server.arg("groupId").c_str()) : 255;
+  int8_t sunny = (server.hasArg("sunny")) ? toBoolean(server.arg("sunny").c_str(), false) ? 1 : 0 : -1;
+  int8_t windy = (server.hasArg("windy")) ? atoi(server.arg("windy").c_str()) : -1;
+  int8_t repeat = (server.hasArg("repeat")) ? atoi(server.arg("repeat").c_str()) : -1;
+  if(server.hasArg("plain")) {
+    DynamicJsonDocument doc(512);
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (err) {
+      switch (err.code()) {
+      case DeserializationError::InvalidInput:
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+        break;
+      case DeserializationError::NoMemory:
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+        break;
+      default:
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+        break;
+      }
+    }
+    else {
+      JsonObject obj = doc.as<JsonObject>();
+      if(obj.containsKey("shadeId")) shadeId = obj["shadeId"].as<uint8_t>();
+      if(obj.containsKey("groupId")) groupId = obj["groupId"].as<uint8_t>();
+      if(obj.containsKey("sunny")) {
+        if(obj["sunny"].is<bool>())
+          sunny = obj["sunny"].as<bool>() ? 1 : 0;
+        else
+          sunny = obj["sunny"].as<int8_t>();
+      }
+      if(obj.containsKey("windy")) {
+        if(obj["windy"].is<bool>())
+          windy = obj["windy"].as<bool>() ? 1 : 0;
+        else
+          windy = obj["windy"].as<int8_t>();
+      }
+      if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+    }
+  }
+  if(shadeId != 255) {
+    SomfyShade *shade = somfy.getShadeById(shadeId);
+    if(shade) {
+      shade->sendSensorCommand(windy, sunny, repeat >= 0 ? (uint8_t)repeat : shade->repeats);
+      shade->emitState();
+      DynamicJsonDocument sdoc(2048);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      shade->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"An invalid shadeId was provided\"}"));
+      
+  }
+  else if(groupId != 255) {
+    SomfyGroup *group = somfy.getGroupById(groupId);
+    if(group) {
+      group->sendSensorCommand(windy, sunny, repeat >= 0 ? (uint8_t)repeat : group->repeats);
+      group->emitState();
+      DynamicJsonDocument sdoc(2048);
+      JsonObject sobj = sdoc.to<JsonObject>();
+      group->toJSON(sobj);
+      serializeJson(sdoc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"An invalid groupId was provided\"}"));
+  }
+  else {
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"shadeId was not provided\"}"));
+  }
+}
+
 void Web::handleNotFound(WebServer &server) {
     HTTPMethod method = server.method();
     Serial.printf("Request %s 404-%d ", server.uri().c_str(), method);
@@ -743,13 +870,16 @@ void Web::begin() {
   apiServer.on("/repeatCommand", []() { webServer.handleRepeatCommand(apiServer); });
   apiServer.on("/shade", HTTP_GET, [] () { webServer.handleShade(apiServer); });
   apiServer.on("/group", HTTP_GET, [] () { webServer.handleGroup(apiServer); });
-
+  apiServer.on("/setPositions", []() { webServer.handleSetPositions(apiServer); });
+  apiServer.on("/setSensor", []() { webServer.handleSetSensor(apiServer); });
+  
   // Web Interface
   server.on("/tiltCommand", []() { webServer.handleTiltCommand(server); });
   server.on("/repeatCommand", []() { webServer.handleRepeatCommand(server); });
   server.on("/shadeCommand", []() { webServer.handleShadeCommand(server); });
   server.on("/groupCommand", []() { webServer.handleGroupCommand(server); });
-  
+  server.on("/setPositions", []() { webServer.handleSetPositions(server); });
+  server.on("/setSensor", []() { webServer.handleSetSensor(server); });
   server.on("/upnp.xml", []() { SSDP.schema(server.client()); });
   server.on("/", []() { webServer.handleStreamFile(server, "/index.html", _encoding_html); });
   server.on("/login", []() { webServer.handleLogin(server); });
@@ -1623,14 +1753,15 @@ void Web::begin() {
     if (Update.hasError())
       server.send(500, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Error updating firmware: \"}");
     else
-      server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating firmware: \"}");
+      server.send(200, _encoding_json, "{\"status\":\"SUCCESS\",\"desc\":\"Successfully updated firmware\"}");
     rebootDelay.reboot = true;
     rebootDelay.rebootTime = millis() + 500;
     }, []() {
       HTTPUpload& upload = server.upload();
       if (upload.status == UPLOAD_FILE_START) {
         webServer.uploadSuccess = false;
-        Serial.printf("Update: %s\n", upload.filename.c_str());
+        Serial.printf("Update: %s - %d\n", upload.filename.c_str(), upload.totalSize);
+        //if(!Update.begin(upload.totalSize, U_SPIFFS)) {
         if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
           Update.printError(Serial);
         }
@@ -1639,10 +1770,16 @@ void Web::begin() {
           mqtt.end();
         }
       }
+      else if(upload.status == UPLOAD_FILE_ABORTED) {
+        Serial.printf("Upload of %s aborted\n", upload.filename.c_str());
+        Update.abort();
+      }
       else if (upload.status == UPLOAD_FILE_WRITE) {
         /* flashing firmware to ESP*/
         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
           Update.printError(Serial);
+          Serial.printf("Upload of %s aborted invalid size %d\n", upload.filename.c_str(), upload.currentSize);
+          Update.abort();
         }
       }
       else if (upload.status == UPLOAD_FILE_END) {
@@ -1683,14 +1820,18 @@ void Web::begin() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
-    server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Application: \"}");
+    if (Update.hasError())
+      server.send(500, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Error updating application: \"}");
+    else
+      server.send(200, _encoding_json, "{\"status\":\"SUCCESS\",\"desc\":\"Successfully updated application\"}");
     rebootDelay.reboot = true;
     rebootDelay.rebootTime = millis() + 500;
     }, []() {
       HTTPUpload& upload = server.upload();
       if (upload.status == UPLOAD_FILE_START) {
         webServer.uploadSuccess = false;
-        Serial.printf("Update: %s\n", upload.filename.c_str());
+        Serial.printf("Update: %s %d\n", upload.filename.c_str(), upload.totalSize);
+        //if(!Update.begin(upload.totalSize, U_SPIFFS)) {
         if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) { //start with max available size and tell it we are updating the file system.
           Update.printError(Serial);
         }
@@ -1699,10 +1840,17 @@ void Web::begin() {
           mqtt.end();
         }
       }
+      else if(upload.status == UPLOAD_FILE_ABORTED) {
+        Serial.printf("Upload of %s aborted\n", upload.filename.c_str());
+        Update.abort();
+        somfy.commit();
+      }
       else if (upload.status == UPLOAD_FILE_WRITE) {
         /* flashing littlefs to ESP*/
         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
           Update.printError(Serial);
+          Serial.printf("Upload of %s aborted invalid size %d\n", upload.filename.c_str(), upload.currentSize);
+          Update.abort();
         }
       }
       else if (upload.status == UPLOAD_FILE_END) {
@@ -1712,6 +1860,7 @@ void Web::begin() {
           somfy.commit();
         }
         else {
+          somfy.commit();
           Update.printError(Serial);
         }
       }

@@ -143,7 +143,6 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     // We reuse this memory address so we must reset the processed
     // flag.  This will ensure we can see frames on the first beat.
     this->processed = false;
-    Serial.println("Processed set to false");
     // Pull in the data for an 80-bit step command.
     if(this->cmd == somfy_commands::StepDown) this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
     this->rollingCode = decoded[3] + (decoded[2] << 8);
@@ -856,6 +855,7 @@ void SomfyShade::checkMovement() {
         && this->noSunStart
         && (curTime - this->noSunStart) >= SOMFY_NO_SUN_TIMEOUT)
     {
+      if(this->tiltType == tilt_types::tiltonly) this->tiltTarget = 0.0f;
       this->target = 0.0f;
       this->noSunDone = true;
       Serial.printf("[%u] No Sun -> done\r\n", this->shadeId);
@@ -867,6 +867,7 @@ void SomfyShade::checkMovement() {
       && this->windStart
       && (curTime - this->windStart) >= SOMFY_WIND_TIMEOUT)
   {
+    if(this->tiltType == tilt_types::tiltonly) this->tiltTarget = 0.0f;
     this->target = 0.0f;
     this->windDone = true;
     Serial.printf("[%u] Wind -> done\r\n", this->shadeId);
@@ -2634,6 +2635,32 @@ somfy_commands SomfyRemote::transformCommand(somfy_commands cmd) {
     }
   }
   return cmd;
+}
+void SomfyRemote::sendSensorCommand(int8_t isWindy, int8_t isSunny, uint8_t repeat) {
+  uint8_t flags = (this->flags >> 4) & 0x0F;
+  if(isWindy > 0) flags |= 0x01;
+  if(isSunny > 0) flags |= 0x02;
+  if(isWindy == 0) flags &= ~0x01;
+  if(isSunny == 0) flags &= ~0x02;
+
+  // Now ship this off as an 80 bit command.
+  this->lastFrame.remoteAddress = this->getRemoteAddress();
+  this->lastFrame.repeats = repeat;
+  this->lastFrame.bitLength = this->bitLength;
+  this->lastFrame.rollingCode = (uint16_t)flags;
+  this->lastFrame.encKey = 160; // Sensor commands are always encryption code 160.
+  this->lastFrame.cmd = somfy_commands::Sensor;
+  this->lastFrame.processed = false;
+  Serial.print("CMD:");
+  Serial.print(translateSomfyCommand(this->lastFrame.cmd));
+  Serial.print(" ADDR:");
+  Serial.print(this->lastFrame.remoteAddress);
+  Serial.print(" RCODE:");
+  Serial.print(this->lastFrame.rollingCode);
+  Serial.print(" REPEAT:");
+  Serial.println(repeat);
+  somfy.sendFrame(this->lastFrame, repeat);
+  somfy.processFrame(this->lastFrame, true);
 }
 void SomfyRemote::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
 void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {

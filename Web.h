@@ -22,6 +22,8 @@ class Web {
     void handleNotFound(WebServer &server);
     void handleShade(WebServer &server);
     void handleGroup(WebServer &server);
+    void handleSetPositions(WebServer &server);
+    void handleSetSensor(WebServer &server);
     void begin();
     void loop();
     void end();

@@ -149,7 +149,7 @@ Number.prototype.fmt = function (format, empty) {
     if (rd.length === 0 && rw.length === 0) return '';
     return pfx + rw + rd + sfx;
 };
-var baseUrl = window.location.protocol === 'file:' ? 'http://ESPSomfyRTS.local' : '';
+var baseUrl = window.location.protocol === 'file:' ? 'http://ESPSomfyRTS' : '';
 //var baseUrl = '';
 function makeBool(val) {
     if (typeof val === 'boolean') return val;
@@ -519,6 +519,7 @@ async function initSockets() {
             }
             else {
                 (async () => {
+                    ui.clearErrors();
                     await general.loadGeneral();
                     await wifi.loadNetwork();
                     await somfy.loadSomfy();
@@ -1200,7 +1201,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.1.7';
+    appVersion = 'v2.1.8';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -3415,6 +3416,8 @@ class Somfy {
             address: opt.getAttribute('data-address'),
             cmd: el.getAttribute('data-cmd')
         };
+        ui.fromElement(el.parentElement.parentElement, o);
+        console.log(o);
         switch (o.type) {
             case 'shade':
                 o.shadeId = parseInt(opt.getAttribute('data-shadeId'), 10);
@@ -3432,16 +3435,27 @@ class Somfy {
             }
             if (err) return;
             if (mouseDown) {
-                if (o.type === 'group')
+                if (o.cmd === 'Sensor')
+                    somfy.sendSetSensor(o);
+                else if (o.type === 'group')
                     somfy.sendGroupRepeat(o.groupId, o.cmd, null, fnRepeatCommand);
                 else
                     somfy.sendCommandRepeat(o.shadeId, o.cmd, null, fnRepeatCommand);
             }
         }
-        if (o.type === 'group')
+        if (o.cmd === 'Sensor') {
+            somfy.sendSetSensor(o);
+            
+        }
+        else if (o.type === 'group')
             somfy.sendGroupCommand(o.groupId, o.cmd, null, (err, group) => { fnRepeatCommand(err, group); });
         else
             somfy.sendCommand(o.shadeId, o.cmd, null, (err, shade) => { fnRepeatCommand(err, shade); });
+    }
+    sendSetSensor(obj, cb) {
+        putJSON('/setSensor', obj, (err, device) => {
+            if (typeof cb === 'function') cb(err, device);
+        });
     }
     sendGroupCommand(groupId, command, repeat, cb) {
         console.log(`Sending Group command ${groupId}-${command}`);
@@ -4026,7 +4040,6 @@ class Firmware {
         let prog = el.querySelector('div[id="progFileUpload"]');
         prog.style.display = '';
         btnSelectFile.style.visibility = 'hidden';
-
         let xhr = new XMLHttpRequest();
         //xhr.open('POST', service, true);
         xhr.open('POST', baseUrl.length > 0 ? `${baseUrl}${service}` : service, true);
@@ -4057,6 +4070,11 @@ class Firmware {
             }
         };
         xhr.send(formData);
+        btnCancel.addEventListener('click', (e) => {
+            console.log('Cancel clicked');
+            xhr.abort();
+        });
+
     }
 }
 var firmware = new Firmware();

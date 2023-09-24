@@ -126,6 +126,24 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
         if(val > 0) shade->sendCommand(somfy_commands::SunFlag);
         else shade->sendCommand(somfy_commands::Flag);
       }
+      else if(strncmp(command, "position", sizeof(command)) == 0) {
+        if(val >= 0 && val <= 100) {
+          shade->target = shade->currentPos = (float)val;
+          shade->emitState();
+        }
+      }
+      else if(strncmp(command, "tiltPosition", sizeof(command)) == 0) {
+        if(val >= 0 && val <= 100) {
+          shade->tiltTarget = shade->currentTiltPos = (float)val;
+          shade->emitState();
+        }
+      }
+      else if(strncmp(command, "sunny", sizeof(command)) == 0) {
+        if(val >= 0) shade->sendSensorCommand(-1, val, shade->repeats);
+      }
+      else if(strncmp(command, "windy", sizeof(command)) == 0) {
+        if(val >= 0) shade->sendSensorCommand(val, -1, shade->repeats);
+      }
     }
   }
   else if(strncmp(entityType, "groups", sizeof(entityType)) == 0) {
@@ -145,6 +163,12 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
           group->sendCommand(somfy_commands::Flag);
         else
           group->sendCommand(somfy_commands::SunFlag);
+      }
+      else if(strncmp(command, "sunny", sizeof(command)) == 0) {
+        if(val >= 0) group->sendSensorCommand(-1, val, group->repeats);
+      }
+      else if(strncmp(command, "windy", sizeof(command)) == 0) {
+        if(val >= 0) group->sendSensorCommand(val, -1, group->repeats);
       }
     }
   }
@@ -172,7 +196,15 @@ bool MQTTClass::connect() {
         this->subscribe("shades/+/mypos/set");
         this->subscribe("shades/+/myTiltPos/set");
         this->subscribe("shades/+/sunFlag/set");
+        this->subscribe("shades/+/sunny/set");
+        this->subscribe("shades/+/windy/set");
+        this->subscribe("shades/+/position/set");
+        this->subscribe("shades/+/tiltPosition/set");
         this->subscribe("groups/+/direction/set");
+        this->subscribe("groups/+/sunFlag/set");
+        this->subscribe("groups/+/sunny/set");
+        this->subscribe("groups/+/windy/set");
+
         mqttClient.setCallback(MQTTClass::receive);
         this->lastConnect = millis();
         return true;
@@ -198,6 +230,14 @@ bool MQTTClass::disconnect() {
     this->unsubscribe("shades/+/myTiltPos/set");
     this->unsubscribe("shades/+/sunFlag/set");
     this->unsubscribe("groups/+/direction/set");
+    this->unsubscribe("shades/+/sunny/set");
+    this->unsubscribe("shades/+/windy/set");
+    this->unsubscribe("shades/+/position/set");
+    this->unsubscribe("shades/+/tiltPosition/set");
+    this->unsubscribe("groups/+/direction/set");
+    this->unsubscribe("groups/+/sunFlag/set");
+    this->unsubscribe("groups/+/sunny/set");
+    this->unsubscribe("groups/+/windy/set");
     mqttClient.disconnect();
   }
   return true;

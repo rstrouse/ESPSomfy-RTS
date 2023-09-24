@@ -201,6 +201,7 @@ class SomfyRemote {
     void setLight(bool bHasLight);
     virtual void sendCommand(somfy_commands cmd);
     virtual void sendCommand(somfy_commands cmd, uint8_t repeat);
+    void sendSensorCommand(int8_t isWindy, int8_t isSunny, uint8_t repeat);
     void repeatFrame(uint8_t repeat);
     somfy_commands transformCommand(somfy_commands cmd);
 };
