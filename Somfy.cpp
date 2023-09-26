@@ -1563,6 +1563,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::Flag:
       this->lastFrame.processed = true;
       if(this->shadeType == shade_types::drycontact) return;
+      if(this->lastFrame.rollingCode & 0x8000) return; // Some sensors send bogus frames with a rollingCode >= 32768 that cause them to change the state.
       this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
       somfy.isDirty = true;
       this->emitState();
@@ -1571,6 +1572,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;    
     case somfy_commands::SunFlag:
       if(this->shadeType == shade_types::drycontact) return;
+      if(this->lastFrame.rollingCode & 0x8000) return; // Some sensors send bogus frames with a rollingCode >= 32768 that cause them to change the state.
       {
         const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
         this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
