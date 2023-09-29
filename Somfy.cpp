@@ -1411,6 +1411,32 @@ void SomfyShade::processWaitingFrame() {
             this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
           }
         }
+        else if(this->tiltType == tilt_types::euromode) {
+          if(this->lastFrame.repeats >= TILT_REPEATS) {
+            int8_t dir = this->lastFrame.cmd == somfy_commands::Up ? -1 : 1;
+            this->target = dir > 0 ? 100.0f : 0.0f;
+            this->setMovement(dir);
+            this->lastFrame.processed = true;
+            Serial.print(this->name);
+            Serial.print(" Processing ");
+            Serial.print(translateSomfyCommand(this->lastFrame.cmd));
+            Serial.print(" after ");
+            Serial.print(this->lastFrame.repeats);
+            Serial.println(" repeats");
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
+          }
+          else {
+            int8_t dir = this->lastFrame.cmd == somfy_commands::Up ? -1 : 1;
+            this->tiltTarget = dir > 0 ? 100 : 0;
+            this->setTiltMovement(dir);
+            this->lastFrame.processed = true;
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
+          }
+          if(this->lastFrame.repeats > TILT_REPEATS + 2) {
+            this->lastFrame.processed = true;
+            this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
+          }
+        }
         break;
       case somfy_commands::My:
         if(this->lastFrame.repeats >= SETMY_REPEATS && this->isIdle()) {
@@ -1603,7 +1629,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         this->lastFrame.processed = true;
         return;
       }
-      if(this->tiltType == tilt_types::tiltmotor) {
+      if(this->tiltType == tilt_types::tiltmotor || this->tiltType == tilt_types::euromode) {
         // Wait another half second just in case we are potentially processing a tilt.
         if(!internal) this->lastFrame.await = curTime + 500;
         else this->lastFrame.processed = true;
@@ -1625,7 +1651,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         return;
       }
       if (!this->windLast || (curTime - this->windLast) >= SOMFY_NO_WIND_REMOTE_TIMEOUT) {
-        if(this->tiltType == tilt_types::tiltmotor) {
+        if(this->tiltType == tilt_types::tiltmotor || this->tiltType == tilt_types::euromode) {
           // Wait another half seccond just in case we are potentially processing a tilt.
           if(!internal) this->lastFrame.await = curTime + 500;
           else this->lastFrame.processed = true;
@@ -2026,22 +2052,38 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
   // is expected to be called internally when the motor needs commanded.
   if(this->bitLength == 0) this->bitLength = somfy.transceiver.config.type;
   if(cmd == somfy_commands::Up) {
-    SomfyRemote::sendCommand(cmd, repeat);
-    if(this->tiltType != tilt_types::tiltonly) this->target = 0.0f;
-    else {
-      this->myPos = this->currentPos = this->target = 100.0f;
-      this->tiltTarget = 0.0f;
+    if(this->tiltType == tilt_types::euromode) {
+      // In euromode we need to long press for 2 seconds on the
+      // up command.
+      SomfyRemote::sendCommand(cmd, TILT_REPEATS);
+      this->target = 0.0f;     
     }
-    if(this->tiltType == tilt_types::integrated) this->tiltTarget = 0.0f;
+    else {
+      SomfyRemote::sendCommand(cmd, repeat);
+      if(this->tiltType == tilt_types::tiltonly) {
+        this->myPos = this->currentPos = this->target = 0.0f;
+        this->tiltTarget = 0.0f;
+      }
+      else this->target = 0.0f;
+      if(this->tiltType == tilt_types::integrated) this->tiltTarget = 0.0f;
+    }
   }
   else if(cmd == somfy_commands::Down) {
-    SomfyRemote::sendCommand(cmd, repeat);
-    if(this->tiltType != tilt_types::tiltonly) this->target = 100.0f;
-    else {
-      this->myPos = this->currentPos = this->target = 100.0f;
-      this->tiltTarget = 100.0f;
+    if(this->tiltType == tilt_types::euromode) {
+      // In euromode we need to long press for 2 seconds on the
+      // down command.
+      SomfyRemote::sendCommand(cmd, TILT_REPEATS);
+      this->target = 100.0f;     
     }
-    if(this->tiltType == tilt_types::integrated) this->tiltTarget = 100.0f;
+    else {
+      SomfyRemote::sendCommand(cmd, repeat);
+      if(this->tiltType == tilt_types::tiltonly) {
+        this->myPos = this->currentPos = this->target = 100.0f;
+        this->tiltTarget = 0.0f;
+      }
+      else this->target = 100.0f;
+      if(this->tiltType == tilt_types::integrated) this->tiltTarget = 100.0f;
+    }
   }
   else if(cmd == somfy_commands::My) {
     if(this->shadeType == shade_types::garage1 || this->shadeType == shade_types::drycontact)
@@ -2172,7 +2214,7 @@ void SomfyShade::moveToTarget(float pos, float tilt) {
     }
     Serial.print("% using ");
     Serial.println(translateSomfyCommand(cmd));
-    SomfyRemote::sendCommand(cmd, this->repeats);
+    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::euromode ? TILT_REPEATS : this->repeats);
     this->settingPos = true;
     this->target = pos;
     if(tilt >= 0) {

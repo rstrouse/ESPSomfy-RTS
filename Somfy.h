@@ -66,6 +66,7 @@ enum class tilt_types : byte {
   tiltmotor = 0x01,
   integrated = 0x02,
   tiltonly = 0x03,
+  euromode = 0x04
 };
 String translateSomfyCommand(const somfy_commands cmd);
 somfy_commands translateSomfyCommand(const String& string);
