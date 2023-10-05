@@ -135,6 +135,25 @@
 .shadectl-buttons:not([data-shadetype="5"]):not([data-shadetype="9"]) > .button-outline[data-cmd="toggle"] {
     display: none;
 }
+#somfyShade #divGPIOControl {
+    display: none;
+}
+#somfyShade #divShadeBitLength {
+    display:inline-block;
+}
+#somfyShade[data-proto="8"] #divGPIOControl {
+    display: inline-block;
+    width: auto;
+    margin-top: -18px;
+}
+#somfyShade[data-proto="8"] #divShadeBitLength {
+    display: none;
+}
+#divGPIOControl {
+    text-align:center;
+    margin-left:7px;
+}
+#somfyShade[data-proto="8"] #divStepSettings,
 #somfyShade[data-bitlength="56"] #divStepSettings,
 #somfyShade[data-shadetype="5"] #divStepSettings,
 #somfyShade[data-shadetype="6"] #divStepSettings,

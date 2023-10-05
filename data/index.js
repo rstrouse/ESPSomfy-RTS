@@ -1,3 +1,8 @@
+var errors = [
+    { code: -10, desc: "Pin setting in use for Transceiver" },
+    { code: -11, desc: "Pin setting in use for Ethernet Adapter" },
+    { code: -12, desc: "Pin setting in use on another motor" }
+]
 document.oncontextmenu = (event) => {
     if (event.target && event.target.tagName.toLowerCase() === 'input' && (event.target.type.toLowerCase() === 'text' || event.target.type.toLowerCase() === 'password'))
         return;
@@ -874,6 +879,7 @@ class UIBinder {
         return div;
     }
     serviceError(el, err) {
+        let title = 'Service Error'
         if (arguments.length === 1) {
             err = el;
             el = document.getElementById('divContainer');
@@ -896,10 +902,17 @@ class UIBinder {
             }
         }
         else if (typeof err !== 'undefined') {
-            if (typeof err.desc === 'string') msg = typeof err.desc !== 'undefined' ? err.desc : err.message;
+            if (typeof err.desc === 'string') {
+                msg = typeof err.desc !== 'undefined' ? err.desc : err.message;
+                if (typeof err.code === 'number') {
+                    let e = errors.find(x => x.code === err.code) || { code: err.code, desc: 'Unspecified error' };
+                    msg = e.desc;
+                    title = err.desc;
+                }
+            }
         }
         console.log(err);
-        let div = this.errorMessage(`${err.htmlError || 500}:Service Error`);
+        let div = this.errorMessage(`${err.htmlError || 500}:${title}`);
         let sub = div.querySelector('.sub-message');
         sub.innerHTML = `<div><label>Service:</label>${err.service}</div><div style="font-size:22px;">${msg}</div>`;
         return div;
@@ -1846,6 +1859,8 @@ class Somfy {
         ui.toElement(document.getElementById('divTransceiverSettings'), {
             transceiver: { config: { proto: 0, SCKPin: 18, CSNPin: 5, MOSIPin: 23, MISOPin: 19, TXPin: 12, RXPin: 13, frequency: 433.42, rxBandwidth: 97.96, type:56, deviation: 11.43, txPower: 10, enabled: false } }
         });
+        this.loadPins('out', document.getElementById('selShadeGPIOUp'));
+        this.loadPins('out', document.getElementById('selShadeGPIODown'));
         this.initialized = true;
     }
     async loadSomfy() {
@@ -2231,56 +2246,131 @@ class Somfy {
     setListDraggable(list, itemclass, onChanged) {
         let items = list.querySelectorAll(itemclass);
         let changed = false;
-        [].forEach.call(items, (item) => {
-            item.addEventListener('dragstart', function(e) {
-                console.log({ evt: 'dragStart', e: e, this: this });
+        let timerStart = null;
+        let dragDiv = null;
+        let fnDragStart = function(e) {
+            //console.log({ evt: 'dragStart', e: e, this: this });
+            if (typeof e.dataTransfer !== 'undefined') {
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('text/html', this.innerHTML);
-                e.stopPropagation();
                 this.style.opacity = '0.4';
                 this.classList.add('dragging');
-            });
-            item.addEventListener('dragenter', function (e) {
-                this.classList.add('over');
-            });
-            item.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                return false;
-            });
-            item.addEventListener('dragleave', function(e) {
-                this.classList.remove('over');
-            });
-            item.addEventListener('drop', function(e) {
-                // Shift around the items.
-                console.log({ evt: 'drop', e: e, this: this });
-                let elDrag = list.querySelector('.dragging');
-                if (elDrag !== this) {
-                    let curr = 0, end = 0;
-                    for (let i = 0; i < items.length; i++) {
-                        if (this === items[i]) end = i;
-                        if (elDrag === items[i]) curr = i;
-                    }
-                    console.log({ drag: elDrag, curr: curr, end: end, before: curr < end });
-                    if (curr !== end) {
-                        this.before(elDrag);
-                        changed = true;
+            }
+            else {
+                timerStart = setTimeout(() => {
+                    this.style.opacity = '0.4';
+                    dragDiv = document.createElement('div');
+                    dragDiv.innerHTML = this.innerHTML;
+                    dragDiv.style.position = 'absolute';
+                    dragDiv.classList.add('somfyShade');
+                    dragDiv.style.left = `${this.offsetLeft}px`;
+                    dragDiv.style.width = `${this.clientWidth}px`;
+                    dragDiv.style.top = `${this.offsetTop}px`;
+                    dragDiv.style.border = 'dotted 1px silver';
+                    //dragDiv.style.background = 'gainsboro';
+                    list.appendChild(dragDiv);
+                    this.classList.add('dragging');
+                    timerStart = null;
+                }, 1000);
+            }
+            e.stopPropagation();
+        };
+        let fnDragEnter = function (e) {
+            //console.log({ evt: 'dragEnter', e: e, this: this });
+            this.classList.add('over');
+        };
+        let fnDragOver = function (e) {
+            //console.log({ evt: 'dragOver', e: e, this: this });
+            if (timerStart) {
+                clearTimeout(timerStart);
+                timerStart = null;
+                return;
+            }
+            e.preventDefault();
+            if (typeof e.dataTransfer !== 'undefined') e.dataTransfer.dropEffect = 'move';
+            else if (dragDiv) {
+                let rc = list.getBoundingClientRect();
+                let pageY = e.targetTouches[0].pageY;
+                let y = pageY - rc.top;
+                if (y < 0) y = 0;
+                else if (y > rc.height) y = rc.height;
+                dragDiv.style.top = `${y}px`;
+                // Now lets calculate which element we are over.
+                let ndx = -1;
+                for (let i = 0; i < items.length; i++) {
+                    let irc = items[i].getBoundingClientRect();
+                    if (pageY <= irc.bottom - (irc.height / 2)) {
+                        ndx = i;
+                        break;
                     }
                 }
-
-
-            });
-            item.addEventListener('dragend', function (e) {
-
-                [].forEach.call(items, (item) => { item.classList.remove('over') });
-                this.style.opacity = '1';
-                //overCounter = 0;
-                this.classList.remove('dragging');
-                if (changed && typeof onChanged === 'function') {
-                    onChanged(list);
+                let over = items[ndx];
+                if (ndx < 0) [].forEach.call(items, (item) => { item.classList.remove('over') });
+                else if (!over.classList.contains['over']) {
+                    [].forEach.call(items, (item) => { item.classList.remove('over') });
+                    over.classList.add('over');
                 }
-                //console.log(e);
-            });
+            }
+            return false;
+        };
+        let fnDragLeave = function (e) {
+            console.log({ evt: 'dragLeave', e: e, this: this });
+            this.classList.remove('over');
+        };
+        let fnDrop = function(e) {
+            // Shift around the items.
+            console.log({ evt: 'drop', e: e, this: this });
+            let elDrag = list.querySelector('.dragging');
+            if (elDrag !== this) {
+                let curr = 0, end = 0;
+                for (let i = 0; i < items.length; i++) {
+                    if (this === items[i]) end = i;
+                    if (elDrag === items[i]) curr = i;
+                }
+                if (curr !== end) {
+                    this.before(elDrag);
+                    changed = true;
+                }
+            }
+        };
+        let fnDragEnd = function(e) {
+            console.log({ evt: 'dragEnd', e: e, this: this });
+            let elOver = list.querySelector('.over');
+            [].forEach.call(items, (item) => { item.classList.remove('over') });
+            this.style.opacity = '1';
+            //overCounter = 0;
+            if (timerStart) {
+                clearTimeout(timerStart);
+                timerStart = null;
+            }
+            if (dragDiv) {
+                dragDiv.remove();
+                dragDiv = null;
+                if (elOver && typeof elOver !== 'undefined') fnDrop.call(elOver, e);
+            }
+            if (changed && typeof onChanged === 'function') {
+                onChanged(list);
+            }
+            this.classList.remove('dragging');
+        };
+        [].forEach.call(items, (item) => {
+            if (firmware.isMobile()) {
+                item.addEventListener('touchstart', fnDragStart);
+                //item.addEventListener('touchenter', fnDragEnter);
+                item.addEventListener('touchmove', fnDragOver);
+                item.addEventListener('touchleave', fnDragLeave);
+                item.addEventListener('drop', fnDrop);
+                item.addEventListener('touchend', fnDragEnd);
+
+            }
+            else {
+                item.addEventListener('dragstart', fnDragStart);
+                item.addEventListener('dragenter', fnDragEnter);
+                item.addEventListener('dragover', fnDragOver);
+                item.addEventListener('dragleave', fnDragLeave);
+                item.addEventListener('drop', fnDrop);
+                item.addEventListener('dragend', fnDragEnd);
+            }
         });
     }
     setGroupsList(groups) {
@@ -2573,7 +2663,7 @@ class Somfy {
                 divs[i].setAttribute('data-tilttarget', state.tiltTarget);
             }
             let span = divs[i].querySelector('#spanMyPos');
-            if (span) span.innerHTML = typeof state.mypos !== 'undefined' && state.mypos >= 0 ? `${state.mypos}%` : '---';
+            if (span) span.innerHTML = typeof state.myPos !== 'undefined' && state.myPos >= 0 ? `${state.myPos}%` : '---';
             span = divs[i].querySelector('#spanMyTiltPos');
             if (span) span.innerHTML = typeof state.myTiltPos !== 'undefined' && state.myTiltPos >= 0 ? `${state.myTiltPos}%` : '---';
         }
@@ -2820,6 +2910,9 @@ class Somfy {
         document.getElementById('somfyShade').setAttribute('data-bitlength', el.value);
         //document.getElementById('divStepSettings').style.display = parseInt(el.value, 10) === 80 ? '' : 'none';
     }
+    onShadeProtoChanged(el) {
+        document.getElementById('somfyShade').setAttribute('data-proto', el.value);
+    }
     openEditShade(shadeId) {
         if (typeof shadeId === 'undefined') {
             getJSONSync('/getNextShade', (err, shade) => {
@@ -2833,7 +2926,6 @@ class Somfy {
                 document.getElementById('selShadeBitLength').value = 56;
                 document.getElementById('cbFlipCommands').value = false;
                 document.getElementById('cbFlipPosition').value = false;
-
                 if (err) {
                     ui.serviceError(err);
                 }
@@ -2921,6 +3013,7 @@ class Somfy {
                     ico.style.setProperty('--tilt-position', `${shade.flipPosition ? 100 - shade.tiltPosition : shade.tiltPosition}%`);
                     ico.setAttribute('data-shadeid', shade.shadeId);
                     somfy.onShadeBitLengthChanged(document.getElementById('selShadeBitLength'));
+                    somfy.onShadeProtoChanged(document.getElementById('selShadeProto'));
                     document.getElementById('btnSetRollingCode').style.display = 'inline-block';
                     if (shade.paired) {
                         document.getElementById('btnUnpairShade').style.display = 'inline-block';
@@ -3017,11 +3110,20 @@ class Somfy {
             ui.errorMessage(document.getElementById('divSomfySettings'), 'Down Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full open to full closed.');
             valid = false;
         }
+        if (obj.proto === 8) {
+            if (obj.gpioUp === obj.gpioDown) {
+                ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down GPIO selections must be unique.');
+                valid = false;
+            }
+        }
         if (valid) {
             if (isNaN(shadeId) || shadeId >= 255) {
                 // We are adding.
                 putJSONSync('/addShade', obj, (err, shade) => {
-                    if (err) ui.serviceError(err);
+                    if (err) {
+                        ui.serviceError(err);
+                        console.log(err);
+                    }
                     else {
                         console.log(shade);
                         document.getElementById('spanShadeId').innerText = shade.shadeId;

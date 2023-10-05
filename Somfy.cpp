@@ -11,6 +11,7 @@
 extern Preferences pref;
 extern SomfyShadeController somfy;
 extern SocketEmitter sockEmit;
+extern ConfigSettings settings;
 extern MQTTClass mqtt;
 
 
@@ -792,13 +793,38 @@ void SomfyGroup::updateFlags() {
     else break;
   }
 }
-
 bool SomfyShade::isInGroup() {
   if(this->getShadeId() == 255) return false;
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
     if(somfy.groups[i].getGroupId() != 255 && somfy.groups[i].hasShadeId(this->getShadeId())) return true;
   }
   return false;
+}
+void SomfyShade::setGPIOs() {
+  if(this->proto == radio_proto::GPIO) {
+    // Determine whether the direction needs to be set.
+    int8_t dir = this->direction;
+    if(dir == 0 && this->tiltType == tilt_types::integrated)
+      dir = this->tiltDirection;
+    switch(dir) {
+      case -1:
+        digitalWrite(this->gpioDown, LOW);
+        digitalWrite(this->gpioUp, HIGH);
+        if(dir != this->gpioDir) Serial.printf("UP: true, DOWN: false\n");
+        break;
+      case 1:
+        digitalWrite(this->gpioUp, LOW);
+        digitalWrite(this->gpioDown, HIGH);
+        if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: true\n");
+        break;
+      default:
+        digitalWrite(this->gpioUp, LOW);
+        digitalWrite(this->gpioDown, LOW);
+        if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false\n");
+        break;
+    }
+    this->gpioDir = dir;
+  }
 }
 void SomfyShade::checkMovement() {
   const uint64_t curTime = millis();
@@ -819,14 +845,14 @@ void SomfyShade::checkMovement() {
   // moving. If this is only a tilt action then the regular tilt action should operate fine.
   int8_t currDir = this->direction;
   int8_t currTiltDir = this->tiltDirection;
-  this->direction = this->currentPos == this->target ? 0 : this->currentPos > this->target ? -1 : 1;
+  this->p_direction(this->currentPos == this->target ? 0 : this->currentPos > this->target ? -1 : 1);
   bool tilt_first = this->tiltType == tilt_types::integrated && ((this->direction == -1 && this->currentTiltPos != 0.0f) || (this->direction == 1 && this->currentTiltPos != 100.0f));
-  this->tiltDirection = this->currentTiltPos == this->tiltTarget ? 0 : this->currentTiltPos > this->tiltTarget ? -1 : 1;
+  this->p_tiltDirection(this->currentTiltPos == this->tiltTarget ? 0 : this->currentTiltPos > this->tiltTarget ? -1 : 1);
   if(tilt_first) {
-    this->tiltDirection = this->direction;
-    this->direction = 0;
+    this->p_tiltDirection(this->direction);
+    this->p_direction(0);
   }
-  else if(this->direction != 0) this->tiltDirection = 0;
+  else if(this->direction != 0) this->p_tiltDirection(0);
   uint8_t currPos = floor(this->currentPos);
   uint8_t currTiltPos = floor(this->currentTiltPos);
   if(this->direction != 0) this->lastMovement = this->direction;
@@ -837,7 +863,8 @@ void SomfyShade::checkMovement() {
           && this->sunStart
           && (curTime - this->sunStart) >= SOMFY_SUN_TIMEOUT)
       {
-        this->target = this->myPos >= 0 ? this->myPos : 100.0f;
+        this->p_target(this->myPos >= 0 ? this->myPos : 100.0f);
+        //this->target = this->myPos >= 0 ? this->myPos : 100.0f;
         this->sunDone = true;
         Serial.printf("[%u] Sun -> done\r\n", this->shadeId);
       }
@@ -845,7 +872,8 @@ void SomfyShade::checkMovement() {
           && this->noWindStart
           && (curTime - this->noWindStart) >= SOMFY_NO_WIND_TIMEOUT)
       {
-        this->target = this->myPos >= 0 ? this->myPos : 100.0f;
+        this->p_target(this->myPos >= 0 ? this->myPos : 100.0f);
+        //this->target = this->myPos >= 0 ? this->myPos : 100.0f;
         this->noWindDone = true;
         Serial.printf("[%u] No Wind -> done\r\n", this->shadeId);
       }
@@ -855,8 +883,8 @@ void SomfyShade::checkMovement() {
         && this->noSunStart
         && (curTime - this->noSunStart) >= SOMFY_NO_SUN_TIMEOUT)
     {
-      if(this->tiltType == tilt_types::tiltonly) this->tiltTarget = 0.0f;
-      this->target = 0.0f;
+      if(this->tiltType == tilt_types::tiltonly) this->p_tiltTarget(0.0f);
+      this->p_target(0.0f);
       this->noSunDone = true;
       Serial.printf("[%u] No Sun -> done\r\n", this->shadeId);
     }
@@ -867,15 +895,15 @@ void SomfyShade::checkMovement() {
       && this->windStart
       && (curTime - this->windStart) >= SOMFY_WIND_TIMEOUT)
   {
-    if(this->tiltType == tilt_types::tiltonly) this->tiltTarget = 0.0f;
-    this->target = 0.0f;
+    if(this->tiltType == tilt_types::tiltonly) this->p_tiltTarget(0.0f);
+    this->p_target(0.0f);
     this->windDone = true;
     Serial.printf("[%u] Wind -> done\r\n", this->shadeId);
   }
 
   if(!tilt_first && this->direction > 0) {
     if(downTime == 0) {
-      this->direction = 0;
+      this->p_direction(0);
       this->currentPos = 100.0;
     }
     else {
@@ -894,7 +922,7 @@ void SomfyShade::checkMovement() {
       msFrom0 = min(downTime, msFrom0);
       if(msFrom0 >= downTime) {
         this->currentPos = 100.0f;
-        this->direction = 0;        
+        this->p_direction(0);        
       }
       else {
         // So now we know how much time has elapsed from the 0 position to down.  The current position should be
@@ -904,7 +932,7 @@ void SomfyShade::checkMovement() {
         this->currentPos = (min(max((float)0.0, (float)msFrom0 / (float)downTime), (float)1.0)) * 100;
         // If the current position is >= 1 then we are at the bottom of the shade.
         if(this->currentPos >= 100) {
-          this->direction = 0;
+          this->p_direction(0);
           this->currentPos = 100.0;
         }
       }
@@ -923,7 +951,7 @@ void SomfyShade::checkMovement() {
         else
           if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
       }
-      this->direction = 0;
+      this->p_direction(0);
       this->tiltStart = curTime;
       this->startTiltPos = this->currentTiltPos;
       if(this->isAtTarget()) this->commitShadePosition();
@@ -931,7 +959,7 @@ void SomfyShade::checkMovement() {
   }
   else if(!tilt_first && this->direction < 0) {
     if(upTime == 0) {
-      this->direction = 0;
+      this->p_direction(0);
       this->currentPos = 0;
     }
     else {
@@ -944,13 +972,13 @@ void SomfyShade::checkMovement() {
       msFrom100 = min(upTime, msFrom100);
       if(msFrom100 >= upTime) {
         this->currentPos = 0.0;
-        this->direction = 0;
+        this->p_direction(0);
       }
       // We should now have the number of ms it will take to reach the shade fully open.
       this->currentPos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)upTime), (float)1.0)) * 100;
       // If we are at the top of the shade then set the movement to 0.
       if(this->currentPos <= 0.0) {
-        this->direction = 0;
+        this->p_direction(0);
         this->currentPos = 0;
       }
     }
@@ -968,7 +996,7 @@ void SomfyShade::checkMovement() {
         else
           if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
       }
-      this->direction = 0;
+      this->p_direction(0);
       this->tiltStart = curTime;
       this->startTiltPos = this->currentTiltPos;
       if(this->isAtTarget()) this->commitShadePosition();
@@ -981,12 +1009,12 @@ void SomfyShade::checkMovement() {
     msFrom0 = min(tiltTime, msFrom0);
     if(msFrom0 >= tiltTime) {
       this->currentTiltPos = 100.0f;
-      this->tiltDirection = 0;        
+      this->p_tiltDirection(0);        
     }
     else {
       this->currentTiltPos = (min(max((float)0.0, (float)msFrom0 / (float)tiltTime), (float)1.0)) * 100;
       if(this->currentTiltPos >= 100) {
-        this->tiltDirection = 0;
+        this->p_tiltDirection(0);
         this->currentTiltPos = 100.0f;
       }
     }
@@ -995,7 +1023,7 @@ void SomfyShade::checkMovement() {
         this->currentTiltPos = 100.0f;
         this->moveStart = curTime;
         this->startPos = this->currentPos;
-        this->tiltDirection = 0;
+        this->p_tiltDirection(0);
       }
     }
     else if(this->currentTiltPos >= this->tiltTarget) {
@@ -1012,7 +1040,7 @@ void SomfyShade::checkMovement() {
           if(this->tiltTarget != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
       }
-      this->tiltDirection = 0;
+      this->p_tiltDirection(0);
       this->settingTiltPos = false;
       if(this->isAtTarget()) this->commitShadePosition();
     }
@@ -1020,7 +1048,7 @@ void SomfyShade::checkMovement() {
   else if(this->tiltDirection < 0) {
     if(tilt_first) this->moveStart = curTime;
     if(tiltTime == 0) {
-      this->tiltDirection = 0;
+      this->p_tiltDirection(0);
       this->currentTiltPos = 0;
     }
     else {
@@ -1029,12 +1057,12 @@ void SomfyShade::checkMovement() {
       msFrom100 = min(tiltTime, msFrom100);
       if(msFrom100 >= tiltTime) {
         this->currentTiltPos = 0.0f;
-        this->tiltDirection = 0;
+        this->p_tiltDirection(0);
       }
       this->currentTiltPos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)tiltTime), (float)1.0)) * 100;
       // If we are at the top of the shade then set the movement to 0.
       if(this->currentTiltPos <= 0.0f) {
-        this->tiltDirection = 0;
+        this->p_tiltDirection(0);
         this->currentTiltPos = 0.0f;
       }
     }
@@ -1043,7 +1071,7 @@ void SomfyShade::checkMovement() {
         this->currentTiltPos = 0.0f;
         this->moveStart = curTime;
         this->startPos = this->currentPos;
-        this->tiltDirection = 0;
+        this->p_tiltDirection(0);
       }
     }
     else if(this->currentTiltPos <= this->tiltTarget) {
@@ -1060,7 +1088,7 @@ void SomfyShade::checkMovement() {
           if(this->tiltTarget != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
       }
-      this->tiltDirection = 0;
+      this->p_tiltDirection(0);
       this->settingTiltPos = false;
       Serial.println("Stopping at tilt position");
       if(this->isAtTarget()) this->commitShadePosition();
@@ -1073,14 +1101,14 @@ void SomfyShade::checkMovement() {
     if(this->tiltType != tilt_types::none) {
       if(this->myTiltPos == this->currentTiltPos && this->myPos == this->currentPos) this->myPos = this->myTiltPos = -1;
       else {
-        this->myPos = this->currentPos;
-        this->myTiltPos = this->currentTiltPos;
+        this->p_myPos(this->currentPos);
+        this->p_myTiltPos(this->currentTiltPos);
       }
     }
     else {
-      this->myTiltPos = -1;
-      if(this->myPos == this->currentPos) this->myPos = -1;
-      else this->myPos = this->currentPos;
+      this->p_myTiltPos(-1);
+      if(this->myPos == this->currentPos) this->p_myPos(-1);
+      else this->p_myPos(this->currentPos);
     }
     SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
     this->settingMyPos = false;
@@ -1203,7 +1231,7 @@ void SomfyShade::publish() {
     mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
     snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
     mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
-    snprintf(topic, sizeof(topic), "shades/%u/flags", this->shadeId);
+    //snprintf(topic, sizeof(topic), "shades/%u/flags", this->shadeId);
     mqtt.publish(topic, this->flags);
     snprintf(topic, sizeof(topic), "shades/%u/flipCommands", this->shadeId);
     mqtt.publish(topic, this->flipCommands);
@@ -1248,18 +1276,141 @@ void SomfyGroup::publish() {
     this->publishState();
   }
 }
+char mqttTopicBuffer[32];
+bool SomfyShade::publish(const char *topic, int8_t val, bool retain) {
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
+    mqtt.publish(mqttTopicBuffer, val, retain);
+    return true;
+  }
+  return false;
+}
+bool SomfyShade::publish(const char *topic, uint8_t val, bool retain) {
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
+    mqtt.publish(mqttTopicBuffer, val, retain);
+    return true;
+  }
+  return false;
+}
+bool SomfyShade::publish(const char *topic, uint32_t val, bool retain) {
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
+    mqtt.publish(mqttTopicBuffer, val, retain);
+    return true;
+  }
+  return false;
+}
+bool SomfyShade::publish(const char *topic, uint16_t val, bool retain) {
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
+    mqtt.publish(mqttTopicBuffer, val, retain);
+    return true;
+  }
+  return false;
+}
+bool SomfyShade::publish(const char *topic, bool val, bool retain) {
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
+    mqtt.publish(mqttTopicBuffer, val, retain);
+    return true;
+  }
+  return false;
+}
+
+// State Setters
+uint16_t SomfyShade::p_lastRollingCode(uint16_t code) {
+  uint16_t old = SomfyRemote::p_lastRollingCode(code);
+  if(old != code) this->publish("lastRollingCode", code);
+  return old;
+}
+bool SomfyShade::p_flag(somfy_flags_t flag, bool val) {
+  bool old = !!(this->flags & static_cast<uint8_t>(flag));
+  if(val) 
+      this->flags |= static_cast<uint8_t>(flag);
+  else
+      this->flags &= ~(static_cast<uint8_t>(flag));
+  return old;
+}
+bool SomfyShade::p_sunFlag(bool val) {
+  bool old = this->p_flag(somfy_flags_t::SunFlag, val);
+  if(old != val) this->publish("sunFlag", static_cast<uint8_t>(val));
+  return old;
+}
+bool SomfyShade::p_windy(bool val) {
+  bool old = this->p_flag(somfy_flags_t::Windy, val);
+  if(old != val) this->publish("windy", static_cast<uint8_t>(val));
+  return old;
+}
+bool SomfyShade::p_sunny(bool val) {
+  bool old = this->p_flag(somfy_flags_t::Sunny, val);
+  if(old != val) this->publish("sunny", static_cast<uint8_t>(val));
+  return old;
+}
+int8_t SomfyShade::p_direction(int8_t dir) {
+  int8_t old = this->direction;
+  if(old != dir) {
+    this->direction = dir;
+    this->publish("direction", this->direction);
+  }
+  return old;
+}
+int8_t SomfyShade::p_tiltDirection(int8_t dir) {
+  int8_t old = this->tiltDirection;
+  if(old != dir) {
+    this->tiltDirection = dir;
+    this->publish("tiltDirection", this->tiltDirection);
+  }
+  return old;
+}
+float SomfyShade::p_target(float target) {
+  float old = this->target;
+  if(old != target) {
+    this->target = target;
+    if(this->transformPosition(old) != this->transformPosition(target))
+      this->publish("target", this->transformPosition(this->target));
+  }
+  return old;
+}
+float SomfyShade::p_tiltTarget(float target) {
+  float old = this->tiltTarget;
+  if(old != target) {
+    this->tiltTarget = target;
+    if(this->transformPosition(old) != this->transformPosition(target))
+      this->publish("tiltTarget", this->transformPosition(this->tiltTarget));
+  }
+  return old;
+}
+float SomfyShade::p_myPos(float pos) {
+  float old = this->myPos;
+  if(old != pos) {
+    this->myPos = pos;
+    if(this->transformPosition(old) != this->transformPosition(pos))
+      this->publish("mypos", this->transformPosition(this->myPos));
+  }
+  return old;
+}
+float SomfyShade::p_myTiltPos(float pos) {
+  float old = this->myTiltPos;
+  if(old != pos) {
+    this->myTiltPos = pos;
+    if(this->transformPosition(old) != this->transformPosition(pos))
+      this->publish("myTiltPos", this->transformPosition(this->myTiltPos));
+  }
+  return old;
+}
 
 void SomfyShade::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyShade::emitState(uint8_t num, const char *evt) {
   char buf[420];
   if(this->tiltType != tilt_types::none)
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s,\"sortOrder\":%d}", 
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"myPos\":%d,\"myTiltPos\":%d,\"tiltType\":%u,\"tiltDirection\":%d,\"tiltTarget\":%d,\"tiltPosition\":%d,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s,\"sortOrder\":%d}", 
       this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
       this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), this->transformPosition(this->myTiltPos), static_cast<uint8_t>(this->tiltType), this->tiltDirection, 
       this->transformPosition(this->tiltTarget), this->transformPosition(this->currentTiltPos),
       this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false", this->sortOrder);
   else
-    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"mypos\":%d,\"tiltType\":%u,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s,\"sortOrder\":%d}", 
+    snprintf(buf, sizeof(buf), "{\"shadeId\":%d,\"type\":%u,\"remoteAddress\":%d,\"name\":\"%s\",\"direction\":%d,\"position\":%d,\"target\":%d,\"myPos\":%d,\"tiltType\":%u,\"flipCommands\":%s,\"flipPosition\":%s,\"flags\":%d,\"sunSensor\":%s,\"light\":%s,\"sortOrder\":%d}", 
       this->shadeId, static_cast<uint8_t>(this->shadeType), this->getRemoteAddress(), this->name, this->direction, 
       this->transformPosition(this->currentPos), this->transformPosition(this->target), this->transformPosition(this->myPos), 
       static_cast<uint8_t>(this->tiltType), this->flipCommands ? "true" : "false", this->flipPosition ? "true": "false", this->flags, this->hasSunSensor() ? "true" : "false", this->hasLight() ? "true" : "false", this->sortOrder);
@@ -1269,24 +1420,25 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
     char topic[32];
     snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
     mqtt.publish(topic, this->transformPosition(this->currentPos));
-    snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
-    mqtt.publish(topic, this->direction);
-    snprintf(topic, sizeof(topic), "shades/%u/target", this->shadeId);
-    mqtt.publish(topic, this->transformPosition(this->target));
-    snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
-    mqtt.publish(topic, this->transformPosition(this->myPos));
+    //snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
+    //mqtt.publish(topic, this->direction);
+    //snprintf(topic, sizeof(topic), "shades/%u/target", this->shadeId);
+    //mqtt.publish(topic, this->transformPosition(this->target));
+    //snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
+    //mqtt.publish(topic, this->transformPosition(this->myPos));
 
-    snprintf(topic, sizeof(topic), "shades/%u/sunSensor", this->shadeId);
-    mqtt.publish(topic, this->hasSunSensor());
+    //snprintf(topic, sizeof(topic), "shades/%u/sunSensor", this->shadeId);
+    //mqtt.publish(topic, this->hasSunSensor());
     
     if(this->tiltType != tilt_types::none) {
-      snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
-      mqtt.publish(topic, this->transformPosition(this->myTiltPos));
+      //snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
+      //mqtt.publish(topic, this->transformPosition(this->myTiltPos));
       snprintf(topic, sizeof(topic), "shades/%u/tiltPosition", this->shadeId);
       mqtt.publish(topic, this->transformPosition(this->currentTiltPos));
-      snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
-      mqtt.publish(topic, this->transformPosition(this->tiltTarget));
+      //snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
+      //mqtt.publish(topic, this->transformPosition(this->tiltTarget));
     }
+    /*
     const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
     if(this->hasSunSensor()) {
       const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
@@ -1298,6 +1450,7 @@ void SomfyShade::emitState(uint8_t num, const char *evt) {
     }
     snprintf(topic, sizeof(topic), "shades/%u/windy", this->shadeId);
     mqtt.publish(topic, isWindy);
+    */
   }
 }
 void SomfyShade::emitCommand(somfy_commands cmd, const char *source, uint32_t sourceAddress, const char *evt) { this->emitCommand(255, cmd, source, sourceAddress, evt); }
@@ -1369,7 +1522,7 @@ void SomfyShade::processWaitingFrame() {
           this->lastFrame.processed = true;
           // Simply move the shade up by 1%.
           if(this->currentPos > 0) {
-            this->target = floor(this->currentPos) - 1;
+            this->p_target(floor(this->currentPos) - 1);
             this->setMovement(-1);
             this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
           }
@@ -1378,7 +1531,7 @@ void SomfyShade::processWaitingFrame() {
           this->lastFrame.processed = true;
           // Simply move the shade down by 1%.
           if(this->currentPos < 100) {
-            this->target = floor(this->currentPos) + 1;
+            this->p_target(floor(this->currentPos) + 1);
             this->setMovement(1);
             this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
           }
@@ -1388,7 +1541,7 @@ void SomfyShade::processWaitingFrame() {
         if(this->tiltType == tilt_types::tiltmotor) { // Theoretically this should get here unless it does have a tilt motor.
           if(this->lastFrame.repeats >= TILT_REPEATS) {
             int8_t dir = this->lastFrame.cmd == somfy_commands::Up ? -1 : 1;
-            this->tiltTarget = dir > 0 ? 100.0f : 0.0f;
+            this->p_tiltTarget(dir > 0 ? 100.0f : 0.0f);
             this->setTiltMovement(dir);
             this->lastFrame.processed = true;
             Serial.print(this->name);
@@ -1401,7 +1554,7 @@ void SomfyShade::processWaitingFrame() {
           }
           else {
             int8_t dir = this->lastFrame.cmd == somfy_commands::Up ? -1 : 1;
-            this->target = dir > 0 ? 100 : 0;
+            this->p_target(dir > 0 ? 100 : 0);
             this->setMovement(dir);
             this->lastFrame.processed = true;
             this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
@@ -1414,7 +1567,7 @@ void SomfyShade::processWaitingFrame() {
         else if(this->tiltType == tilt_types::euromode) {
           if(this->lastFrame.repeats >= TILT_REPEATS) {
             int8_t dir = this->lastFrame.cmd == somfy_commands::Up ? -1 : 1;
-            this->target = dir > 0 ? 100.0f : 0.0f;
+            this->p_target(dir > 0 ? 100.0f : 0.0f);
             this->setMovement(dir);
             this->lastFrame.processed = true;
             Serial.print(this->name);
@@ -1427,7 +1580,7 @@ void SomfyShade::processWaitingFrame() {
           }
           else {
             int8_t dir = this->lastFrame.cmd == somfy_commands::Up ? -1 : 1;
-            this->tiltTarget = dir > 0 ? 100 : 0;
+            this->p_tiltTarget(dir > 0 ? 100 : 0);
             this->setTiltMovement(dir);
             this->lastFrame.processed = true;
             this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
@@ -1442,27 +1595,27 @@ void SomfyShade::processWaitingFrame() {
         if(this->lastFrame.repeats >= SETMY_REPEATS && this->isIdle()) {
           if(floor(this->myPos) == floor(this->currentPos)) {
             // We are clearing it.
-            this->myPos = -1;
-            this->myTiltPos = -1;
+            this->p_myPos(-1);
+            this->p_myTiltPos(-1);
           }
           else {
-            this->myPos = this->currentPos;
-            this->myTiltPos = this->currentTiltPos;
+            this->p_myPos(this->currentPos);
+            this->p_myTiltPos(this->currentTiltPos);
           }
           this->commitMyPosition();
           this->lastFrame.processed = true;
           this->emitState();
         }
         else if(this->isIdle()) {
-          if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
-          if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->tiltTarget = this->myTiltPos;
+          if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->p_target(this->myPos);
+          if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
           this->setMovement(0);
           this->lastFrame.processed = true;
           this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
         }
         else {
-          this->target = this->currentPos;
-          this->tiltTarget = this->currentTiltPos;
+          this->p_target(this->currentPos);
+          this->p_tiltTarget(this->currentTiltPos);
         }
         if(this->lastFrame.repeats > SETMY_REPEATS + 2) this->lastFrame.processed = true;
         if(this->lastFrame.processed) {
@@ -1514,13 +1667,17 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         const bool wasWindy = prevFlags & static_cast<uint8_t>(somfy_flags_t::Windy);
         const uint16_t status = frame.rollingCode << 4;
         if (status & static_cast<uint8_t>(somfy_flags_t::Sunny))
-          this->flags |= static_cast<uint8_t>(somfy_flags_t::Sunny);
+          this->p_sunny(true);
+          //this->flags |= static_cast<uint8_t>(somfy_flags_t::Sunny);
         else
-          this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Sunny));
+          this->p_sunny(false);
+          //this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Sunny));
         if (status & static_cast<uint8_t>(somfy_flags_t::Windy))
-          this->flags |= static_cast<uint8_t>(somfy_flags_t::Windy);
+          this->p_windy(true);
+          //this->flags |= static_cast<uint8_t>(somfy_flags_t::Windy);
         else
-          this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Windy));
+          this->p_windy(false);
+          //this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Windy));
         if(frame.rollingCode & static_cast<uint8_t>(somfy_flags_t::DemoMode))
           this->flags |= static_cast<uint8_t>(somfy_flags_t::DemoMode);
         else
@@ -1590,7 +1747,8 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       this->lastFrame.processed = true;
       if(this->shadeType == shade_types::drycontact) return;
       if(this->lastFrame.rollingCode & 0x8000) return; // Some sensors send bogus frames with a rollingCode >= 32768 that cause them to change the state.
-      this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
+      this->p_sunFlag(false);
+      //this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
       somfy.isDirty = true;
       this->emitState();
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
@@ -1601,21 +1759,22 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       if(this->lastFrame.rollingCode & 0x8000) return; // Some sensors send bogus frames with a rollingCode >= 32768 that cause them to change the state.
       {
         const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
-        this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
+        //this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
+        this->p_sunFlag(true);
         if (!isWindy)
         {
           const bool isSunny = this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny);
           if (isSunny && this->sunDone) {
-            if(this->tiltType == tilt_types::tiltonly) 
-              this->tiltTarget = this->myTiltPos >= 0 ? this->myTiltPos : 100.0f;
+            if(this->tiltType == tilt_types::tiltonly)
+              this->p_tiltTarget(this->myTiltPos >= 0 ? this->myTiltPos : 100.0f);
             else
-              this->target = this->myPos >= 0 ? this->myPos : 100.0f;
+              this->p_target(this->myPos >= 0 ? this->myPos : 100.0f);
           }
           else if (!isSunny && this->noSunDone) {
             if(this->tiltType == tilt_types::tiltonly)
-              this->tiltTarget = 0.0f;
+              this->p_tiltTarget(0.0f);
             else
-              this->target = 0.0f;
+              this->p_target(0.0f);
           }
         }
         somfy.isDirty = true;
@@ -1636,10 +1795,10 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       else {
         // If from a remote we will simply be going up.
-        if(this->tiltType == tilt_types::tiltonly && !internal) this->tiltTarget = 0.0f;
+        if(this->tiltType == tilt_types::tiltonly && !internal) this->p_tiltTarget(0.0f);
         else if(!internal) {
-          if(this->tiltType != tilt_types::tiltonly) this->target = 0.0f;
-          this->tiltTarget = 0.0f;
+          if(this->tiltType != tilt_types::tiltonly) this->p_target(0.0f);
+          this->p_tiltTarget(0.0f);
         }
         this->lastFrame.processed = true;
         this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
@@ -1659,8 +1818,8 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         else {
           this->lastFrame.processed = true;
           if(!internal) {
-            if(this->tiltType != tilt_types::tiltonly) this->target = 100.0f;
-            if(this->tiltType != tilt_types::none) this->tiltTarget = 100.0f;
+            if(this->tiltType != tilt_types::tiltonly) this->p_target(100.0f);
+            if(this->tiltType != tilt_types::none) this->p_tiltTarget(100.0f);
           }
         }
         this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
@@ -1671,9 +1830,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         if(this->lastFrame.processed) return;
         this->lastFrame.processed = true;
         if(!this->isIdle()) this->target = this->currentPos;
-        else if(this->currentPos == 100.0f) this->target = 0;
-        else if(this->currentPos == 0.0f) this->target = 100;
-        else this->target = this->lastMovement == -1 ? 100 : 0;
+        else if(this->currentPos == 100.0f) this->p_target(0);
+        else if(this->currentPos == 0.0f) this->p_target(100);
+        else this->p_target(this->lastMovement == -1 ? 100 : 0);
         return;
       }
       else if(this->shadeType == shade_types::drycontact) {
@@ -1681,9 +1840,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         // this is not a repeat.
         if(this->lastFrame.processed) return;
         this->lastFrame.processed = true;
-        if(this->currentPos == 100.0f) this->target = 0;
-        else if(this->currentPos == 0.0f) this->target = 100;
-        else this->target = this->lastMovement == -1 ? 100 : 0;
+        if(this->currentPos == 100.0f) this->p_target(0);
+        else if(this->currentPos == 0.0f) this->p_target(100);
+        else this->p_target(this->lastMovement == -1 ? 100 : 0);
         return;
       }
       if(this->isIdle()) {
@@ -1694,16 +1853,16 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         }
         else {
           this->lastFrame.processed = true;
-          if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->tiltTarget = this->myTiltPos;
-          if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->target = this->myPos;
+          if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->p_tiltTarget(this->myTiltPos);
+          if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->p_target(this->myPos);
           this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
         }
       }
       else {
         this->lastFrame.processed = true;
         if(!internal) {
-          if(this->tiltType != tilt_types::tiltonly) this->target = this->currentPos;
-          this->tiltTarget = this->currentTiltPos;
+          if(this->tiltType != tilt_types::tiltonly) this->p_target(this->currentPos);
+          this->p_tiltTarget(this->currentTiltPos);
         }
       }
       break;
@@ -1717,15 +1876,15 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // so we have to calculate the target with this in mind.
       if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->currentPos > 0.0f) {
         if(this->downTime == 0 || this->stepSize == 0) return;
-        this->target = max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize)))));
+        this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
       }
       break;
     case somfy_commands::StepDown:
@@ -1736,25 +1895,25 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // so we have to calculate the target with this in mind.
       if(this->tiltType == tilt_types::integrated && this->currentTiltPos < 100.0f) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->target = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_target(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->currentPos < 100.0f) {
         if(this->downTime == 0 || this->stepSize == 0) return;
-        this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize)))));
+        this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize))))));
       }
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
     case somfy_commands::Toggle:
       if(this->lastFrame.processed) return;
       this->lastFrame.processed = true;
-      if(!this->isIdle()) this->target = this->currentPos;
-      else if(this->currentPos == 100.0f) this->target = 0;
-      else if(this->currentPos == 0.0f) this->target = 100;
-      else this->target = this->lastMovement == -1 ? 100 : 0;
+      if(!this->isIdle()) this->p_target(this->currentPos);
+      else if(this->currentPos == 100.0f) this->p_target(0);
+      else if(this->currentPos == 0.0f) this->p_target(100);
+      else this->p_target(this->lastMovement == -1 ? 100 : 0);
       break;
     default:
       dir = 0;
@@ -1778,45 +1937,59 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
     case somfy_commands::Up:
       if(this->tiltType == tilt_types::tiltmotor) {
         if(repeat >= TILT_REPEATS)
-          this->tiltTarget = 0.0f;
+          this->p_tiltTarget(0.0f);
         else
-          this->target = 0.0f;
+          this->p_target(0.0f);
       }
       else if(this->tiltType == tilt_types::tiltonly) {
-        this->myPos = this->currentPos = this->target = 100.0f; // We are always 100% with this.
-        this->tiltTarget = 0.0f;
+        this->p_myPos(100.0f);
+        this->p_target(100.0f);
+        this->currentPos = 100.0f;
+        //this->myPos = this->currentPos = this->target = 100.0f; // We are always 100% with this.
+        this->p_tiltTarget(0.0f);
       }
-      else
-        this->target = this->tiltTarget = 0.0f;
+      else {
+        this->p_target(0.0f);
+        this->p_tiltTarget(0.0f);
+        //this->target = this->tiltTarget = 0.0f;
+      }
       break;
     case somfy_commands::Down:
       if (!this->windLast || (curTime - this->windLast) >= SOMFY_NO_WIND_REMOTE_TIMEOUT) {
         if(this->tiltType == tilt_types::tiltmotor) {
           if(repeat >= TILT_REPEATS)
-            this->tiltTarget = 100.0f;
+            this->p_tiltTarget(100.0f);
           else
-            this->target = 100.0f;
+            this->p_target(100.0f);
         }
         else if(this->tiltType == tilt_types::tiltonly) {
-          this->myPos = this->currentPos = this->target = 100.0f;
-          this->tiltTarget = 100.0f;
+          this->p_myPos(100.0f);
+          this->p_target(100.0f);
+          this->currentPos = 100.0f;
+          //this->myPos = this->currentPos = this->target = 100.0f;
+          this->p_tiltTarget(100.0f);
         }
         else {
-            this->target = 100.0f;
-            if(this->tiltType != tilt_types::none) this->tiltTarget = 100.0f;
+            this->p_target(100.0f);
+            if(this->tiltType != tilt_types::none) this->p_tiltTarget(100.0f);
         }
       }
       break;
     case somfy_commands::My:
       if(this->isIdle()) {
         Serial.printf("Shade #%d is idle\n", this->getShadeId());
-        if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->tiltTarget = this->myTiltPos;
-        if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->target = this->myPos;
+        if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
+        if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->p_target(this->myPos);
       }
       else {
-        if(this->tiltType == tilt_types::tiltonly) this->myPos = this->currentPos = this->target = 100.0f;
-        else this->target = this->currentPos;
-        this->tiltTarget = this->currentTiltPos;
+        if(this->tiltType == tilt_types::tiltonly) {
+          this->p_myPos(100.0f);
+          this->p_target(100.0f);
+          this->currentPos = 100.0f;
+          //this->myPos = this->currentPos = this->target = 100.0f;
+        }
+        else this->p_target(this->currentPos);
+        this->p_tiltTarget(this->currentTiltPos);
       }
       break;
     case somfy_commands::StepUp:
@@ -1825,15 +1998,15 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
       // so we have to calculate the target with this in mind.
       if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0 || this->currentTiltPos <= 0.0f) return;
-        this->tiltTarget = max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->currentPos > 0.0f) {
         if(this->downTime == 0 || this->stepSize == 0) return;
-        this->target = max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize)))));
+        this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
       }
       break;
     case somfy_commands::StepDown:
@@ -1843,20 +2016,21 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
       // so we have to calculate the target with this in mind.
       if(this->tiltType == tilt_types::integrated && this->currentTiltPos < 100.0f) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0 || this->currentTiltPos >= 100.0f) return;
-        this->tiltTarget = min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize)))));
+        this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->currentPos < 100.0f) {
         if(this->downTime == 0 || this->stepSize == 0) return;
-        this->target = min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize)))));
+        this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize))))));
       }
       break;
     case somfy_commands::Flag:
       if(this->hasSunSensor()) {
-        this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
+        this->p_sunFlag(false);
+        //this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
         somfy.isDirty = true;
         this->emitState();
       }
@@ -1866,14 +2040,15 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
     case somfy_commands::SunFlag:
       if(this->hasSunSensor()) {
         const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
-        this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
+        this->p_sunFlag(true);
+        //this->flags |= static_cast<uint8_t>(somfy_flags_t::SunFlag);
         if (!isWindy)
         {
           const bool isSunny = this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny);
           if (isSunny && this->sunDone)
-            this->target = this->myPos >= 0 ? this->myPos : 100.0f;
+            this->p_target(this->myPos >= 0 ? this->myPos : 100.0f);
           else if (!isSunny && this->noSunDone)
-            this->target = 0.0f;
+            this->p_target(0.0f);
         }
         somfy.isDirty = true;
         this->emitState();
@@ -1881,7 +2056,6 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
       else
         Serial.printf("Shade does not have sensor %d\n", this->flags);
       break;
-
     default:
       dir = 0;
       break;
@@ -1894,7 +2068,7 @@ void SomfyShade::setTiltMovement(int8_t dir) {
     // The shade tilt is stopped.
     this->startTiltPos = this->currentTiltPos;
     this->tiltStart = 0;
-    this->tiltDirection = dir;
+    this->p_tiltDirection(dir);
     if(currDir != dir) {
       this->commitTiltPosition();
     }
@@ -1902,7 +2076,7 @@ void SomfyShade::setTiltMovement(int8_t dir) {
   else if(this->tiltDirection != dir) {
     this->tiltStart = millis();
     this->startTiltPos = this->currentTiltPos;
-    this->tiltDirection = dir;
+    this->p_tiltDirection(dir);
   }
   if(this->tiltDirection != currDir) {
     this->emitState();
@@ -1926,7 +2100,7 @@ void SomfyShade::setMovement(int8_t dir) {
 void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
   if(!this->isIdle()) return; // Don't do this if it is moving.
   if(this->tiltType == tilt_types::tiltonly) {
-    this->myPos = 100.0f;    
+    this->p_myPos(100.0f);    
     if(tilt != floor(this->currentTiltPos)) {
       this->settingMyPos = true;
       if(tilt == floor(this->myTiltPos))
@@ -1950,7 +2124,7 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
     }
     else {
       SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
-      this->myTiltPos = this->currentTiltPos;
+      this->p_myTiltPos(this->currentTiltPos);
     }
     this->commitMyPosition();
     this->emitState();
@@ -1980,8 +2154,8 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
       }
       else {
         SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
-        this->myPos = this->currentPos;
-        this->myTiltPos = this->currentTiltPos;
+        this->p_myPos(this->currentPos);
+        this->p_myTiltPos(this->currentTiltPos);
       }
       this->commitMyPosition();
       this->emitState();
@@ -2010,8 +2184,8 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
     }
     else {
       SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
-      this->myPos = currentPos;
-      this->myTiltPos = -1;
+      this->p_myPos(currentPos);
+      this->p_myTiltPos(-1);
       this->commitMyPosition();
       this->emitState();
     }
@@ -2041,8 +2215,8 @@ void SomfyShade::moveToMyPosition() {
   Serial.print(translateSomfyCommand(somfy_commands::My));
   Serial.println(this->direction);
   */
-  if(this->tiltType != tilt_types::tiltonly && this->myPos >= 0.0f && this->myPos <= 100.0f) this->target = this->myPos;
-  if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->tiltTarget = this->myTiltPos;
+  if(this->tiltType != tilt_types::tiltonly && this->myPos >= 0.0f && this->myPos <= 100.0f) this->p_target(this->myPos);
+  if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
   this->settingPos = false;
   SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
 }
@@ -2056,16 +2230,19 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
       // In euromode we need to long press for 2 seconds on the
       // up command.
       SomfyRemote::sendCommand(cmd, TILT_REPEATS);
-      this->target = 0.0f;     
+      this->p_target(0.0f);     
     }
     else {
       SomfyRemote::sendCommand(cmd, repeat);
       if(this->tiltType == tilt_types::tiltonly) {
-        this->myPos = this->currentPos = this->target = 0.0f;
-        this->tiltTarget = 0.0f;
+        this->p_myPos(0.0f);
+        this->p_target(0.0f);
+        this->p_tiltTarget(0.0f);
+        this->currentPos = 0.0f;
+        //this->myPos = this->currentPos = this->target = 0.0f;
       }
-      else this->target = 0.0f;
-      if(this->tiltType == tilt_types::integrated) this->tiltTarget = 0.0f;
+      else this->p_target(0.0f);
+      if(this->tiltType == tilt_types::integrated) this->p_tiltTarget(0.0f);
     }
   }
   else if(cmd == somfy_commands::Down) {
@@ -2073,16 +2250,19 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
       // In euromode we need to long press for 2 seconds on the
       // down command.
       SomfyRemote::sendCommand(cmd, TILT_REPEATS);
-      this->target = 100.0f;     
+      this->p_target(100.0f);     
     }
     else {
       SomfyRemote::sendCommand(cmd, repeat);
       if(this->tiltType == tilt_types::tiltonly) {
-        this->myPos = this->currentPos = this->target = 100.0f;
-        this->tiltTarget = 0.0f;
+        this->p_myPos(100.0f);
+        this->p_target(100.0f);
+        this->p_tiltTarget(0.0f);
+        this->currentPos = 100.0f;
+        //this->myPos = this->currentPos = this->target = 100.0f;
       }
-      else this->target = 100.0f;
-      if(this->tiltType == tilt_types::integrated) this->tiltTarget = 100.0f;
+      else this->p_target(100.0f);
+      if(this->tiltType == tilt_types::integrated) this->p_tiltTarget(100.0f);
     }
   }
   else if(cmd == somfy_commands::My) {
@@ -2094,8 +2274,8 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     }
     else {
       SomfyRemote::sendCommand(cmd, repeat);
-      if(this->tiltType != tilt_types::tiltonly) this->target = this->currentPos;
-      this->tiltTarget = this->currentTiltPos;
+      if(this->tiltType != tilt_types::tiltonly) this->p_target(this->currentPos);
+      this->p_tiltTarget(this->currentTiltPos);
     }
   }
   else if(cmd == somfy_commands::Toggle) {
@@ -2255,75 +2435,129 @@ bool SomfyShade::save() {
   return true;
 }
 bool SomfyGroup::save() { somfy.commit(); return true; }
-bool SomfyShade::fromJSON(JsonObject &obj) {
-  if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
-  if(obj.containsKey("upTime")) this->upTime = obj["upTime"];
-  if(obj.containsKey("downTime")) this->downTime = obj["downTime"];
-  if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
-  if(obj.containsKey("tiltTime")) this->tiltTime = obj["tiltTime"];
-  if(obj.containsKey("stepSize")) this->stepSize = obj["stepSize"];
-  if(obj.containsKey("hasTilt")) this->tiltType = static_cast<bool>(obj["hasTilt"]) ? tilt_types::none : tilt_types::tiltmotor;
-  if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
-  if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
-  if(obj.containsKey("sunSensor")) this->setSunSensor(obj["sunSensor"]);
-  if(obj.containsKey("light")) this->setLight(obj["light"]);
-  if(obj.containsKey("shadeType")) {
-    if(obj["shadeType"].is<const char *>()) {
-      if(strncmp(obj["shadeType"].as<const char *>(), "roller", 7) == 0)
-        this->shadeType = shade_types::roller;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "ldrapery", 9) == 0)
-        this->shadeType = shade_types::ldrapery;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "rdrapery", 9) == 0)
-        this->shadeType = shade_types::rdrapery;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "cdrapery", 9) == 0)
-        this->shadeType = shade_types::cdrapery;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "garage1", 7) == 0)
-        this->shadeType = shade_types::garage1;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "garage3", 7) == 0)
-        this->shadeType = shade_types::garage3;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "blind", 5) == 0)
-        this->shadeType = shade_types::blind;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "awning", 7) == 0)
-        this->shadeType = shade_types::awning;
-      else if(strncmp(obj["shadeType"].as<const char *>(), "shutter", 8) == 0)
-        this->shadeType = shade_types::shutter;
-    }
-    else {
-      this->shadeType = static_cast<shade_types>(obj["shadeType"].as<uint8_t>());
-    }
-  }
-  if(obj.containsKey("flipCommands")) this->flipCommands = obj["flipCommands"].as<bool>();
-  if(obj.containsKey("flipPosition")) this->flipPosition = obj["flipPosition"].as<bool>();
-  if(obj.containsKey("repeats")) this->repeats = obj["repeats"];
-  if(obj.containsKey("tiltType")) {
-    if(obj["tiltType"].is<const char *>()) {
-      if(strncmp(obj["tiltType"].as<const char *>(), "none", 4) == 0)
-        this->tiltType = tilt_types::none;
-      else if(strncmp(obj["tiltType"].as<const char *>(), "tiltmotor", 9) == 0)
-        this->tiltType = tilt_types::tiltmotor;
-      else if(strncmp(obj["tiltType"].as<const char *>(), "integ", 5) == 0)
-        this->tiltType = tilt_types::integrated;
-      else if(strncmp(obj["tiltType"].as<const char *>(), "tiltonly", 8) == 0)
-        this->tiltType = tilt_types::tiltonly;
-    }
-    else {
-      this->tiltType = static_cast<tilt_types>(obj["tiltType"].as<uint8_t>());
+int8_t SomfyShade::validateJSON(JsonObject &obj) {
+  int8_t ret = 0;
+  if(obj.containsKey("proto")) {
+    radio_proto proto = this->proto;
+    if(proto == radio_proto::GPIO) {
+      // Check to see if we are using the up and or down
+      // GPIOs anywhere else.
+      uint8_t upPin = obj.containsKey("gpioUp") ? obj["gpioUp"].as<uint8_t>() : this->gpioUp;
+      uint8_t downPin = obj.containsKey("gpioDown") ? obj["gpioDown"].as<uint8_t>() : this->gpioDown;
+      if(somfy.transceiver.config.enabled) {
+        if(somfy.transceiver.config.SCKPin == upPin || somfy.transceiver.config.SCKPin == downPin || 
+          somfy.transceiver.config.TXPin == upPin || somfy.transceiver.config.TXPin == downPin ||
+          somfy.transceiver.config.RXPin == upPin || somfy.transceiver.config.RXPin == downPin ||
+          somfy.transceiver.config.MOSIPin == upPin || somfy.transceiver.config.MOSIPin == downPin ||
+          somfy.transceiver.config.MISOPin == upPin || somfy.transceiver.config.MISOPin == downPin ||
+          somfy.transceiver.config.CSNPin == upPin || somfy.transceiver.config.CSNPin == downPin)
+          ret = -10; // Pin in use with transceiver.
+      }
+      if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref) {
+        if((settings.Ethernet.CLKMode == 0 || settings.Ethernet.CLKMode == 1) && (upPin == 0 || downPin == 0))
+          ret = -11; // Pin in use with ethernet.
+        else if((settings.Ethernet.CLKMode == 2 && (upPin == 16 || downPin == 16)) ||
+          (settings.Ethernet.CLKMode == 3 && (upPin == 17 || downPin == 17)))
+          ret = -11;
+        else if(settings.Ethernet.PWRPin == upPin || settings.Ethernet.PWRPin == downPin ||
+          settings.Ethernet.MDCPin == upPin || settings.Ethernet.MDCPin == downPin ||
+          settings.Ethernet.MDIOPin == upPin || settings.Ethernet.MDIOPin == downPin)
+          ret = -11;
+      }
+      if(ret == 0) {
+        for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
+          SomfyShade *shade = &somfy.shades[i];
+          if(shade->getShadeId() == this->getShadeId() || shade->getShadeId() == 255) continue;
+          if(shade->proto == radio_proto::GPIO) {
+            if(shade->gpioUp == upPin || shade->gpioDown == upPin || shade->gpioDown == upPin || shade->gpioDown == downPin) {
+              ret = -12;
+              break;
+            }
+          }
+        }
+      }
     }
   }
-  if(obj.containsKey("linkedAddresses")) {
-    uint32_t linkedAddresses[SOMFY_MAX_LINKED_REMOTES];
-    memset(linkedAddresses, 0x00, sizeof(linkedAddresses));
-    JsonArray arr = obj["linkedAddresses"];
-    uint8_t i = 0;
-    for(uint32_t addr : arr) {
-      linkedAddresses[i++] = addr;
+  return ret;
+}
+int8_t SomfyShade::fromJSON(JsonObject &obj) {
+  int8_t err = this->validateJSON(obj);
+  if(err == 0) {
+    if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
+    if(obj.containsKey("upTime")) this->upTime = obj["upTime"];
+    if(obj.containsKey("downTime")) this->downTime = obj["downTime"];
+    if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
+    if(obj.containsKey("tiltTime")) this->tiltTime = obj["tiltTime"];
+    if(obj.containsKey("stepSize")) this->stepSize = obj["stepSize"];
+    if(obj.containsKey("hasTilt")) this->tiltType = static_cast<bool>(obj["hasTilt"]) ? tilt_types::none : tilt_types::tiltmotor;
+    if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
+    if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
+    if(obj.containsKey("sunSensor")) this->setSunSensor(obj["sunSensor"]);
+    if(obj.containsKey("light")) this->setLight(obj["light"]);
+    if(obj.containsKey("shadeType")) {
+      if(obj["shadeType"].is<const char *>()) {
+        if(strncmp(obj["shadeType"].as<const char *>(), "roller", 7) == 0)
+          this->shadeType = shade_types::roller;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "ldrapery", 9) == 0)
+          this->shadeType = shade_types::ldrapery;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "rdrapery", 9) == 0)
+          this->shadeType = shade_types::rdrapery;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "cdrapery", 9) == 0)
+          this->shadeType = shade_types::cdrapery;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "garage1", 7) == 0)
+          this->shadeType = shade_types::garage1;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "garage3", 7) == 0)
+          this->shadeType = shade_types::garage3;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "blind", 5) == 0)
+          this->shadeType = shade_types::blind;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "awning", 7) == 0)
+          this->shadeType = shade_types::awning;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "shutter", 8) == 0)
+          this->shadeType = shade_types::shutter;
+      }
+      else {
+        this->shadeType = static_cast<shade_types>(obj["shadeType"].as<uint8_t>());
+      }
     }
-    for(uint8_t j = 0; j < SOMFY_MAX_LINKED_REMOTES; j++) {
-      this->linkedRemotes[j].setRemoteAddress(linkedAddresses[j]);
+    if(obj.containsKey("flipCommands")) this->flipCommands = obj["flipCommands"].as<bool>();
+    if(obj.containsKey("flipPosition")) this->flipPosition = obj["flipPosition"].as<bool>();
+    if(obj.containsKey("repeats")) this->repeats = obj["repeats"];
+    if(obj.containsKey("tiltType")) {
+      if(obj["tiltType"].is<const char *>()) {
+        if(strncmp(obj["tiltType"].as<const char *>(), "none", 4) == 0)
+          this->tiltType = tilt_types::none;
+        else if(strncmp(obj["tiltType"].as<const char *>(), "tiltmotor", 9) == 0)
+          this->tiltType = tilt_types::tiltmotor;
+        else if(strncmp(obj["tiltType"].as<const char *>(), "integ", 5) == 0)
+          this->tiltType = tilt_types::integrated;
+        else if(strncmp(obj["tiltType"].as<const char *>(), "tiltonly", 8) == 0)
+          this->tiltType = tilt_types::tiltonly;
+      }
+      else {
+        this->tiltType = static_cast<tilt_types>(obj["tiltType"].as<uint8_t>());
+      }
+    }
+    if(obj.containsKey("linkedAddresses")) {
+      uint32_t linkedAddresses[SOMFY_MAX_LINKED_REMOTES];
+      memset(linkedAddresses, 0x00, sizeof(linkedAddresses));
+      JsonArray arr = obj["linkedAddresses"];
+      uint8_t i = 0;
+      for(uint32_t addr : arr) {
+        linkedAddresses[i++] = addr;
+      }
+      for(uint8_t j = 0; j < SOMFY_MAX_LINKED_REMOTES; j++) {
+        this->linkedRemotes[j].setRemoteAddress(linkedAddresses[j]);
+      }
+    }
+    if(obj.containsKey("flags")) this->flags = obj["flags"];
+    if(this->proto == radio_proto::GPIO) {
+      if(obj.containsKey("gpioUp")) this->gpioUp = obj["gpioUp"];
+      if(obj.containsKey("gpioDown")) this->gpioDown = obj["gpioDown"];
+      pinMode(this->gpioUp, OUTPUT);
+      pinMode(this->gpioDown, OUTPUT);
     }
   }
-  if(obj.containsKey("flags")) this->flags = obj["flags"];
-  return true;
+  return err;
 }
 bool SomfyShade::toJSONRef(JsonObject &obj) {
   obj["shadeId"] = this->getShadeId();
@@ -2376,6 +2610,8 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["light"] = this->hasLight();
   obj["repeats"] = this->repeats;
   obj["sortOrder"] = this->sortOrder;  
+  obj["gpioUp"] = this->gpioUp;
+  obj["gpioDown"] = this->gpioDown;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -2718,19 +2954,30 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   this->lastFrame.proto = this->proto;
   if(this->lastFrame.bitLength == 0) this->lastFrame.bitLength = bit_length;
   if(this->lastFrame.rollingCode == 0) Serial.println("ERROR: Setting rcode to 0");
-  this->lastRollingCode = this->lastFrame.rollingCode;
-  Serial.print("CMD:");
-  Serial.print(translateSomfyCommand(this->lastFrame.cmd));
-  Serial.print(" ADDR:");
-  Serial.print(this->lastFrame.remoteAddress);
-  Serial.print(" RCODE:");
-  Serial.print(this->lastFrame.rollingCode);
-  Serial.print(" REPEAT:");
-  Serial.println(repeat);
+  this->p_lastRollingCode(this->lastFrame.rollingCode);
   // We have to set the processed to clear this if we are sending
   // another command.
   this->lastFrame.processed = false;
-  somfy.sendFrame(this->lastFrame, repeat);
+  if(this->proto == radio_proto::GPIO) {
+    Serial.print("CMD:");
+    Serial.print(translateSomfyCommand(this->lastFrame.cmd));
+    Serial.print(" ADDR:");
+    Serial.print(this->lastFrame.remoteAddress);
+    Serial.print(" RCODE:");
+    Serial.print(this->lastFrame.rollingCode);
+    Serial.println(" SETTING GPIO");
+  }
+  else {
+    Serial.print("CMD:");
+    Serial.print(translateSomfyCommand(this->lastFrame.cmd));
+    Serial.print(" ADDR:");
+    Serial.print(this->lastFrame.remoteAddress);
+    Serial.print(" RCODE:");
+    Serial.print(this->lastFrame.rollingCode);
+    Serial.print(" REPEAT:");
+    Serial.println(repeat);
+    somfy.sendFrame(this->lastFrame, repeat);
+  }
   somfy.processFrame(this->lastFrame, true);
 }
 bool SomfyRemote::isLastCommand(somfy_commands cmd) {
@@ -2820,11 +3067,15 @@ uint16_t SomfyRemote::getNextRollingCode() {
   code++;
   pref.putUShort(this->m_remotePrefId, code);
   pref.end();
-  this->lastRollingCode = code;
+  this->p_lastRollingCode(code);
   Serial.printf("Getting Next Rolling code %d\n", this->lastRollingCode);
   return code;
 }
-
+uint16_t SomfyRemote::p_lastRollingCode(uint16_t code) { 
+  uint16_t old = this->lastRollingCode;
+  this->lastRollingCode = code; 
+  return old;
+}
 uint16_t SomfyRemote::setRollingCode(uint16_t code) {
   if(this->lastRollingCode != code) {
     pref.begin("ShadeCodes");
@@ -2896,7 +3147,10 @@ bool SomfyShadeController::toJSONGroups(JsonArray &arr) {
 void SomfyShadeController::loop() { 
   this->transceiver.loop(); 
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
-    if(this->shades[i].getShadeId() != 255) this->shades[i].checkMovement();
+    if(this->shades[i].getShadeId() != 255) {
+      this->shades[i].checkMovement();
+      this->shades[i].setGPIOs();
+    }
   }
   // Only commit the file once per second.
   if(this->isDirty && millis() - this->lastCommit > 1000) {

@@ -593,13 +593,19 @@ void Web::handleShade(WebServer &server) {
         if (obj.containsKey("shadeId")) {
           SomfyShade* shade = somfy.getShadeById(obj["shadeId"]);
           if (shade) {
-            shade->fromJSON(obj);
-            shade->save();
-            DynamicJsonDocument sdoc(2048);
-            JsonObject sobj = sdoc.to<JsonObject>();
-            shade->toJSON(sobj);
-            serializeJson(sdoc, g_content);
-            server.send(200, _encoding_json, g_content);
+            uint8_t err = shade->fromJSON(obj);
+            if(err == 0) {
+              shade->save();
+              DynamicJsonDocument sdoc(2048);
+              JsonObject sobj = sdoc.to<JsonObject>();
+              shade->toJSON(sobj);
+              serializeJson(sdoc, g_content);
+              server.send(200, _encoding_json, g_content);
+            }
+            else {
+              snprintf(g_content, sizeof(g_content), "{\"status\":\"DATA\",\"desc\":\"Data Error.\", \"code\":%d}", err);
+              server.send(500, _encoding_json, g_content);
+            }
           }
           else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade Id not found.\"}"));
         }
@@ -1192,13 +1198,19 @@ void Web::begin() {
           if (obj.containsKey("shadeId")) {
             SomfyShade* shade = somfy.getShadeById(obj["shadeId"]);
             if (shade) {
-              shade->fromJSON(obj);
-              shade->save();
-              DynamicJsonDocument sdoc(512);
-              JsonObject sobj = sdoc.to<JsonObject>();
-              shade->toJSON(sobj);
-              serializeJson(sdoc, g_content);
-              server.send(200, _encoding_json, g_content);
+              int8_t err = shade->fromJSON(obj);
+              if(err == 0) {
+                shade->save();
+                DynamicJsonDocument sdoc(512);
+                JsonObject sobj = sdoc.to<JsonObject>();
+                shade->toJSON(sobj);
+                serializeJson(sdoc, g_content);
+                server.send(200, _encoding_json, g_content);
+              }
+              else {
+                snprintf(g_content, sizeof(g_content), "{\"status\":\"DATA\",\"desc\":\"Data Error.\", \"code\":%d}", err);
+                server.send(500, _encoding_json, g_content);
+              }
             }
             else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade Id not found.\"}"));
           }
@@ -1207,7 +1219,7 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
     }
-    });
+  });
   server.on("/saveGroup", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }

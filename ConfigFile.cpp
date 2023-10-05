@@ -7,9 +7,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 14
+#define SHADE_HDR_VER 15
 #define SHADE_HDR_SIZE 56
-#define SHADE_REC_SIZE 256
+#define SHADE_REC_SIZE 264
 #define GROUP_REC_SIZE 184
 #define TRANS_REC_SIZE 74
 
@@ -657,6 +657,11 @@ bool ShadeConfigFile::readShadeRecord(SomfyShade *shade) {
   if(this->header.version >= 12) shade->repeats = this->readUInt8(1);
   if(this->header.version >= 13) shade->sortOrder = this->readUInt8(shade->getShadeId() - 1);
   else shade->sortOrder = shade->getShadeId() - 1;
+  if(this->header.version > 14) {
+    shade->gpioUp = this->readUInt8(shade->gpioUp);
+    shade->gpioDown = this->readUInt8(shade->gpioDown);
+  }
+  
   if(shade->getShadeId() == 255) shade->clear();
   else if(shade->tiltType == tilt_types::tiltonly) {
     shade->myPos = shade->currentPos = shade->target = 100.0f;
@@ -758,7 +763,9 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   this->writeBool(shade->flipCommands);
   this->writeBool(shade->flipPosition);
   this->writeUInt8(shade->repeats);
-  this->writeUInt8(shade->sortOrder, CFG_REC_END);
+  this->writeUInt8(shade->sortOrder);
+  this->writeUInt8(shade->gpioUp);
+  this->writeUInt8(shade->gpioDown, CFG_REC_END);
   return true;  
 }
 bool ShadeConfigFile::writeSettingsRecord() {

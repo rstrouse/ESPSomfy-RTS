@@ -16,15 +16,17 @@
 #define SOMFY_NO_WIND_TIMEOUT MINS_TO_MILLIS(12)
 #define SOMFY_NO_WIND_REMOTE_TIMEOUT SECS_TO_MILLIS(30)
 
+
 struct appver_t {
   uint8_t major;
   uint8_t minor;
   uint8_t build;
 };
-enum class radio_proto : byte {
+enum class radio_proto : byte { // Ordinal byte 0-255
   RTS = 0x00,
   RTW = 0x01,
-  RTV = 0x02
+  RTV = 0x02,
+  GPIO = 0x08
 };
 enum class somfy_commands : byte {
     Unknown0 = 0x0,
@@ -183,6 +185,8 @@ class SomfyRemote {
     uint32_t m_remoteAddress = 0;
   public:
     radio_proto proto = radio_proto::RTS;
+    uint8_t gpioUp = 0;
+    uint8_t gpioDown = 0;
     somfy_frame_t lastFrame;
     bool flipCommands = false;
     uint16_t lastRollingCode = 0;
@@ -204,6 +208,7 @@ class SomfyRemote {
     virtual void sendCommand(somfy_commands cmd, uint8_t repeat);
     void sendSensorCommand(int8_t isWindy, int8_t isSunny, uint8_t repeat);
     void repeatFrame(uint8_t repeat);
+    virtual uint16_t p_lastRollingCode(uint16_t code);
     somfy_commands transformCommand(somfy_commands cmd);
 };
 class SomfyLinkedRemote : public SomfyRemote {
@@ -231,6 +236,7 @@ class SomfyShade : public SomfyRemote {
     bool settingTiltPos = false;
     uint32_t awaitMy = 0;
   public:
+    int8_t gpioDir = 0;
     int8_t sortOrder = 0;
     bool flipPosition = false;
     shade_types shadeType = shade_types::roller;
@@ -249,8 +255,9 @@ class SomfyShade : public SomfyRemote {
     float myTiltPos = -1.0f;
     SomfyLinkedRemote linkedRemotes[SOMFY_MAX_LINKED_REMOTES];
     bool paired = false;
+    int8_t validateJSON(JsonObject &obj);
     bool toJSONRef(JsonObject &obj);
-    bool fromJSON(JsonObject &obj);
+    int8_t fromJSON(JsonObject &obj);
     bool toJSON(JsonObject &obj) override;
     char name[21] = "";
     void setShadeId(uint8_t id) { shadeId = id; }
@@ -289,8 +296,27 @@ class SomfyShade : public SomfyRemote {
     void commitShadePosition();
     void commitTiltPosition();
     void commitMyPosition();
+    void setGPIOs();
     void clear();
     int8_t transformPosition(float fpos);
+
+    // State Setters
+    int8_t p_direction(int8_t dir);
+    int8_t p_tiltDirection(int8_t dir);
+    float p_target(float target);
+    float p_tiltTarget(float target);
+    float p_myPos(float pos);
+    float p_myTiltPos(float pos);
+    bool p_flag(somfy_flags_t flag, bool val);
+    bool p_sunFlag(bool val);
+    bool p_sunny(bool val);
+    bool p_windy(bool val);
+    uint16_t p_lastRollingCode(uint16_t code);
+    bool publish(const char *topic, uint8_t val, bool retain = false);
+    bool publish(const char *topic, int8_t val, bool retain = false);
+    bool publish(const char *topic, uint32_t val, bool retain = false);
+    bool publish(const char *topic, uint16_t val, bool retain = false);
+    bool publish(const char *topic, bool val, bool retain = false);
 };
 class SomfyGroup : public SomfyRemote {
   protected:

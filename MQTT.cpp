@@ -186,9 +186,13 @@ bool MQTTClass::connect() {
     snprintf(this->clientId, sizeof(this->clientId), "client-%08x%08x", (uint32_t)((mac >> 32) & 0xFFFFFFFF), (uint32_t)(mac & 0xFFFFFFFF));
     if(strlen(settings.MQTT.protocol) > 0 && strlen(settings.MQTT.hostname) > 0) {
       mqttClient.setServer(settings.MQTT.hostname, settings.MQTT.port);
-      if(mqttClient.connect(this->clientId, settings.MQTT.username, settings.MQTT.password)) {
+      char lwtTopic[128] = "status";
+      if(strlen(settings.MQTT.rootTopic) > 0)
+        snprintf(lwtTopic, sizeof(lwtTopic), "%s/status", settings.MQTT.rootTopic);
+      if(mqttClient.connect(this->clientId, settings.MQTT.username, settings.MQTT.password, lwtTopic, 0, true, "offline")) {
         Serial.print("Successfully connected MQTT client ");
         Serial.println(this->clientId);
+        this->publish("status", "online", true);
         somfy.publish();
         this->subscribe("shades/+/target/set");
         this->subscribe("shades/+/tiltTarget/set");

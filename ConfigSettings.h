@@ -76,7 +76,6 @@ class EthernetSettings: BaseSettings {
     bool load();
     bool save();
     void print();
-  
 };
 class IPSettings: BaseSettings {
   public:

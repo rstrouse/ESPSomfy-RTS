@@ -289,19 +289,32 @@
                             <div style="display:inline-block;float:right;position:relative;"><span id="spanShadeId">*</span>/<span id="spanMaxShades">5</span></div>
                             <div class="field-group" style="padding:0px;">
                                 <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
-                                    <select id="selShadeProto" name="proto" data-bind="proto" data-datatype="int" style="width:100%;">
+                                    <select id="selShadeProto" name="proto" data-bind="proto" data-datatype="int" style="width:100%;" onchange="somfy.onShadeProtoChanged(this);">
                                         <option value="0">RTS</option>
                                         <option value="1">RTW</option>
                                         <option value="2">RTV</option>
+                                        <option value="8">GPIO</option>
                                     </select>
                                     <label for="selShadeProto">Protocol</label>
                                 </div>
-                                <div class="field-group" style="margin-top:-18px;display:inline-block;width:77px;">
+                                <div id="divShadeBitLength" class="field-group" style="margin-top:-18px;width:77px;">
                                     <select id="selShadeBitLength" name="bitLength" data-bind="bitLength" data-datatype="int" style="width:100%;" onchange="somfy.onShadeBitLengthChanged(this);">
                                         <option value="56">56-BIT</option>
                                         <option value="80">80-BIT</option>
                                     </select>
                                     <label for="selShadeBitLength">Bit Length</label>
+                                </div>
+                                <div id="divGPIOControl" class=" field-group">
+                                    <div class="field-group" style="width:70px;display:inline-block;">
+                                        <select id="selShadeGPIOUp" data-bind="gpioUp" data-datatype="int" style="width:70px;">
+                                        </select>
+                                        <label for="selShadeGPIOUp">UP</label>
+                                    </div>
+                                    <div class="field-group" style="width:70px;display:inline-block;">
+                                        <select id="selShadeGPIODown" data-bind="gpioDown" data-datatype="int" style="width:70px;">
+                                        </select>
+                                        <label for="selShadeGPIODown">Down</label>
+                                    </div>
                                 </div>
                             </div>
                             <div>
@@ -322,13 +335,13 @@
                                             </select>
                                             <label for="selShadeType">Type</label>
                                         </div>
-                                        <div class="field-group" style="margin-top:-15px;">
+                                        <div id="divShadeAddress" class="field-group" style="margin-top:-15px;">
                                             <input id="fldShadeAddress" name="shadeAddress" data-bind="remoteAddress" data-datatype="int" type="number" length=5 placeholder="Address" style="width:100%;text-align:right;">
                                             <label for="fldShadeAddress">Remote Address</label>
                                         </div>
                                     </div>
                                 </div>
-                                <div id="divSomfyButtons" class="shadectl-buttons" style="float:right;margin-top:10px;position:relative">
+                                <div id="divSomfyButtons" class="shadectl-buttons" style="float:right;margin-top:-18px;position:relative">
                                     <div style="display:inline-block;margin-right:7px;position:relative;font-size:48px;"><i id="icoShade" class="somfy-shade-icon icss-window-shade" data-shadeid="0" style="--shade-position:0%;vertical-align:middle;"><span class="icss-panel-left"></span><span class="icss-panel-right"></span></i><i class="icss-window-tilt" data-tiltposition="0" style="display:none;"></i></div>
                                     <div class="button-outline" data-cmd="up" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
                                     <div class="button-outline" data-cmd="my" onclick="somfy.sendCommand(parseInt(document.getElementById('spanShadeId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
