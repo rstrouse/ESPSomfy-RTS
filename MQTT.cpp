@@ -193,6 +193,10 @@ bool MQTTClass::connect() {
         Serial.print("Successfully connected MQTT client ");
         Serial.println(this->clientId);
         this->publish("status", "online", true);
+        this->publish("ipAddress", settings.IP.ip.toString().c_str(), true);
+        this->publish("host", settings.hostname, true);
+        this->publish("firmware", settings.fwVersion, true);
+        this->publish("serverId", settings.serverId, true);
         somfy.publish();
         this->subscribe("shades/+/target/set");
         this->subscribe("shades/+/tiltTarget/set");
