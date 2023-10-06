@@ -667,6 +667,10 @@ bool ShadeConfigFile::readShadeRecord(SomfyShade *shade) {
     shade->myPos = shade->currentPos = shade->target = 100.0f;
   }
   pref.end();
+  if(shade->proto == radio_proto::GPIO) {
+    pinMode(shade->gpioUp, OUTPUT);
+    pinMode(shade->gpioDown, OUTPUT);
+  }
   return true;
 }
 bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
