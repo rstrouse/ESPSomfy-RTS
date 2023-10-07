@@ -4,6 +4,7 @@
 #include "MQTT.h"
 #include "ConfigSettings.h"
 #include "Somfy.h"
+#include "Network.h"
 
 WiFiClient tcpClient;
 PubSubClient mqttClient(tcpClient);
@@ -13,6 +14,9 @@ static char g_content[MQTT_MAX_RESPONSE];
 
 extern ConfigSettings settings;
 extern SomfyShadeController somfy;
+extern Network net;
+
+
 bool MQTTClass::begin() {
   this->suspended = false;
   return true;
@@ -197,6 +201,7 @@ bool MQTTClass::connect() {
         this->publish("host", settings.hostname, true);
         this->publish("firmware", settings.fwVersion, true);
         this->publish("serverId", settings.serverId, true);
+        this->publish("mac", net.mac.c_str());
         somfy.publish();
         this->subscribe("shades/+/target/set");
         this->subscribe("shades/+/tiltTarget/set");

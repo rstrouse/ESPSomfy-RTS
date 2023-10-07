@@ -1857,10 +1857,11 @@ class Somfy {
         this.loadPins('input', document.getElementById('selTransRXPin'));
         //this.loadSomfy();
         ui.toElement(document.getElementById('divTransceiverSettings'), {
-            transceiver: { config: { proto: 0, SCKPin: 18, CSNPin: 5, MOSIPin: 23, MISOPin: 19, TXPin: 12, RXPin: 13, frequency: 433.42, rxBandwidth: 97.96, type:56, deviation: 11.43, txPower: 10, enabled: false } }
+            transceiver: { config: { proto: 0, SCKPin: 18, CSNPin: 5, MOSIPin: 23, MISOPin: 19, TXPin: 12, RXPin: 13, frequency: 433.42, rxBandwidth: 97.96, type: 56, deviation: 11.43, txPower: 10, enabled: false } }
         });
         this.loadPins('out', document.getElementById('selShadeGPIOUp'));
         this.loadPins('out', document.getElementById('selShadeGPIODown'));
+        this.loadPins('out', document.getElementById('selShadeGPIOMy'));
         this.initialized = true;
     }
     async loadSomfy() {
@@ -1932,7 +1933,7 @@ class Somfy {
             if (valid) valid = fnValDup(trans.config, 'RXPin');
             if (valid) {
                 putJSONSync('/saveRadio', trans, (err, trans) => {
-                    if (err) 
+                    if (err)
                         ui.serviceError(err);
                     else {
                         document.getElementById('btnSaveRadio').classList.remove('disabled');
@@ -2112,7 +2113,7 @@ class Somfy {
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
             if (shade.tiltType === 3)
                 divCtl += `<span class="shadectl-mypos"><label>My Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
-            else if(shade.shadeType !== 5 && shade.shadeType !== 9) {
+            else if (shade.shadeType !== 5 && shade.shadeType !== 9) {
                 divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`;
                 if (shade.myTiltPos > 0 && shade.tiltType !== 3) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`;
             }
@@ -2248,7 +2249,7 @@ class Somfy {
         let changed = false;
         let timerStart = null;
         let dragDiv = null;
-        let fnDragStart = function(e) {
+        let fnDragStart = function (e) {
             //console.log({ evt: 'dragStart', e: e, this: this });
             if (typeof e.dataTransfer !== 'undefined') {
                 e.dataTransfer.effectAllowed = 'move';
@@ -2317,7 +2318,7 @@ class Somfy {
             console.log({ evt: 'dragLeave', e: e, this: this });
             this.classList.remove('over');
         };
-        let fnDrop = function(e) {
+        let fnDrop = function (e) {
             // Shift around the items.
             console.log({ evt: 'drop', e: e, this: this });
             let elDrag = list.querySelector('.dragging');
@@ -2333,7 +2334,7 @@ class Somfy {
                 }
             }
         };
-        let fnDragEnd = function(e) {
+        let fnDragEnd = function (e) {
             console.log({ evt: 'dragEnd', e: e, this: this });
             let elOver = list.querySelector('.over');
             [].forEach.call(items, (item) => { item.classList.remove('over') });
@@ -2604,7 +2605,7 @@ class Somfy {
                 case 9:
                 case 10:
                 case 11:
-                    if(type !== 'inout' && type !== 'input') continue;
+                    if (type !== 'inout' && type !== 'input') continue;
                     break;
                 case 37:
                 case 38:
@@ -2645,7 +2646,7 @@ class Somfy {
         for (let i = 0; i < flags.length; i++) {
             flags[i].style.display = state.sunSensor ? '' : 'none';
             flags[i].setAttribute('data-on', state.flags & 0x01 === 0x01 ? 'true' : 'false');
-           
+
         }
         let divs = document.querySelectorAll(`.somfyShadeCtl[data-shadeid="${state.shadeId}"]`);
         for (let i = 0; i < divs.length; i++) {
@@ -3110,9 +3111,15 @@ class Somfy {
             ui.errorMessage(document.getElementById('divSomfySettings'), 'Down Time must be a value between 0 and 4,294,967,295 milliseconds.  This is the travel time to go from full open to full closed.');
             valid = false;
         }
-        if (obj.proto === 8) {
+        if (obj.proto === 8 || obj.proto === 9) {
             if (obj.gpioUp === obj.gpioDown) {
                 ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down GPIO selections must be unique.');
+                valid = false;
+            }
+        }
+        if (obj.proto === 9) {
+            if (obj.gpioMy === obj.gpioUp || obj.gpioMy === obj.gpioDown) {
+                ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down and my GPIO selections must be unique.');
                 valid = false;
             }
         }

@@ -7,9 +7,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 15
+#define SHADE_HDR_VER 16
 #define SHADE_HDR_SIZE 56
-#define SHADE_REC_SIZE 264
+#define SHADE_REC_SIZE 268
 #define GROUP_REC_SIZE 184
 #define TRANS_REC_SIZE 74
 
@@ -661,16 +661,21 @@ bool ShadeConfigFile::readShadeRecord(SomfyShade *shade) {
     shade->gpioUp = this->readUInt8(shade->gpioUp);
     shade->gpioDown = this->readUInt8(shade->gpioDown);
   }
+  if(this->header.version > 15) {
+    shade->gpioMy = this->readUInt8(shade->gpioMy);
+  }
   
   if(shade->getShadeId() == 255) shade->clear();
   else if(shade->tiltType == tilt_types::tiltonly) {
     shade->myPos = shade->currentPos = shade->target = 100.0f;
   }
   pref.end();
-  if(shade->proto == radio_proto::GPIO) {
+  if(shade->proto == radio_proto::GP_Relay || shade->proto == radio_proto::GP_Remote) {
     pinMode(shade->gpioUp, OUTPUT);
     pinMode(shade->gpioDown, OUTPUT);
   }
+  if(shade->proto == radio_proto::GP_Remote)
+    pinMode(shade->gpioMy, OUTPUT);
   return true;
 }
 bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {
@@ -769,7 +774,8 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   this->writeUInt8(shade->repeats);
   this->writeUInt8(shade->sortOrder);
   this->writeUInt8(shade->gpioUp);
-  this->writeUInt8(shade->gpioDown, CFG_REC_END);
+  this->writeUInt8(shade->gpioDown);
+  this->writeUInt8(shade->gpioMy, CFG_REC_END);
   return true;  
 }
 bool ShadeConfigFile::writeSettingsRecord() {

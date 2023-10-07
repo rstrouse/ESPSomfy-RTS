@@ -141,25 +141,33 @@
 #somfyShade #divShadeBitLength {
     display:inline-block;
 }
-#somfyShade[data-proto="8"] #divGPIOControl {
+#somfyShade[data-proto="8"] #divGPIOControl,
+#somfyShade[data-proto="9"] #divGPIOControl {
     display: inline-block;
     width: auto;
     margin-top: -18px;
 }
-#somfyShade[data-proto="8"] #divShadeBitLength {
+#somfyShade[data-proto="8"] #divShadeBitLength,
+#somfyShade[data-proto="9"] #divShadeBitLength {
     display: none;
 }
 #divGPIOControl {
     text-align:center;
     margin-left:7px;
 }
+    #divGPIOControl > div.field-group {
+        width: 70px;
+        display: inline-block;
+    }
 #somfyShade[data-proto="8"] #divStepSettings,
+#somfyShade[data-proto="9"] #divStepSettings,
+#somfyShade[data-proto="8"] #divGPIOMy,
 #somfyShade[data-bitlength="56"] #divStepSettings,
 #somfyShade[data-shadetype="5"] #divStepSettings,
-#somfyShade[data-shadetype="6"] #divStepSettings,
-#somfyShade[data-shadetype="9"] #divStepSettings {
+#somfyShade[data-shadetype="6"] #divStepSettings {
     display: none;
 }
+
 .group-draggable,
 .shade-draggable {
     height:32px;

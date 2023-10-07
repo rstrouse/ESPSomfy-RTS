@@ -26,7 +26,8 @@ enum class radio_proto : byte { // Ordinal byte 0-255
   RTS = 0x00,
   RTW = 0x01,
   RTV = 0x02,
-  GPIO = 0x08
+  GP_Relay = 0x08,
+  GP_Remote = 0x09
 };
 enum class somfy_commands : byte {
     Unknown0 = 0x0,
@@ -185,8 +186,11 @@ class SomfyRemote {
     uint32_t m_remoteAddress = 0;
   public:
     radio_proto proto = radio_proto::RTS;
+    int8_t gpioDir = 0;
     uint8_t gpioUp = 0;
     uint8_t gpioDown = 0;
+    uint8_t gpioMy = 0;
+    uint32_t gpioRelease = 0;
     somfy_frame_t lastFrame;
     bool flipCommands = false;
     uint16_t lastRollingCode = 0;
@@ -210,6 +214,8 @@ class SomfyRemote {
     void repeatFrame(uint8_t repeat);
     virtual uint16_t p_lastRollingCode(uint16_t code);
     somfy_commands transformCommand(somfy_commands cmd);
+    void triggerGPIOs(somfy_frame_t &frame);
+   
 };
 class SomfyLinkedRemote : public SomfyRemote {
   public:
@@ -236,7 +242,6 @@ class SomfyShade : public SomfyRemote {
     bool settingTiltPos = false;
     uint32_t awaitMy = 0;
   public:
-    int8_t gpioDir = 0;
     int8_t sortOrder = 0;
     bool flipPosition = false;
     shade_types shadeType = shade_types::roller;
@@ -296,9 +301,9 @@ class SomfyShade : public SomfyRemote {
     void commitShadePosition();
     void commitTiltPosition();
     void commitMyPosition();
-    void setGPIOs();
     void clear();
     int8_t transformPosition(float fpos);
+    void setGPIOs();
 
     // State Setters
     int8_t p_direction(int8_t dir);

@@ -801,7 +801,7 @@ bool SomfyShade::isInGroup() {
   return false;
 }
 void SomfyShade::setGPIOs() {
-  if(this->proto == radio_proto::GPIO) {
+  if(this->proto == radio_proto::GP_Relay) {
     // Determine whether the direction needs to be set.
     int8_t dir = this->direction;
     if(dir == 0 && this->tiltType == tilt_types::integrated)
@@ -825,6 +825,63 @@ void SomfyShade::setGPIOs() {
     }
     this->gpioDir = dir;
   }
+  else if(this->proto == radio_proto::GP_Remote) {
+    if(millis() > this->gpioRelease) {
+      digitalWrite(this->gpioUp, LOW);
+      digitalWrite(this->gpioDown, LOW);
+      digitalWrite(this->gpioMy, LOW);
+      this->gpioRelease = 0;
+    }
+  }
+}
+void SomfyRemote::triggerGPIOs(somfy_frame_t &frame) {
+  if(this->proto == radio_proto::GP_Remote) {
+    int8_t dir = 0;
+    switch(frame.cmd) {
+      case somfy_commands::My:
+        digitalWrite(this->gpioUp, LOW);
+        digitalWrite(this->gpioDown, LOW);
+        digitalWrite(this->gpioMy, HIGH);
+        dir = 0;
+        if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false, MY: true\n");
+        break;
+      case somfy_commands::Up:
+        digitalWrite(this->gpioMy, LOW);
+        digitalWrite(this->gpioDown, LOW);
+        digitalWrite(this->gpioUp, HIGH);
+        dir = -1;
+        Serial.printf("UP: true, DOWN: false, MY: false\n");
+        break;
+      case somfy_commands::Toggle:
+      case somfy_commands::Down:
+        digitalWrite(this->gpioMy, LOW);
+        digitalWrite(this->gpioUp, LOW);
+        digitalWrite(this->gpioDown, HIGH);
+        dir = 1;
+        Serial.printf("UP: false, DOWN: true, MY: false\n");
+        break;
+      case somfy_commands::MyUp:
+        digitalWrite(this->gpioDown, LOW);
+        digitalWrite(this->gpioMy, HIGH);
+        digitalWrite(this->gpioUp, HIGH);
+        Serial.printf("UP: true, DOWN: false, MY: true\n");
+        break;
+      case somfy_commands::MyDown:
+        digitalWrite(this->gpioUp, LOW);
+        digitalWrite(this->gpioMy, HIGH);
+        digitalWrite(this->gpioDown, HIGH);
+        Serial.printf("UP: true, DOWN: false, MY: true\n");
+        break;
+      case somfy_commands::MyUpDown:
+        digitalWrite(this->gpioUp, HIGH);
+        digitalWrite(this->gpioMy, HIGH);
+        digitalWrite(this->gpioDown, HIGH);
+        Serial.printf("UP: true, DOWN: true, MY: true\n");
+        break;
+    }
+    this->gpioRelease = millis() + (frame.repeats * 200);
+    this->gpioDir = dir;
+  }  
 }
 void SomfyShade::checkMovement() {
   const uint64_t curTime = millis();
@@ -2439,11 +2496,12 @@ int8_t SomfyShade::validateJSON(JsonObject &obj) {
   int8_t ret = 0;
   if(obj.containsKey("proto")) {
     radio_proto proto = this->proto;
-    if(proto == radio_proto::GPIO) {
+    if(proto == radio_proto::GP_Relay || proto == radio_proto::GP_Remote) {
       // Check to see if we are using the up and or down
       // GPIOs anywhere else.
       uint8_t upPin = obj.containsKey("gpioUp") ? obj["gpioUp"].as<uint8_t>() : this->gpioUp;
       uint8_t downPin = obj.containsKey("gpioDown") ? obj["gpioDown"].as<uint8_t>() : this->gpioDown;
+      uint8_t myPin = obj.containsKey("gpioMy") ? obj["gpioMy"].as<uint8_t>() : this->gpioMy;
       if(somfy.transceiver.config.enabled) {
         if(somfy.transceiver.config.SCKPin == upPin || somfy.transceiver.config.SCKPin == downPin || 
           somfy.transceiver.config.TXPin == upPin || somfy.transceiver.config.TXPin == downPin ||
@@ -2452,24 +2510,52 @@ int8_t SomfyShade::validateJSON(JsonObject &obj) {
           somfy.transceiver.config.MISOPin == upPin || somfy.transceiver.config.MISOPin == downPin ||
           somfy.transceiver.config.CSNPin == upPin || somfy.transceiver.config.CSNPin == downPin)
           ret = -10; // Pin in use with transceiver.
+        else if(proto == radio_proto::GP_Remote) {
+          if(somfy.transceiver.config.SCKPin == myPin ||
+            somfy.transceiver.config.TXPin == myPin ||
+            somfy.transceiver.config.RXPin == myPin ||
+            somfy.transceiver.config.MOSIPin == myPin ||
+            somfy.transceiver.config.MISOPin == myPin ||
+            somfy.transceiver.config.CSNPin == myPin)
+            ret = -10; // Pin in use with transceiver.
+        }
       }
       if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref) {
         if((settings.Ethernet.CLKMode == 0 || settings.Ethernet.CLKMode == 1) && (upPin == 0 || downPin == 0))
           ret = -11; // Pin in use with ethernet.
+        else if(proto == radio_proto::GP_Remote && ((settings.Ethernet.CLKMode == 0 || settings.Ethernet.CLKMode == 1) && myPin == 0))
+          ret = -11; // Pin in use with ethernet. 
         else if((settings.Ethernet.CLKMode == 2 && (upPin == 16 || downPin == 16)) ||
           (settings.Ethernet.CLKMode == 3 && (upPin == 17 || downPin == 17)))
+          ret = -11;
+        else if(proto == radio_proto::GP_Remote && (settings.Ethernet.CLKMode == 2 && myPin == 16 || settings.Ethernet.CLKMode == 3 && myPin == 17))
           ret = -11;
         else if(settings.Ethernet.PWRPin == upPin || settings.Ethernet.PWRPin == downPin ||
           settings.Ethernet.MDCPin == upPin || settings.Ethernet.MDCPin == downPin ||
           settings.Ethernet.MDIOPin == upPin || settings.Ethernet.MDIOPin == downPin)
+          ret = -11;
+        else if(proto == radio_proto::GP_Remote && (settings.Ethernet.PWRPin == myPin ||
+          settings.Ethernet.MDCPin == myPin || settings.Ethernet.MDIOPin == myPin))
           ret = -11;
       }
       if(ret == 0) {
         for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
           SomfyShade *shade = &somfy.shades[i];
           if(shade->getShadeId() == this->getShadeId() || shade->getShadeId() == 255) continue;
-          if(shade->proto == radio_proto::GPIO) {
+          if(shade->proto == radio_proto::GP_Relay || shade->proto == radio_proto::GP_Remote) {
             if(shade->gpioUp == upPin || shade->gpioDown == upPin || shade->gpioDown == upPin || shade->gpioDown == downPin) {
+              ret = -12;
+              break;
+            }
+            else if(proto == radio_proto::GP_Remote && (shade->gpioUp == myPin || shade->gpioDown == myPin)) {
+              ret = -12;
+              break;
+            }
+            else if(shade->proto == radio_proto::GP_Remote && (shade->gpioMy == upPin || shade->gpioMy == downPin)) {
+              ret = -12;
+              break;
+            }
+            else if(shade->proto == radio_proto::GP_Remote && proto == radio_proto::GP_Remote && (shade->gpioMy == myPin)) {
               ret = -12;
               break;
             }
@@ -2550,11 +2636,15 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
       }
     }
     if(obj.containsKey("flags")) this->flags = obj["flags"];
-    if(this->proto == radio_proto::GPIO) {
+    if(this->proto == radio_proto::GP_Remote || this->proto == radio_proto::GP_Relay) {
       if(obj.containsKey("gpioUp")) this->gpioUp = obj["gpioUp"];
       if(obj.containsKey("gpioDown")) this->gpioDown = obj["gpioDown"];
       pinMode(this->gpioUp, OUTPUT);
       pinMode(this->gpioDown, OUTPUT);
+    }
+    if(this->proto == radio_proto::GP_Remote) {
+      if(obj.containsKey("gpioMy")) this->gpioMy = obj["gpioMy"];
+      pinMode(this->gpioMy, OUTPUT);
     }
   }
   return err;
@@ -2612,6 +2702,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["sortOrder"] = this->sortOrder;  
   obj["gpioUp"] = this->gpioUp;
   obj["gpioDown"] = this->gpioDown;
+  obj["gpioMy"] = this->gpioMy;
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -2958,7 +3049,7 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
   // We have to set the processed to clear this if we are sending
   // another command.
   this->lastFrame.processed = false;
-  if(this->proto == radio_proto::GPIO) {
+  if(this->proto == radio_proto::GP_Relay) {
     Serial.print("CMD:");
     Serial.print(translateSomfyCommand(this->lastFrame.cmd));
     Serial.print(" ADDR:");
@@ -2966,6 +3057,16 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
     Serial.print(" RCODE:");
     Serial.print(this->lastFrame.rollingCode);
     Serial.println(" SETTING GPIO");
+  }
+  else if(this->proto == radio_proto::GP_Remote) {
+    Serial.print("CMD:");
+    Serial.print(translateSomfyCommand(this->lastFrame.cmd));
+    Serial.print(" ADDR:");
+    Serial.print(this->lastFrame.remoteAddress);
+    Serial.print(" RCODE:");
+    Serial.print(this->lastFrame.rollingCode);
+    Serial.println(" TRIGGER GPIO");
+    this->triggerGPIOs(this->lastFrame);
   }
   else {
     Serial.print("CMD:");
@@ -2988,6 +3089,12 @@ bool SomfyRemote::isLastCommand(somfy_commands cmd) {
   return true;
 }
 void SomfyRemote::repeatFrame(uint8_t repeat) {
+  if(this->proto == radio_proto::GP_Relay)
+    return;
+  else if(this->proto == radio_proto::GP_Remote) {
+    this->triggerGPIOs(this->lastFrame);
+    return;
+  }
   somfy.transceiver.beginTransmit();
   byte frm[10];
   this->lastFrame.encodeFrame(frm);
