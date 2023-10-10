@@ -214,7 +214,7 @@ class SomfyRemote {
     void repeatFrame(uint8_t repeat);
     virtual uint16_t p_lastRollingCode(uint16_t code);
     somfy_commands transformCommand(somfy_commands cmd);
-    void triggerGPIOs(somfy_frame_t &frame);
+    virtual void triggerGPIOs(somfy_frame_t &frame);
    
 };
 class SomfyLinkedRemote : public SomfyRemote {
@@ -304,7 +304,8 @@ class SomfyShade : public SomfyRemote {
     void clear();
     int8_t transformPosition(float fpos);
     void setGPIOs();
-
+    void triggerGPIOs(somfy_frame_t &frame);
+    bool usesPin(uint8_t pin);
     // State Setters
     int8_t p_direction(int8_t dir);
     int8_t p_tiltDirection(int8_t dir);
@@ -450,6 +451,7 @@ class Transceiver {
     void endFrequencyScan();
     void processFrequencyScan(bool received = false);
     void emitFrequencyScan(uint8_t num = 255);
+    bool usesPin(uint8_t pin);
 };
 class SomfyShadeController {
   protected:

@@ -76,6 +76,7 @@ class EthernetSettings: BaseSettings {
     bool load();
     bool save();
     void print();
+    bool usesPin(uint8_t pin);
 };
 class IPSettings: BaseSettings {
   public:

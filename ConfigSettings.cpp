@@ -492,6 +492,15 @@ bool EthernetSettings::toJSON(JsonObject &obj) {
   obj["MDIOPin"] = this->MDIOPin;
   return true;
 }
+bool EthernetSettings::usesPin(uint8_t pin) {
+  if((this->CLKMode == 0 || this->CLKMode == 1) && pin == 0) return true;
+  else if(this->CLKMode == 2 && pin == 16) return true;
+  else if(this->CLKMode == 3 && pin == 17) return true;
+  else if(this->PWRPin == pin) return true;
+  else if(this->MDCPin == pin) return true;
+  else if(this->MDIOPin == pin) return true;
+  return false;  
+}
 bool EthernetSettings::save() {
   pref.begin("ETH");
   pref.clear();

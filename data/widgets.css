@@ -167,20 +167,27 @@
 #somfyShade[data-shadetype="6"] #divStepSettings {
     display: none;
 }
-
+#somfyShade[data-proto="9"][data-shadetype="5"] #divGPIOUp,
+#somfyShade[data-proto="9"][data-shadetype="5"] #divGPIOMy,
+#somfyShade[data-proto="8"][data-shadetype="5"] #divGPIOMy,
+#somfyShade[data-proto="9"][data-shadetype="9"] #divGPIOUp,
+#somfyShade[data-proto="9"][data-shadetype="9"] #divGPIOMy,
+#somfyShade[data-proto="8"][data-shadetype="9"] #divGPIOUp {
+    display: none;
+}
 .group-draggable,
 .shade-draggable {
-    height:32px;
-    border-top:solid 2px transparent;
-    cursor:grab;
+    height: 32px;
+    border-top: solid 2px transparent;
+    cursor: grab;
 }
-    .group-draggable.dragging *,
-    .group-draggable.over *,
-    .shade-draggable.dragging *,
-    .shade-draggable.over * {
-        pointer-events: none;
-    }
-    .group-draggable.over,
-    .shade-draggable.over {
-        border-top: solid 2px var(--shade-color, '#00bcd4');
-    }
+.group-draggable.dragging *,
+.group-draggable.over *,
+.shade-draggable.dragging *,
+.shade-draggable.over * {
+    pointer-events: none;
+}
+.group-draggable.over,
+.shade-draggable.over {
+    border-top: solid 2px var(--shade-color, '#00bcd4');
+}

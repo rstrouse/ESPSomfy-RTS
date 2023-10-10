@@ -1,7 +1,7 @@
 var errors = [
-    { code: -10, desc: "Pin setting in use for Transceiver" },
-    { code: -11, desc: "Pin setting in use for Ethernet Adapter" },
-    { code: -12, desc: "Pin setting in use on another motor" }
+    { code: -10, desc: "Pin setting in use for Transceiver.  Output pins cannot be re-used." },
+    { code: -11, desc: "Pin setting in use for Ethernet Adapter.  Output pins cannot be re-used." },
+    { code: -12, desc: "Pin setting in use on another motor.  Output pins cannot be re-used." }
 ]
 document.oncontextmenu = (event) => {
     if (event.target && event.target.tagName.toLowerCase() === 'input' && (event.target.type.toLowerCase() === 'text' || event.target.type.toLowerCase() === 'password'))
@@ -3112,15 +3112,25 @@ class Somfy {
             valid = false;
         }
         if (obj.proto === 8 || obj.proto === 9) {
-            if (obj.gpioUp === obj.gpioDown) {
-                ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down GPIO selections must be unique.');
-                valid = false;
-            }
-        }
-        if (obj.proto === 9) {
-            if (obj.gpioMy === obj.gpioUp || obj.gpioMy === obj.gpioDown) {
-                ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down and my GPIO selections must be unique.');
-                valid = false;
+            switch (obj.shadeType) {
+                case 5: // Garage 1-button
+                    if (obj.proto !== 9 && obj.gpioUp === obj.gpioDown) {
+                        ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down GPIO selections must be unique.');
+                        valid = false;
+                    }
+                    break;
+                case 9: // Dry contact.
+                    break;
+                default:
+                    if (obj.gpioUp === obj.gpioDown) {
+                        ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down GPIO selections must be unique.');
+                        valid = false;
+                    }
+                    else if (obj.proto === 9 && (obj.gpioMy === obj.gpioUp || obj.gpioMy === obj.gpioDown)) {
+                        ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down and my GPIO selections must be unique.');
+                        valid = false;
+                    }
+                    break;
             }
         }
         if (valid) {

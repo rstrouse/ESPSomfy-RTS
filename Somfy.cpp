@@ -806,24 +806,32 @@ void SomfyShade::setGPIOs() {
     int8_t dir = this->direction;
     if(dir == 0 && this->tiltType == tilt_types::integrated)
       dir = this->tiltDirection;
-    switch(dir) {
-      case -1:
-        digitalWrite(this->gpioDown, LOW);
-        digitalWrite(this->gpioUp, HIGH);
-        if(dir != this->gpioDir) Serial.printf("UP: true, DOWN: false\n");
-        break;
-      case 1:
-        digitalWrite(this->gpioUp, LOW);
-        digitalWrite(this->gpioDown, HIGH);
-        if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: true\n");
-        break;
-      default:
-        digitalWrite(this->gpioUp, LOW);
-        digitalWrite(this->gpioDown, LOW);
-        if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false\n");
-        break;
+    if(this->shadeType == shade_types::drycontact) {
+      digitalWrite(this->gpioDown, this->currentPos == 100 ? HIGH : LOW);
+      this->gpioDir = this->currentPos == 100 ? 1 : -1;
     }
-    this->gpioDir = dir;
+    else {
+      switch(dir) {
+        case -1:
+          digitalWrite(this->gpioDown, LOW);
+          digitalWrite(this->gpioUp, HIGH);
+          if(dir != this->gpioDir) Serial.printf("UP: true, DOWN: false\n");
+          this->gpioDir = dir;
+          break;
+        case 1:
+          digitalWrite(this->gpioUp, LOW);
+          digitalWrite(this->gpioDown, HIGH);
+          if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: true\n");
+          this->gpioDir = dir;
+          break;
+        default:
+          digitalWrite(this->gpioUp, LOW);
+          digitalWrite(this->gpioDown, LOW);
+          if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false\n");
+          this->gpioDir = dir;
+          break;
+      }
+    }
   }
   else if(this->proto == radio_proto::GP_Remote) {
     if(millis() > this->gpioRelease) {
@@ -834,49 +842,62 @@ void SomfyShade::setGPIOs() {
     }
   }
 }
-void SomfyRemote::triggerGPIOs(somfy_frame_t &frame) {
+void SomfyRemote::triggerGPIOs(somfy_frame_t &frame) { }
+void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
   if(this->proto == radio_proto::GP_Remote) {
     int8_t dir = 0;
     switch(frame.cmd) {
       case somfy_commands::My:
-        digitalWrite(this->gpioUp, LOW);
-        digitalWrite(this->gpioDown, LOW);
-        digitalWrite(this->gpioMy, HIGH);
-        dir = 0;
-        if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false, MY: true\n");
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+          digitalWrite(this->gpioUp, LOW);
+          digitalWrite(this->gpioDown, LOW);
+          digitalWrite(this->gpioMy, HIGH);
+          dir = 0;
+          if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false, MY: true\n");
+        }
         break;
       case somfy_commands::Up:
-        digitalWrite(this->gpioMy, LOW);
-        digitalWrite(this->gpioDown, LOW);
-        digitalWrite(this->gpioUp, HIGH);
-        dir = -1;
-        Serial.printf("UP: true, DOWN: false, MY: false\n");
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+          digitalWrite(this->gpioMy, LOW);
+          digitalWrite(this->gpioDown, LOW);
+          digitalWrite(this->gpioUp, HIGH);
+          dir = -1;
+          Serial.printf("UP: true, DOWN: false, MY: false\n");
+        }
         break;
       case somfy_commands::Toggle:
       case somfy_commands::Down:
-        digitalWrite(this->gpioMy, LOW);
-        digitalWrite(this->gpioUp, LOW);
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+          digitalWrite(this->gpioMy, LOW);
+          digitalWrite(this->gpioUp, LOW);
+        }
         digitalWrite(this->gpioDown, HIGH);
         dir = 1;
         Serial.printf("UP: false, DOWN: true, MY: false\n");
         break;
       case somfy_commands::MyUp:
-        digitalWrite(this->gpioDown, LOW);
-        digitalWrite(this->gpioMy, HIGH);
-        digitalWrite(this->gpioUp, HIGH);
-        Serial.printf("UP: true, DOWN: false, MY: true\n");
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+          digitalWrite(this->gpioDown, LOW);
+          digitalWrite(this->gpioMy, HIGH);
+          digitalWrite(this->gpioUp, HIGH);
+          Serial.printf("UP: true, DOWN: false, MY: true\n");
+        }
         break;
       case somfy_commands::MyDown:
-        digitalWrite(this->gpioUp, LOW);
-        digitalWrite(this->gpioMy, HIGH);
-        digitalWrite(this->gpioDown, HIGH);
-        Serial.printf("UP: true, DOWN: false, MY: true\n");
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+          digitalWrite(this->gpioUp, LOW);
+          digitalWrite(this->gpioMy, HIGH);
+          digitalWrite(this->gpioDown, HIGH);
+          Serial.printf("UP: false, DOWN: true, MY: true\n");
+        }
         break;
       case somfy_commands::MyUpDown:
-        digitalWrite(this->gpioUp, HIGH);
-        digitalWrite(this->gpioMy, HIGH);
-        digitalWrite(this->gpioDown, HIGH);
-        Serial.printf("UP: true, DOWN: true, MY: true\n");
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+          digitalWrite(this->gpioUp, HIGH);
+          digitalWrite(this->gpioMy, HIGH);
+          digitalWrite(this->gpioDown, HIGH);
+          Serial.printf("UP: true, DOWN: true, MY: true\n");
+        }
         break;
     }
     this->gpioRelease = millis() + (frame.repeats * 200);
@@ -2492,8 +2513,50 @@ bool SomfyShade::save() {
   return true;
 }
 bool SomfyGroup::save() { somfy.commit(); return true; }
+bool SomfyShade::usesPin(uint8_t pin) {
+  if(this->proto != radio_proto::GP_Remote && this->proto != radio_proto::GP_Relay) return false;
+  if(this->gpioDown == pin) return true;
+  else if(this->shadeType == shade_types::drycontact)
+    return this->gpioDown == pin;
+  else if(this->shadeType == shade_types::garage1) {
+    if(this->proto == radio_proto::GP_Relay && this->gpioUp == pin) return true;    
+  }
+  else {
+    if(this->gpioUp == pin) return true;
+    else if(this->proto == radio_proto::GP_Remote && this->gpioMy == pin) return true;    
+  }
+  return false;
+}
 int8_t SomfyShade::validateJSON(JsonObject &obj) {
   int8_t ret = 0;
+  shade_types type = this->shadeType;
+  if(obj.containsKey("shadeType")) {
+    if(obj["shadeType"].is<const char *>()) {
+      if(strncmp(obj["shadeType"].as<const char *>(), "roller", 7) == 0)
+        type = shade_types::roller;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "ldrapery", 9) == 0)
+        type = shade_types::ldrapery;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "rdrapery", 9) == 0)
+        type = shade_types::rdrapery;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "cdrapery", 9) == 0)
+        type = shade_types::cdrapery;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "garage1", 7) == 0)
+        type = shade_types::garage1;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "garage3", 7) == 0)
+        type = shade_types::garage3;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "blind", 5) == 0)
+        type = shade_types::blind;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "awning", 7) == 0)
+        type = shade_types::awning;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "shutter", 8) == 0)
+        type = shade_types::shutter;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "drycontact", 11) == 0)
+        type = shade_types::drycontact;
+    }
+    else {
+      this->shadeType = static_cast<shade_types>(obj["shadeType"].as<uint8_t>());
+    }
+  }
   if(obj.containsKey("proto")) {
     radio_proto proto = this->proto;
     if(proto == radio_proto::GP_Relay || proto == radio_proto::GP_Remote) {
@@ -2502,63 +2565,29 @@ int8_t SomfyShade::validateJSON(JsonObject &obj) {
       uint8_t upPin = obj.containsKey("gpioUp") ? obj["gpioUp"].as<uint8_t>() : this->gpioUp;
       uint8_t downPin = obj.containsKey("gpioDown") ? obj["gpioDown"].as<uint8_t>() : this->gpioDown;
       uint8_t myPin = obj.containsKey("gpioMy") ? obj["gpioMy"].as<uint8_t>() : this->gpioMy;
+      if(type == shade_types::drycontact || (type == shade_types::garage1 && proto == radio_proto::GP_Remote)) upPin = myPin = 255;
+      if(proto == radio_proto::GP_Relay) myPin = 255;
       if(somfy.transceiver.config.enabled) {
-        if(somfy.transceiver.config.SCKPin == upPin || somfy.transceiver.config.SCKPin == downPin || 
-          somfy.transceiver.config.TXPin == upPin || somfy.transceiver.config.TXPin == downPin ||
-          somfy.transceiver.config.RXPin == upPin || somfy.transceiver.config.RXPin == downPin ||
-          somfy.transceiver.config.MOSIPin == upPin || somfy.transceiver.config.MOSIPin == downPin ||
-          somfy.transceiver.config.MISOPin == upPin || somfy.transceiver.config.MISOPin == downPin ||
-          somfy.transceiver.config.CSNPin == upPin || somfy.transceiver.config.CSNPin == downPin)
-          ret = -10; // Pin in use with transceiver.
-        else if(proto == radio_proto::GP_Remote) {
-          if(somfy.transceiver.config.SCKPin == myPin ||
-            somfy.transceiver.config.TXPin == myPin ||
-            somfy.transceiver.config.RXPin == myPin ||
-            somfy.transceiver.config.MOSIPin == myPin ||
-            somfy.transceiver.config.MISOPin == myPin ||
-            somfy.transceiver.config.CSNPin == myPin)
-            ret = -10; // Pin in use with transceiver.
-        }
+        if((upPin != 255 && somfy.transceiver.usesPin(upPin)) ||
+          (downPin != 255 && somfy.transceiver.usesPin(downPin)) ||
+          (myPin != 255 && somfy.transceiver.usesPin(myPin)))
+          ret = -10;
       }
       if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref) {
-        if((settings.Ethernet.CLKMode == 0 || settings.Ethernet.CLKMode == 1) && (upPin == 0 || downPin == 0))
-          ret = -11; // Pin in use with ethernet.
-        else if(proto == radio_proto::GP_Remote && ((settings.Ethernet.CLKMode == 0 || settings.Ethernet.CLKMode == 1) && myPin == 0))
-          ret = -11; // Pin in use with ethernet. 
-        else if((settings.Ethernet.CLKMode == 2 && (upPin == 16 || downPin == 16)) ||
-          (settings.Ethernet.CLKMode == 3 && (upPin == 17 || downPin == 17)))
-          ret = -11;
-        else if(proto == radio_proto::GP_Remote && (settings.Ethernet.CLKMode == 2 && myPin == 16 || settings.Ethernet.CLKMode == 3 && myPin == 17))
-          ret = -11;
-        else if(settings.Ethernet.PWRPin == upPin || settings.Ethernet.PWRPin == downPin ||
-          settings.Ethernet.MDCPin == upPin || settings.Ethernet.MDCPin == downPin ||
-          settings.Ethernet.MDIOPin == upPin || settings.Ethernet.MDIOPin == downPin)
-          ret = -11;
-        else if(proto == radio_proto::GP_Remote && (settings.Ethernet.PWRPin == myPin ||
-          settings.Ethernet.MDCPin == myPin || settings.Ethernet.MDIOPin == myPin))
+        if((upPin != 255 && settings.Ethernet.usesPin(upPin)) ||
+          (downPin != 255 && somfy.transceiver.usesPin(downPin)) ||
+          (myPin != 255 && somfy.transceiver.usesPin(myPin)))
           ret = -11;
       }
       if(ret == 0) {
         for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
           SomfyShade *shade = &somfy.shades[i];
           if(shade->getShadeId() == this->getShadeId() || shade->getShadeId() == 255) continue;
-          if(shade->proto == radio_proto::GP_Relay || shade->proto == radio_proto::GP_Remote) {
-            if(shade->gpioUp == upPin || shade->gpioDown == upPin || shade->gpioDown == upPin || shade->gpioDown == downPin) {
-              ret = -12;
-              break;
-            }
-            else if(proto == radio_proto::GP_Remote && (shade->gpioUp == myPin || shade->gpioDown == myPin)) {
-              ret = -12;
-              break;
-            }
-            else if(shade->proto == radio_proto::GP_Remote && (shade->gpioMy == upPin || shade->gpioMy == downPin)) {
-              ret = -12;
-              break;
-            }
-            else if(shade->proto == radio_proto::GP_Remote && proto == radio_proto::GP_Remote && (shade->gpioMy == myPin)) {
-              ret = -12;
-              break;
-            }
+          if((upPin != 255 && shade->usesPin(upPin)) ||
+            (downPin != 255 && shade->usesPin(downPin)) ||
+            (myPin != 255 && shade->usesPin(myPin))){
+            ret = -12;
+            break;
           }
         }
       }
@@ -2600,6 +2629,8 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
           this->shadeType = shade_types::awning;
         else if(strncmp(obj["shadeType"].as<const char *>(), "shutter", 8) == 0)
           this->shadeType = shade_types::shutter;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "drycontact", 11) == 0)
+          this->shadeType = shade_types::drycontact;
       }
       else {
         this->shadeType = static_cast<shade_types>(obj["shadeType"].as<uint8_t>());
@@ -3707,6 +3738,18 @@ bool Transceiver::fromJSON(JsonObject& obj) {
       this->config.fromJSON(objConfig);
     }
     return true;
+}
+bool Transceiver::usesPin(uint8_t pin) {
+  if(this->config.enabled) {
+    if(this->config.SCKPin == pin ||
+      this->config.TXPin == pin ||
+      this->config.RXPin == pin ||
+      this->config.MOSIPin == pin ||
+      this->config.MISOPin == pin ||
+      this->config.CSNPin == pin)
+      return true;
+  }
+  return false;  
 }
 bool Transceiver::save() {
     this->config.save();
