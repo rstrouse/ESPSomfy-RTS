@@ -2313,10 +2313,9 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     else {
       SomfyRemote::sendCommand(cmd, repeat);
       if(this->tiltType == tilt_types::tiltonly) {
-        this->p_myPos(0.0f);
-        this->p_target(0.0f);
+        this->p_target(100.0f);
         this->p_tiltTarget(0.0f);
-        this->currentPos = 0.0f;
+        this->currentPos = 100.0f;
         //this->myPos = this->currentPos = this->target = 0.0f;
       }
       else this->p_target(0.0f);
@@ -2333,9 +2332,8 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     else {
       SomfyRemote::sendCommand(cmd, repeat);
       if(this->tiltType == tilt_types::tiltonly) {
-        this->p_myPos(100.0f);
         this->p_target(100.0f);
-        this->p_tiltTarget(0.0f);
+        this->p_tiltTarget(100.0f);
         this->currentPos = 100.0f;
         //this->myPos = this->currentPos = this->target = 100.0f;
       }
