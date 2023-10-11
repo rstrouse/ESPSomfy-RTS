@@ -2881,8 +2881,6 @@ class Somfy {
                 flipPosition = false;
                 flipCommands = false;
                 break;
-
-
             default:
                 if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
                 if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
@@ -2892,8 +2890,10 @@ class Somfy {
                 if (!ico.classList.contains('icss-window-shade')) ico.classList.add('icss-window-shade');
                 if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
                 if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
+                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
                 document.getElementById('divTiltSettings').style.display = 'none';
                 tilt = false;
+                light = false;
                 break;
         }
         document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
