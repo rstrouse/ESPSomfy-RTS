@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.1.9" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.1.9" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.1.9" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.1.10" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.1.10" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.1.10" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.1.9"></script>
+    <script type="text/javascript" src="index.js?v=2.1.10"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -516,9 +516,9 @@
                                 </div>
                                 <div>
                                     <div id="divSomfyGroupButtons" style="float:right;margin-top:-32px;position:relative">
-                                        <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
-                                        <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
-                                        <div class="button-outline" onclick="somfy.sendCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                                        <div class="button-outline" onclick="somfy.sendGroupCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'up');"><i class="icss-somfy-up"></i></div>
+                                        <div class="button-outline" onclick="somfy.sendGroupCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'my');" style="font-size: 2em; padding: 10px;"><span>my</span></div>
+                                        <div class="button-outline" onclick="somfy.sendGroupCommand(parseInt(document.getElementById('spanGroupId').innerText, 10), 'down');"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
                                     </div>
                                 </div>
                             </div>
