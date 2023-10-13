@@ -228,6 +228,10 @@ bool Network::connectWired() {
       else
           ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
       WiFi.onEvent(this->networkEvent);
+      if(settings.hostname[0] != '\0') ETH.setHostname(settings.hostname);
+      Serial.print("Set hostname to:");
+      Serial.println(ETH.getHostname());
+      
       if(!ETH.begin(settings.Ethernet.phyAddress, settings.Ethernet.PWRPin, settings.Ethernet.MDCPin, settings.Ethernet.MDIOPin, settings.Ethernet.phyType, settings.Ethernet.CLKMode)) { 
           Serial.println("Ethernet Begin failed");
           if(settings.connType == conn_types::ethernetpref) {
@@ -257,7 +261,6 @@ bool Network::connectWired() {
   return false;
 }
 bool Network::connectWiFi() {
-  if(settings.hostname[0] != '\0') WiFi.hostname(settings.hostname);
   if(settings.WIFI.ssid[0] != '\0') {
     if(WiFi.status() == WL_CONNECTED && WiFi.SSID().compareTo(settings.WIFI.ssid) == 0) {
       this->disconnected = 0;
@@ -275,17 +278,22 @@ bool Network::connectWiFi() {
     else Serial.println("Connecting to AP");
     this->connectAttempts++;
     this->connectStart = millis();
-    Serial.print("Set hostname to:");
-    Serial.println(WiFi.getHostname());
+    WiFi.setSleep(false);
+    WiFi.mode(WIFI_MODE_NULL);
+    
+
     if(!settings.IP.dhcp) {
       if(!WiFi.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     }
     else
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-    WiFi.setSleep(false);
-    WiFi.mode(WIFI_STA);
     delay(100);
+    // There is also another method simply called hostname() but this is legacy for esp8266.
+    if(settings.hostname[0] != '\0') WiFi.setHostname(settings.hostname);
+    Serial.print("Set hostname to:");
+    Serial.println(WiFi.getHostname());
+    WiFi.mode(WIFI_STA);
     WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase);
     delay(100);
     int retries = 0;
@@ -304,7 +312,7 @@ bool Network::connectWiFi() {
           Serial.print("*");
           break;
         case WL_CONNECTED:
-          WiFi.hostname(settings.hostname);
+          //WiFi.hostname(settings.hostname);
           this->ssid = WiFi.SSID();
           this->mac = WiFi.BSSIDstr();
           this->strength = WiFi.RSSI();

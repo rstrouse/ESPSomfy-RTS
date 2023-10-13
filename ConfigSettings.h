@@ -119,7 +119,7 @@ class SecuritySettings: BaseSettings {
 class MQTTSettings: BaseSettings {
   public:
     bool enabled = false;
-    char hostname[65] = "";
+    char hostname[65] = "ESPSomfyRTS";
     char protocol[10] = "mqtt://";
     uint16_t port = 1883;
     char username[33] = "";
