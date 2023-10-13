@@ -280,7 +280,7 @@ bool Network::connectWiFi() {
     this->connectStart = millis();
     WiFi.setSleep(false);
     WiFi.mode(WIFI_MODE_NULL);
-    
+    WiFi.onEvent(this->networkEvent);
 
     if(!settings.IP.dhcp) {
       if(!WiFi.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
@@ -498,6 +498,9 @@ void Network::networkEvent(WiFiEvent_t event) {
       break;
     case ARDUINO_EVENT_WIFI_STA_START:
       Serial.println("WiFi STA Started");
+      if(settings.hostname[0] != '\0') WiFi.setHostname(settings.hostname);
+      Serial.print("Set hostname event to:");
+      Serial.println(WiFi.getHostname());
       break;
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
       break;
