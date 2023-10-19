@@ -10,6 +10,7 @@
 #include "SSDP.h"
 #include "Somfy.h"
 #include "MQTT.h"
+#include "GitOTA.h"
 
 extern ConfigSettings settings;
 extern SSDPClass SSDP;
@@ -17,6 +18,8 @@ extern rebootDelay_t rebootDelay;
 extern SomfyShadeController somfy;
 extern Web webServer;
 extern MQTTClass mqtt;
+extern GitUpdater git;
+
 #define WEB_MAX_RESPONSE 16384
 static char g_content[WEB_MAX_RESPONSE];
 
@@ -231,7 +234,7 @@ void Web::handleLoginContext(WebServer &server) {
     obj["type"] = static_cast<uint8_t>(settings.Security.type);
     obj["permissions"] = settings.Security.permissions;
     obj["serverId"] = settings.serverId;
-    obj["version"] = settings.fwVersion;
+    obj["version"] = settings.fwVersion.name;
     obj["model"] = "ESPSomfyRTS";
     obj["hostname"] = settings.hostname;
     serializeJson(doc, g_content);
@@ -687,7 +690,7 @@ void Web::handleDiscovery(WebServer &server) {
     DynamicJsonDocument doc(16384);
     JsonObject obj = doc.to<JsonObject>();
     obj["serverId"] = settings.serverId;
-    obj["version"] = settings.fwVersion;
+    obj["version"] = settings.fwVersion.name;
     obj["model"] = "ESPSomfyRTS";
     obj["hostname"] = settings.hostname;
     obj["authType"] = static_cast<uint8_t>(settings.Security.type);
@@ -892,6 +895,68 @@ void Web::begin() {
   server.on("/loginContext", []() { webServer.handleLoginContext(server); });
   server.on("/shades.cfg", []() { webServer.handleStreamFile(server, "/shades.cfg", _encoding_text); });
   server.on("/shades.tmp", []() { webServer.handleStreamFile(server, "/shades.tmp", _encoding_text); });
+  server.on("/getReleases", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    GitRepo repo;
+    repo.getReleases();
+    git.setCurrentRelease(repo);
+    DynamicJsonDocument doc(2048);
+    JsonObject obj = doc.to<JsonObject>();
+    repo.toJSON(obj);
+    serializeJson(doc, g_content);
+    server.send(200, _encoding_json, g_content);
+  });
+  server.on("/downloadFirmware", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    GitRepo repo;
+    GitRelease *rel = nullptr;
+    int8_t err = repo.getReleases();
+    Serial.println("downloadFirmware called...");
+    if(err == 0) {
+      if(server.hasArg("ver")) {
+        if(strcmp(server.arg("ver").c_str(), "latest") == 0) rel = &repo.releases[0];
+        else if(strcmp(server.arg("ver").c_str(), "main") == 0) {
+          rel = &repo.releases[GIT_MAX_RELEASES];
+        }
+        else {
+          for(uint8_t i = 0; i < GIT_MAX_RELEASES; i++) {
+            if(repo.releases[i].id == 0) continue;
+            if(strcmp(repo.releases[i].name, server.arg("ver").c_str()) == 0) {
+              rel = &repo.releases[i];  
+            }
+          }
+        }
+        if(rel) {
+          DynamicJsonDocument sdoc(512);
+          JsonObject sobj = sdoc.to<JsonObject>();
+          rel->toJSON(sobj);
+          serializeJson(sdoc, g_content);
+          server.send(200, _encoding_json, g_content);
+          strcpy(git.targetRelease, rel->name);
+          git.status = GIT_AWAITING_UPDATE;
+        }
+        else
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release not found in repo.\"}"));
+      }
+      else
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release version not supplied.\"}"));
+    }
+    else {
+        server.send(err, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error communicating with Github.\"}"));
+    }
+  });
+  server.on("/cancelFirmware", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    DynamicJsonDocument sdoc(512);
+    JsonObject sobj = sdoc.to<JsonObject>();
+    git.status = GIT_UPDATE_CANCELLING;
+    git.toJSON(sobj);
+    serializeJson(sdoc, g_content);
+    server.send(200, _encoding_json, g_content);
+  });
   server.on("/backup", []() {
     webServer.sendCORSHeaders(server);
     char filename[120];
@@ -2212,7 +2277,7 @@ void Web::begin() {
     webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(512);
     JsonObject obj = doc.to<JsonObject>();
-    doc["fwVersion"] = settings.fwVersion;
+    doc["fwVersion"] = settings.fwVersion.name;
     settings.toJSON(obj);
     //settings.Ethernet.toJSON(obj);
     //settings.WIFI.toJSON(obj);
@@ -2224,7 +2289,7 @@ void Web::begin() {
     webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(2048);
     JsonObject obj = doc.to<JsonObject>();
-    doc["fwVersion"] = settings.fwVersion;
+    doc["fwVersion"] = settings.fwVersion.name;
     settings.toJSON(obj);
     JsonObject eth = obj.createNestedObject("ethernet");
     settings.Ethernet.toJSON(eth);

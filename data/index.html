@@ -12,6 +12,7 @@
 <body>
     <div id="divContainer" class="container main" data-auth="false">
         <div id="divAuthenticated" style="display:none;">
+            <div id="divFirmwareUpdate" class="firmware-message" style="display:none;">Firmware Update Available</div>
             <div id="divRadioError" class="header-message">Radio Not Initialized</div>
             <h1 style="text-align: center;"><img src="icon.png" style="width:50px;float:left;margin-left:1px;margin-top:-10px;" /><span>ESPSomfy RTS</span><span class="button-outline" onclick="ui.toggleConfig();" style="float:right;font-size:1.25rem;display:inline-block;vertical-align:middle;width:38px;height:38px;position:relative;padding-top:4px;"><span style="vertical-align:middle;clear:both;text-align:center;display:inline-block;"><i id="icoConfig" class="icss-gear" style=""></i></span></span></h1>
             <div id="divConfigPnl" style="display:none;">
@@ -120,6 +121,9 @@
                         </div>
 
                         <div class="button-container">
+                            <button id="btnUpdateGithub" type="button" onclick="firmware.updateGithub();">
+                                <i class="icss-github-o" style="font-size:1.7em;margin-top:-14px;margin-bottom:-10px;margin-right:7px;"></i><span>Github Update</span>
+                            </button>
                             <button id="btnUpdateFirmware" type="button" onclick="firmware.updateFirmware();">
                                 Update Firmware
                             </button>

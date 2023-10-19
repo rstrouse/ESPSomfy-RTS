@@ -779,7 +779,7 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   return true;  
 }
 bool ShadeConfigFile::writeSettingsRecord() {
-  this->writeVarString(settings.fwVersion);
+  this->writeVarString(settings.fwVersion.name);
   this->writeVarString(settings.hostname);
   this->writeVarString(settings.NTP.ntpServer);
   this->writeVarString(settings.NTP.posixZone);
@@ -820,42 +820,3 @@ bool ShadeConfigFile::writeTransRecord(transceiver_config_t &cfg) {
   return true;
 }
 bool ShadeConfigFile::exists() { return LittleFS.exists("/shades.cfg"); }
-bool ShadeConfigFile::getAppVersion(appver_t &ver) {
-  char app[15];
-  if(!LittleFS.exists("/appversion")) return false;
-  File f = LittleFS.open("/appversion", "r");
-  memset(app, 0x00, sizeof(app));
-  f.read((uint8_t *)app, sizeof(app) - 1);
-  f.close();
-  // Now lets parse this pig.
-  memset(&ver, 0x00, sizeof(appver_t));
-  char num[3];
-  uint8_t i = 0;
-  for(uint8_t j = 0; j < 3 && i < strlen(app); j++) {
-    char ch = app[i++];
-    if(ch != '.')
-      num[j] = ch;
-    else
-      break;
-  }
-  ver.major = static_cast<uint8_t>(atoi(num) & 0xFF);
-  memset(num, 0x00, sizeof(num));
-  for(uint8_t j = 0; j < 3 && i < strlen(app); j++) {
-    char ch = app[i++];
-    if(ch != '.')
-      num[j] = ch;
-    else
-      break;
-  }
-  ver.minor = static_cast<uint8_t>(atoi(num) & 0xFF);
-  memset(num, 0x00, sizeof(num));
-  for(uint8_t j = 0; j < 3 && i < strlen(app); j++) {
-    char ch = app[i++];
-    if(ch != '.')
-      num[j] = ch;
-    else
-      break;
-  }
-  ver.build = static_cast<uint8_t>(atoi(num) & 0xFF);
-  return true;
-}

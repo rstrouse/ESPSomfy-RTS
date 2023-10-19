@@ -22,7 +22,10 @@ class ClientSocketEvent {
     ClientSocketEvent(const char *evt, const char *data);
     char msg[2048];
     void prepareMessage(const char *evt, const char *data);
+    void prepareMessage(const char *evt, JsonDocument &doc);
     void appendMessage(const char *text);
+    void appendElement(const char *elem, const char *val);
+    
    
 };
 class SocketEmitter {
@@ -41,8 +44,8 @@ class SocketEmitter {
     bool sendToClient(uint8_t num, ClientSocketEvent *evt);
     bool sendToClients(const char *evt, const char *data);
     bool sendToClient(uint8_t num, const char *evt, const char *data);
-    //bool sendToClients(const char *evt, JsonObject &obj);
-    //bool sendToClient(uint8_t num, const char *evt, JsonObject &obj);
+    bool sendToClients(const char *evt, JsonDocument &doc);
+    bool sendToClient(uint8_t num, const char *evt, JsonDocument &doc);
     static void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 };
 #endif

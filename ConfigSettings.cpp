@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <Preferences.h>
 #include "ConfigSettings.h"
+#include "Utils.h"
 
 
 Preferences pref;
@@ -14,7 +15,74 @@ void restore_options_t::fromJSON(JsonObject &obj) {
   if(obj.containsKey("network")) this->network = obj["network"];
   if(obj.containsKey("transceiver")) this->transceiver = obj["transceiver"];
 }
-
+int8_t appver_t::compare(appver_t &ver) {
+  if(this->major == ver.major && this->minor == ver.minor && this->build == ver.build) return 0;
+  if(this->major > ver.major) return 1;
+  else if(this->major < ver.major) return -1;
+  else {
+    if(this->minor > ver.minor) return 1;
+    else if(this->minor < ver.minor) return -1;
+    else {
+      if(this->build > ver.build) return 1;
+      else if(this->build < ver.build) return -1;
+    }
+  }
+  return 0;
+}
+void appver_t::copy(appver_t &ver) {
+  strcpy(this->name, ver.name);
+  this->major = ver.major;
+  this->minor = ver.minor;
+  this->build = ver.build;
+  strcpy(this->suffix, ver.suffix);
+}
+void appver_t::parse(const char *ver) {
+  // Now lets parse this pig.
+  memset(this, 0x00, sizeof(appver_t));
+  strlcpy(this->name, ver, sizeof(this->name));
+  char num[3];
+  uint8_t i = 0;
+  memset(num, 0x00, sizeof(num));
+  for(uint8_t j = 0; j < 3 && i < strlen(ver);) {
+    char ch = ver[i++];
+    // Trim off all the prefix.
+    if(ch == '.') break;
+    if(!isdigit(ch)) continue;
+    if(ch != '.')
+      num[j++] = ch;
+    else
+      break;
+  }
+  this->major = static_cast<uint8_t>(atoi(num) & 0xFF);
+  memset(num, 0x00, sizeof(num));
+  for(uint8_t j = 0; j < 3 && i < strlen(ver);) {
+    char ch = ver[i++];
+    if(ch != '.')
+      num[j++] = ch;
+    else
+      break;
+  }
+  this->minor = static_cast<uint8_t>(atoi(num) & 0xFF);
+  memset(num, 0x00, sizeof(num));
+  for(uint8_t j = 0; j < 3 && i < strlen(ver);) {
+    char ch = ver[i++];
+    if(!isdigit(ch)) break;
+    if(ch != '.')
+      num[j++] = ch;
+    else
+      break;
+  }
+  this->build = static_cast<uint8_t>(atoi(num) & 0xFF);
+  if(strlen(ver) < i) strlcpy(this->suffix, &ver[i], sizeof(this->suffix));
+}
+bool appver_t::toJSON(JsonObject &obj) {
+  obj["name"] = this->name;
+  obj["major"] = this->major;
+  obj["minor"] = this->minor;
+  obj["build"] = this->build;
+  obj["suffix"] = this->suffix;
+  return true;
+}
 
 bool BaseSettings::load() { return true; }
 bool BaseSettings::loadFile(const char *filename) { 
@@ -66,7 +134,7 @@ double BaseSettings::parseValueDouble(JsonObject &obj, const char *prop, double 
 }
 bool ConfigSettings::begin() {
   uint32_t chipId = 0;
-  
+  this->fwVersion.parse(FW_VERSION);
   uint64_t mac = ESP.getEfuseMac();
   for(int i=0; i<17; i=i+8) {
     chipId |= ((mac >> (40 - i)) & 0xff) << i;
@@ -86,11 +154,13 @@ bool ConfigSettings::begin() {
   return true;
 }
 bool ConfigSettings::load() {
+  this->fwVersion.parse(FW_VERSION);
+  this->getAppVersion();
   pref.begin("CFG");
   pref.getString("hostname", this->hostname, sizeof(this->hostname));
   this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
   this->connType = static_cast<conn_types>(pref.getChar("connType", 0x00));
-  Serial.printf("Preference GFG Free Entries: %d\n", pref.freeEntries());
+  //Serial.printf("Preference GFG Free Entries: %d\n", pref.freeEntries());
   pref.end();
   if(this->connType == conn_types::unset) {
     // We are doing this to convert the data from previous versions.
@@ -103,6 +173,17 @@ bool ConfigSettings::load() {
     pref.end();
     this->save();    
   }
+  return true;
+}
+bool ConfigSettings::getAppVersion() {
+  char app[15];
+  if(!LittleFS.exists("/appversion")) return false;
+  File f = LittleFS.open("/appversion", "r");
+  memset(app, 0x00, sizeof(app));
+  f.read((uint8_t *)app, sizeof(app) - 1);
+  f.close();
+  _trim(app);
+  this->appVersion.parse(app);
   return true;
 }
 bool ConfigSettings::save() {
@@ -136,7 +217,7 @@ void ConfigSettings::print() {
 void ConfigSettings::emitSockets() {}
 void ConfigSettings::emitSockets(uint8_t num) {}
 uint16_t ConfigSettings::calcSettingsRecSize() {
-  return strlen(this->fwVersion) + 3 
+  return strlen(this->fwVersion.name) + 3 
     + strlen(this->hostname) + 3
     + strlen(this->NTP.ntpServer) + 3
     + strlen(this->NTP.posixZone) + 3
@@ -208,7 +289,7 @@ bool MQTTSettings::load() {
   return true;
 }
 bool ConfigSettings::toJSON(DynamicJsonDocument &doc) {
-  doc["fwVersion"] = this->fwVersion;
+  doc["fwVersion"] = this->fwVersion.name;
   JsonObject objWIFI = doc.createNestedObject("WIFI");
   this->WIFI.toJSON(objWIFI);
   JsonObject objNTP = doc.createNestedObject("NTP");

@@ -198,7 +198,7 @@ void Network::setConnected(conn_types connType) {
     MDNS.addService("espsomfy_rts", "tcp", 8080);
     MDNS.addServiceTxt("espsomfy_rts", "tcp", "serverId", String(settings.serverId));
     MDNS.addServiceTxt("espsomfy_rts", "tcp", "model", "ESPSomfyRTS");
-    MDNS.addServiceTxt("espsomfy_rts", "tcp", "version", String(settings.fwVersion));
+    MDNS.addServiceTxt("espsomfy_rts", "tcp", "version", String(settings.fwVersion.name));
   }
   if(settings.ssdpBroadcast) {
     if(SSDP.begin()) Serial.println("SSDP Client Started..."); 

@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "Somfy.h"
 #include "MQTT.h"
+#include "GitOTA.h"
 
 ConfigSettings settings;
 Web webServer;
@@ -15,15 +16,16 @@ Network net;
 rebootDelay_t rebootDelay;
 SomfyShadeController somfy;
 MQTTClass mqtt;
+GitUpdater git;
 
 void setup() {
   Serial.begin(115200);
   Serial.println();
   Serial.println("Startup/Boot....");
-  settings.begin();
   Serial.println("Mounting File System...");
   if(LittleFS.begin()) Serial.println("File system mounted successfully");
   else Serial.println("Error mounting file system");
+  settings.begin();
   if(WiFi.status() == WL_CONNECTED) WiFi.disconnect(true);
   delay(10);
   Serial.println();
@@ -32,9 +34,12 @@ void setup() {
   delay(1000);
   net.setup();  
   somfy.begin();
+  git.checkForUpdate();
 }
 
 void loop() {
+  if(!rebootDelay.reboot) git.loop();
+
   // put your main code here, to run repeatedly:
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
     Serial.print("Rebooting after ");
@@ -56,7 +61,6 @@ void loop() {
     sockEmit.loop();
     if(millis() - timing > 100) Serial.printf("Timing Socket: %dms\n", millis() - timing);
     timing = millis();
-    
   }
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
     net.end();

@@ -413,6 +413,7 @@ SomfyShadeController::SomfyShadeController() {
   uint64_t mac = ESP.getEfuseMac();
   this->startingAddress = mac & 0x0FFFFF;
 }
+bool SomfyShadeController::useNVS() { return !(settings.appVersion.major > 1 || settings.appVersion.minor >= 4); };
 SomfyShade *SomfyShadeController::findShadeByRemoteAddress(uint32_t address) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade &shade = this->shades[i];
@@ -492,8 +493,8 @@ bool SomfyShadeController::loadLegacy() {
 }
 bool SomfyShadeController::begin() {
   // Load up all the configuration data.
-  ShadeConfigFile::getAppVersion(this->appVersion);
-  Serial.printf("App Version:%u.%u.%u\n", this->appVersion.major, this->appVersion.minor, this->appVersion.build);
+  //ShadeConfigFile::getAppVersion(this->appVersion);
+  Serial.printf("App Version:%u.%u.%u\n", settings.appVersion.major, settings.appVersion.minor, settings.appVersion.build);
   if(!this->useNVS()) {  // At 1.4 we started using the configuration file.  If the file doesn't exist then booh.
     // We need to remove all the extraeneous data from NVS for the shades.  From here on out we
     // will rely on the shade configuration.

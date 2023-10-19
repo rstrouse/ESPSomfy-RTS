@@ -787,7 +787,7 @@ void SSDPClass::schema(Print &client) {
         r->modelURL,
         r->manufacturer,
         r->manufacturerURL,
-        settings.fwVersion,
+        settings.fwVersion.name,
         r->uuid );
   char *devList = strstr(buff, "</device>") - strlen("</deviceList>");
   devList[0] = '\0';
@@ -806,7 +806,7 @@ void SSDPClass::schema(Print &client) {
           dev->modelURL,
           dev->manufacturer,
           dev->manufacturerURL,
-          settings.fwVersion,
+          settings.fwVersion.name,
           dev->uuid);
     }
   }

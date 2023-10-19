@@ -1,7 +1,22 @@
 var errors = [
     { code: -10, desc: "Pin setting in use for Transceiver.  Output pins cannot be re-used." },
     { code: -11, desc: "Pin setting in use for Ethernet Adapter.  Output pins cannot be re-used." },
-    { code: -12, desc: "Pin setting in use on another motor.  Output pins cannot be re-used." }
+    { code: -12, desc: "Pin setting in use on another motor.  Output pins cannot be re-used." },
+    { code: -21, desc: "Git Update: Flash write failed." },
+    { code: -22, desc: "Git Update: Flash erase failed." },
+    { code: -23, desc: "Git Update: Flash read failed." },
+    { code: -24, desc: "Git Update: Not enough space." },
+    { code: -25, desc: "Git Update: Invalid file size given." },
+    { code: -26, desc: "Git Update: Stream read timeout." },
+    { code: -27, desc: "Git Update: MD5 check failed." },
+    { code: -28, desc: "Git Update: Wrong Magic Byte." },
+    { code: -29, desc: "Git Update: Could not activate firmware." },
+    { code: -30, desc: "Git Update: Partition could not be found." },
+    { code: -31, desc: "Git Update: Bad Argument." },
+    { code: -32, desc: "Git Update: Aborted." },
+    { code: -40, desc: "Git Download: Http Error." },
+    { code: -41, desc: "Git Download: Buffer Allocation Error." },
+    { code: -42, desc: "Git Download: Download Connection Error." }
 ]
 document.oncontextmenu = (event) => {
     if (event.target && event.target.tagName.toLowerCase() === 'input' && (event.target.type.toLowerCase() === 'text' || event.target.type.toLowerCase() === 'password'))
@@ -469,6 +484,12 @@ async function initSockets() {
                         return value;
                     });
                     switch (eventName) {
+                        case 'updateProgress':
+                            firmware.procUpdateProgress(msg);
+                            break;
+                        case 'fwStatus':
+                            firmware.procFwStatus(msg);
+                            break;
                         case 'remoteFrame':
                             somfy.procRemoteFrame(msg);
                             break;
@@ -4052,6 +4073,116 @@ class Firmware {
         html += `</form><div>`;
         div.innerHTML = html;
         return div;
+    }
+    procFwStatus(rel) {
+        console.log(rel);
+        let div = document.getElementById('divFirmwareUpdate');
+        if (rel.updateAvailable && rel.status === 0) {
+            div.style.color = 'red';
+            div.innerHTML = `Firmware ${rel.latest.name} Available`;
+        }
+        else {
+            switch (rel.status) {
+                case 2: // Awaiting update.
+                    div.style.color = 'red';
+                    div.innerHTML = `Preparing firmware update`;
+                    break;
+                case 3: // Updating -- this will be set by the update progress.
+                    break;
+                case 5:
+                    div.style.color = 'red';
+                    div.innerHTML = `Cancelling firmware update`;
+                    break;
+                case 6:
+                    div.style.color = 'red';
+                    div.innerHTML = `Firmware update cancelled`;
+                    break;
+
+                default:
+                    div.style.color = 'black';
+                    div.innerHTML = `Firmware ${rel.fwVersion.name} Installed`;
+                    break;
+            }
+        }
+        div.style.display = '';
+    }
+    procUpdateProgress(prog) {
+        let pct = Math.round((prog.loaded / prog.total) * 100);
+        let file = prog.part === 100 ? 'Application' : 'Firmware';
+        let div = document.getElementById('divFirmwareUpdate');
+        if (div) {
+            div.style.color = 'red';
+            div.innerHTML = `Updating ${file} to ${prog.ver} ${pct}%`;
+        }
+        let git = document.getElementById('divGitInstall');
+        if (git) {
+            // Update the status on the client that started the install.
+            if (pct >= 100 && prog.part === 100) git.remove();
+            else {
+                let p = prog.part === 100 ? document.getElementById('progApplicationDownload') : document.getElementById('progFirmwareDownload');
+                if (p) {
+                    p.style.setProperty('--progress', `${pct}%`);
+                    p.setAttribute('data-progress', `${pct}%`);
+                }
+            }
+        }
+
+    }
+    installGitRelease(div) {
+        let obj = ui.fromElement(div);
+        console.log(obj);
+        putJSONSync(`/downloadFirmware?ver=${obj.version}`, {}, (err, ver) => {
+            if (err) ui.serviceError(err);
+            else {
+                // Change the display and allow the percentage to be shown when the socket emits the progress.
+                let html = `<div>Installing ${ver.name}</div><div style="font-size:.7em;margin-top:4px;">Please wait as the files are downloaded and installed.</div>`;
+                html += `<div class="progress-bar" id="progFirmwareDownload" style="--progress:0%;margin-top:10px;text-align:center;"></div>`;
+                html += `<label for="progFirmwareDownload" style="font-size:10pt;">Firmware Install Progress</label>`;
+                html += `<div class="progress-bar" id="progApplicationDownload" style="--progress:0%;margin-top:10px;text-align:center;"></div>`;
+                html += `<label for="progFirmwareDownload" style="font-size:10pt;">Application Install Progress</label>`;
+                html += `<hr></hr><div class="button-container" style="text-align:center;">`;
+                html += `<button id="btnCancelUpdate" type="button" style="width:40%;padding-left:20px;padding-right:20px;display:inline-block;" onclick="firmware.cancelInstallGit(document.getElementById('divGitInstall'));">Cancel</button>`;
+                html += `</div>`;
+                div.innerHTML = html;
+
+            }
+        });
+    }
+    cancelInstallGit(div) {
+        putJSONSync(`/cancelFirmware`, {}, (err, ver) => {
+            if (err) ui.serviceError(err);
+            else console.log(ver);
+            div.remove();
+        });
+    }
+    updateGithub() {
+        getJSONSync('/getReleases', (err, rel) => {
+            if (err) ui.serviceError(err);
+            else {
+                console.log(rel);
+                let div = document.createElement('div');
+                div.setAttribute('id', 'divGitInstall')
+                div.setAttribute('class', 'inst-overlay');
+                div.style.width = '100%';
+                div.style.alignContent = 'center';
+                let html = `<div>Select a version from the repository to install using the dropdown below.  Then press the update button to install that version.</div><div style="font-size:.7em;margin-top:4px;">Select Main to install the most recent alpha version from the repository.</div>`;
+                html += `<div class="field-group" style = "text-align:center;">`;
+                html += `<select id="selVersion" data-bind="version" style="width:50%;font-size:2em;color:white;">`
+                for (let i = 0; i < rel.releases.length; i++) {
+                    html += `<option style="text-align:left;font-size:.5em;color:black;" value="${rel.releases[i].version.name}">${rel.releases[i].name}</option>`
+                }
+                html += `<label for="selVersion">Select a version</label>`;
+                html += '</select></div>';
+                html += `<hr></hr><div class="button-container" style="text-align:center;">`;
+                html += `<button id="btnUpdate" type="button" style="width:40%;padding-left:20px;padding-right:20px;display:inline-block;margin-right:7px;" onclick="firmware.installGitRelease(document.getElementById('divGitInstall'));">Update</button>`;
+                html += `<button id="btnClose" type="button" style="width:40%;padding-left:20px;padding-right:20px;display:inline-block;" onclick="document.getElementById('divGitInstall').remove();">Cancel</button>`;
+                html += `</div></div>`;
+
+                div.innerHTML = html;
+                document.getElementById('divContainer').appendChild(div);
+            }
+        });
+        
     }
     updateFirmware() {
         let div = this.createFileUploader('/updateFirmware');

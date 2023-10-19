@@ -16,6 +16,18 @@ struct restore_options_t {
   bool transceiver = false;
   void fromJSON(JsonObject &obj);
 };
+struct appver_t {
+  char name[15] = "";
+  uint8_t major = 0;
+  uint8_t minor = 0;
+  uint8_t build = 0;
+  char suffix[4] = "";
+  void parse(const char *ver);
+  bool toJSON(JsonObject &obj);
+  int8_t compare(appver_t &ver);
+  void copy(appver_t &ver);
+};
+
 
 class BaseSettings {
   public:
@@ -142,7 +154,8 @@ class ConfigSettings: BaseSettings {
     char serverId[10] = "";
     char hostname[32] = "ESPSomfyRTS";
     conn_types connType = conn_types::unset;
-    const char* fwVersion = FW_VERSION;
+    appver_t fwVersion;
+    appver_t appVersion;
     bool ssdpBroadcast = true;
     uint8_t status;
     IPSettings IP;
@@ -163,6 +176,7 @@ class ConfigSettings: BaseSettings {
     bool toJSON(DynamicJsonDocument &doc);
     uint16_t calcSettingsRecSize();
     uint16_t calcNetRecSize();
+    bool getAppVersion();
 };
 
 #endif

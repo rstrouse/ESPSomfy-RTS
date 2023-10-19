@@ -74,7 +74,6 @@ class ShadeConfigFile : public ConfigFile {
     bool readNetRecord();
     bool readTransRecord(transceiver_config_t &cfg);
   public:
-    static bool getAppVersion(appver_t &ver);
     static bool exists();
     static bool load(SomfyShadeController *somfy, const char *filename = "/shades.cfg");
     static bool restore(SomfyShadeController *somfy, const char *filename, restore_options_t &opts);

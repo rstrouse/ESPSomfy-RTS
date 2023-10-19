@@ -59,6 +59,10 @@ class Timestamp {
     char * getISOTime(time_t epoch);
     char * formatISO(struct tm *dt, int tz);
     int tzOffset();
+    static time_t parseUTCTime(const char *buff);
+    static time_t mkUTCTime(struct tm *dt);
+    static int calcTZOffset(time_t *dt);
+    static time_t now();
 };
 // Sort an array
 template<typename AnyType> void sortArray(AnyType array[], size_t sizeOfArray);

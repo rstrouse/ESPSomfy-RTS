@@ -1,5 +1,6 @@
 #ifndef SOMFY_H
 #define SOMFY_H
+#include "ConfigSettings.h"
 
 #define SOMFY_MAX_SHADES 32
 #define SOMFY_MAX_GROUPS 16
@@ -17,11 +18,6 @@
 #define SOMFY_NO_WIND_REMOTE_TIMEOUT SECS_TO_MILLIS(30)
 
 
-struct appver_t {
-  uint8_t major;
-  uint8_t minor;
-  uint8_t build;
-};
 enum class radio_proto : byte { // Ordinal byte 0-255
   RTS = 0x00,
   RTW = 0x01,
@@ -458,8 +454,7 @@ class SomfyShadeController {
     uint8_t m_shadeIds[SOMFY_MAX_SHADES];
     uint32_t lastCommit = 0;
   public:
-    appver_t appVersion;
-    bool useNVS() { return !(this->appVersion.major > 1 || this->appVersion.minor >= 4); }
+    bool useNVS();
     bool isDirty = false;
     uint32_t startingAddress;
     uint8_t getNextShadeId();

@@ -5,12 +5,14 @@
 #include "ConfigSettings.h"
 #include "Somfy.h"
 #include "Network.h"
-
+#include "GitOTA.h"
 
 extern ConfigSettings settings;
 extern Network net;
 extern SomfyShadeController somfy;
 extern SocketEmitter sockEmit;
+extern GitUpdater git;
+
 
 WebSocketsServer sockServer = WebSocketsServer(8080);
 
@@ -50,7 +52,12 @@ uint8_t room_t::activeClients() {
 void ClientSocketEvent::prepareMessage(const char *evt, const char *payload) {
     snprintf(this->msg, sizeof(this->msg), "42[%s,%s]", evt, payload);
 }
-
+void ClientSocketEvent::prepareMessage(const char *evt, JsonDocument &doc) {
+  memset(this->msg, 0x00, sizeof(this->msg));
+  snprintf(this->msg, sizeof(this->msg), "42[%s,", evt);
+  serializeJson(doc, &this->msg[strlen(this->msg)], sizeof(this->msg) - strlen(this->msg) - 2);
+  strcat(this->msg, "]");
+}
 
 /*********************************************************************
  * SocketEmitter class members
@@ -85,6 +92,34 @@ void ClientSocketEvent::appendMessage(const char *text) {
   strcat(this->msg, text);
   strcat(this->msg, "]");
 }
+/*
+void ClientSocketEvent::appendJSONElem(const char *elem) {
+  this->msg[strlen(this->msg) - 1] = '\0'; // Trim off the ending bracket.
+  uint16_t len = strlen(this->msg);
+  if(len > 0) {
+    if(this->msg[strlen(this->msg) - 1] == '{') strcat(this->msg, ',');
+  }
+  strcat(this->msg, "\"");
+  strcat(this->msg, elem);
+  strcat(this->msg, "\":");
+  strcat(this->msg, "]");
+}
+void ClientSocketEvent::appendJSON(const char *elem, const char *text, bool quoted) {
+  this->appendJSONElem(elem);
+  this->msg[strlen(this->msg) - 1] = '\0'; // Trim off the ending bracket.
+  if(quoted) strcat(this->msg, "\"");
+  strcat(this->msg, text);
+  if(quoted) strcat(this->msg, "\"");
+  strcat(this->msg, "]");
+}
+void ClientSocketEvent::appendJSON(const char *elem, const bool b) { this->appendJSON(elem, b ? "true" : "false", false); }
+void ClientSocketEvent::appendJSON(const char *elem, const uint8_t val) {
+  char buff[5];
+  sprintf(buff, "%d", val);
+  this->appendJSON(elem, buff, false);
+}
+*/
+
 uint8_t SocketEmitter::activeClients(uint8_t room) {
   if(room < SOCK_MAX_ROOMS) return this->rooms[room].activeClients();
   return 0;
@@ -99,8 +134,14 @@ bool SocketEmitter::sendToRoom(uint8_t room, ClientSocketEvent *evt) {
   }
   return false;
 }
-bool SocketEmitter::sendToClients(ClientSocketEvent *evt) { return sockServer.broadcastTXT(evt->msg); }
-bool SocketEmitter::sendToClient(uint8_t num, ClientSocketEvent *evt) { return sockServer.sendTXT(num, evt->msg); }
+bool SocketEmitter::sendToClients(ClientSocketEvent *evt) { 
+  if(evt->msg[strlen(evt->msg) - 1] != ']') strcat(evt->msg, "]");
+  return sockServer.broadcastTXT(evt->msg); 
+}
+bool SocketEmitter::sendToClient(uint8_t num, ClientSocketEvent *evt) { 
+  if(evt->msg[strlen(evt->msg) - 1] != ']') strcat(evt->msg, "]");
+  return sockServer.sendTXT(num, evt->msg); 
+}
 bool SocketEmitter::sendToClients(const char *evt, const char *payload) {
     if(settings.status == DS_FWUPDATE) return true;
     this->evt.prepareMessage(evt, payload);
@@ -111,6 +152,17 @@ bool SocketEmitter::sendToClient(uint8_t num, const char *evt, const char *paylo
     this->evt.prepareMessage(evt, payload);
     return sockServer.sendTXT(num, this->evt.msg);
 }
+bool SocketEmitter::sendToClient(uint8_t num, const char *evt, JsonDocument &doc) {
+  if(settings.status == DS_FWUPDATE) return true;
+  this->evt.prepareMessage(evt, doc);
+  return sockServer.sendTXT(num, this->evt.msg);
+}
+bool SocketEmitter::sendToClients(const char *evt, JsonDocument &doc) {
+  if(settings.status == DS_FWUPDATE) return true;
+  this->evt.prepareMessage(evt, doc);
+  return sockServer.broadcastTXT(this->evt.msg);
+}
+
 void SocketEmitter::end() { sockServer.close(); }
 void SocketEmitter::disconnect() { sockServer.disconnect(); }
 void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
@@ -139,6 +191,7 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
                 settings.emitSockets(num);
                 somfy.emitState(num);
                 net.emitSockets(num);
+                git.emitUpdateCheck(num);
             }
             break;
         case WStype_TEXT:

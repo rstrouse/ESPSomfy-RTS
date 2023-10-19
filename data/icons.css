@@ -1222,4 +1222,29 @@ div.indicator-sun {
         left: 50%;
         transform: translateX(-50%);
     }
+i.icss-github-o {
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    border: 0.068em solid currentcolor;
+    background-color: transparent;
+    background-image: radial-gradient(ellipse 100% 73% at 50% 0.48em, currentColor 0%, currentColor 38%, transparent 38%), radial-gradient(circle at 35.5% 0.5em, currentColor 0%, currentColor 27%, transparent 27%), radial-gradient(circle at 64.5% 0.5em, currentColor 0%, currentColor 27%, transparent 27%), radial-gradient(ellipse 45% 100% at 50% 0.88em, currentColor 0%, currentColor 40%, transparent 40%);
+}
 
+    i.icss-github-o:before {
+        border-width: .1em .1em;
+        border-style: solid;
+        border-radius: 0.02em 60% 100% 80%;
+        left: .14em;
+        top: .2em;
+        transform: rotate(20deg);
+    }
+
+    i.icss-github-o:after {
+        border-width: .1em .1em;
+        border-style: solid;
+        border-radius: 0.02em 80% 100% 60%;
+        left: .54em;
+        top: .2em;
+        transform: rotate(65deg);
+    }

@@ -199,7 +199,7 @@ bool MQTTClass::connect() {
         this->publish("status", "online", true);
         this->publish("ipAddress", settings.IP.ip.toString().c_str(), true);
         this->publish("host", settings.hostname, true);
-        this->publish("firmware", settings.fwVersion, true);
+        this->publish("firmware", settings.fwVersion.name, true);
         this->publish("serverId", settings.serverId, true);
         this->publish("mac", net.mac.c_str());
         somfy.publish();
