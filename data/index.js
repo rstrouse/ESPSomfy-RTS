@@ -4128,12 +4128,25 @@ class Firmware {
         }
 
     }
-    installGitRelease(div) {
+    async installGitRelease(div) {
+        if (!this.isMobile()) {
+            console.log('Starting backup');
+            try {
+                await firmware.backup();
+                console.log('Backup Complete');
+            }
+            catch (err) {
+                ui.serviceError(el, err);
+                return;
+            }
+        }
+
         let obj = ui.fromElement(div);
         console.log(obj);
         putJSONSync(`/downloadFirmware?ver=${obj.version}`, {}, (err, ver) => {
             if (err) ui.serviceError(err);
             else {
+                general.reloadApp = true;
                 // Change the display and allow the percentage to be shown when the socket emits the progress.
                 let html = `<div>Installing ${ver.name}</div><div style="font-size:.7em;margin-top:4px;">Please wait as the files are downloaded and installed.</div>`;
                 html += `<div class="progress-bar" id="progFirmwareDownload" style="--progress:0%;margin-top:10px;text-align:center;"></div>`;
@@ -4144,7 +4157,6 @@ class Firmware {
                 html += `<button id="btnCancelUpdate" type="button" style="width:40%;padding-left:20px;padding-right:20px;display:inline-block;" onclick="firmware.cancelInstallGit(document.getElementById('divGitInstall'));">Cancel</button>`;
                 html += `</div>`;
                 div.innerHTML = html;
-
             }
         });
     }
@@ -4173,9 +4185,20 @@ class Firmware {
                 }
                 html += `<label for="selVersion">Select a version</label>`;
                 html += '</select></div>';
+                if (this.isMobile()) {
+                    html += `<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="margin-top:7px;width:100%;background:yellow;padding:3px;display:inline-block;border-radius:5px;background:white;">WARNING<span></div>`;
+                    html += '<hr/><div style="font-size:14px;margin-bottom:10px;">This browser does not support automatic backups.  It is highly recommended that you back up your configuration using the backup button before proceeding.</div>';
+                }
+                else {
+                    html += '<hr/><div style="font-size:14px;margin-bottom:10px;">A backup file for your configuration will be downloaded to your browser.  If the firmware update process fails please restore this file using the restore button after going through the onboarding process.</div>'
+                }
                 html += `<hr></hr><div class="button-container" style="text-align:center;">`;
+                if (this.isMobile()) {
+                    html += `<button id="btnBackupCfg" type="button" style="display:inline-block;width:calc(80% + 7px);padding-left:20px;padding-right:20px;margin-right:4px;" onclick="firmware.backup();">Backup</button>`;
+                }
                 html += `<button id="btnUpdate" type="button" style="width:40%;padding-left:20px;padding-right:20px;display:inline-block;margin-right:7px;" onclick="firmware.installGitRelease(document.getElementById('divGitInstall'));">Update</button>`;
                 html += `<button id="btnClose" type="button" style="width:40%;padding-left:20px;padding-right:20px;display:inline-block;" onclick="document.getElementById('divGitInstall').remove();">Cancel</button>`;
+
                 html += `</div></div>`;
 
                 div.innerHTML = html;
