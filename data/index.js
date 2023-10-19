@@ -4114,6 +4114,7 @@ class Firmware {
             div.style.color = 'red';
             div.innerHTML = `Updating ${file} to ${prog.ver} ${pct}%`;
         }
+        general.reloadApp = true;
         let git = document.getElementById('divGitInstall');
         if (git) {
             // Update the status on the client that started the install.
