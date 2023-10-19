@@ -954,6 +954,7 @@ void Web::begin() {
     JsonObject sobj = sdoc.to<JsonObject>();
     git.status = GIT_UPDATE_CANCELLING;
     git.toJSON(sobj);
+    git.cancelled = true;
     serializeJson(sdoc, g_content);
     server.send(200, _encoding_json, g_content);
   });

@@ -265,7 +265,7 @@ bool GitUpdater::beginUpdate(const char *version) {
   this->cancelled = false;
   this->error = 0;
   this->error = this->downloadFile();
-  if(this->error == 0) {
+  if(this->error == 0 && !this->cancelled) {
     strcpy(this->currentFile, "SomfyController.littlefs.bin");
     this->partition = U_SPIFFS;
     this->error = this->downloadFile();
