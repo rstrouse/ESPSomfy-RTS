@@ -255,8 +255,9 @@ void GitUpdater::emitDownloadProgress(uint8_t num, size_t total, size_t loaded, 
 
 bool GitUpdater::beginUpdate(const char *version) {
   Serial.println("Begin update called...");
-  if(strcmp(version, "main") == 0)  strcpy(this->baseUrl, "https://github.com/rstrouse/ESPSomfy-RTS/blob/main/");
+  if(strcmp(version, "Main") == 0)  strcpy(this->baseUrl, "https://raw.githubusercontent.com/rstrouse/ESPSomfy-RTS/master/");
   else sprintf(this->baseUrl, "https://github.com/rstrouse/ESPSomfy-RTS/releases/download/%s/", version);
+  
   strcpy(this->targetRelease, version);
   this->emitUpdateCheck();
   strcpy(this->currentFile, "SomfyController.ino.esp32.bin");
@@ -289,6 +290,7 @@ int8_t GitUpdater::downloadFile() {
     uint8_t ndx = 0;
     char url[128];
     sprintf(url, "%s%s", this->baseUrl, this->currentFile);
+    Serial.println(url);
     if(https.begin(*client, url)) {
       https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
       Serial.print("[HTTPS] GET...\n");
@@ -347,6 +349,7 @@ int8_t GitUpdater::downloadFile() {
                 }
               }
             }
+            
             Serial.printf("Update %s complete\n", this->currentFile);
             
             free(buff);
@@ -354,6 +357,9 @@ int8_t GitUpdater::downloadFile() {
           else {
             // TODO: memory allocation error.
           }
+        }
+        else {
+          return httpCode;
         }
       }        
       https.end();  
