@@ -1,4 +1,4 @@
-# ESPSomfy-RTS <image src="https://user-images.githubusercontent.com/47839015/218898940-3541b360-5c49-4e38-a918-392cd0408b76.png" style="width:177px;display:inline-block;float:right"></image>
+# ESPSomfy-RTS <image src="https://user-images.githubusercontent.com/47839015/218898940-3541b360-5c49-4e38-a918-392cd0408b76.png" align="right" style="width:177px;display:inline-block;float:right"></image>
 
 A controller for Somfy RTS blinds and shades that supports up to 32 individual shades and 16 groups over 433.42MHz RTS protocol.
 
