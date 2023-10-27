@@ -17,7 +17,7 @@ extern rebootDelay_t rebootDelay;
 extern Web webServer;
 
 
-#define MAX_BUFF_SIZE 8192
+#define MAX_BUFF_SIZE 4096
 void GitRelease::setProperty(const char *key, const char *val) {
   if(strcmp(key, "id") == 0) this->id = atol(val);
   else if(strcmp(key, "draft") == 0) this->draft = toBoolean(val, false);
@@ -371,6 +371,7 @@ int8_t GitUpdater::downloadFile() {
       Serial.printf("End update %s\n", this->currentFile);
 
     }
+    delete client;
   }
   return 0;
 }
