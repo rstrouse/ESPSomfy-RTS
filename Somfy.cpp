@@ -785,6 +785,7 @@ bool SomfyRemote::hasLight() { return (this->flags & static_cast<uint8_t>(somfy_
 void SomfyRemote::setSunSensor(bool bHasSensor ) { bHasSensor ? this->flags |= static_cast<uint8_t>(somfy_flags_t::SunSensor) : this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunSensor)); }
 void SomfyRemote::setLight(bool bHasLight ) { bHasLight ? this->flags |= static_cast<uint8_t>(somfy_flags_t::Light) : this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Light)); }
 void SomfyGroup::updateFlags() { 
+  uint8_t oldFlags = this->flags;
   this->flags = 0;
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
     if(this->linkedShades[i] != 0) {
@@ -793,6 +794,7 @@ void SomfyGroup::updateFlags() {
     }
     else break;
   }
+  if(oldFlags != this->flags) this->emitState();
 }
 bool SomfyShade::isInGroup() {
   if(this->getShadeId() == 255) return false;
@@ -2107,14 +2109,14 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
       }
       break;
     case somfy_commands::Flag:
+      this->p_sunFlag(false);
       if(this->hasSunSensor()) {
-        this->p_sunFlag(false);
-        //this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
         somfy.isDirty = true;
         this->emitState();
       }
-      else
+      else {
         Serial.printf("Shade does not have sensor %d\n", this->flags);
+      }
       break;    
     case somfy_commands::SunFlag:
       if(this->hasSunSensor()) {

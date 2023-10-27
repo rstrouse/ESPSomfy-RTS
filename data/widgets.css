@@ -54,6 +54,12 @@
     padding-bottom: 2px;
     min-height: 147px;
 }
+.info-message .info-text {
+    text-align:left;
+    font-size:14px;
+    max-height:calc(100% - 77px);
+    overflow:auto;
+}
 .prompt-message .sub-message {
     font-size: 17px;
     padding-left: 10px;

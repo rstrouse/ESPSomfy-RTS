@@ -326,7 +326,7 @@ bool Network::connectWiFi() {
         case WL_NO_SSID_AVAIL:
           Serial.print(" Connection failed the SSID ");
           Serial.print(settings.WIFI.ssid);
-          Serial.print(" could not be found");
+          Serial.println(" could not be found");
           return false;
         default:
           break;
@@ -497,10 +497,7 @@ void Network::networkEvent(WiFiEvent_t event) {
       Serial.println("WiFi AP Started");
       break;
     case ARDUINO_EVENT_WIFI_STA_START:
-      Serial.println("WiFi STA Started");
       if(settings.hostname[0] != '\0') WiFi.setHostname(settings.hostname);
-      Serial.print("Set hostname event to:");
-      Serial.println(WiFi.getHostname());
       break;
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
       break;

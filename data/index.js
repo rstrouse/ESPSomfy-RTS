@@ -977,6 +977,23 @@ class UIBinder {
         div.querySelector('#btnYes').addEventListener('click', onYes);
         return div;
     }
+    infoMessage(el, msg, onOk) {
+        if (arguments.length === 1) {
+            onOk = msg;
+            msg = el;
+            el = document.getElementById('divContainer');
+        }
+        let div = document.createElement('div');
+        div.innerHTML = '<div class="info-text">' + msg + '</div><div class="sub-message"></div><div class="button-container" style="text-align:center;"><button id="btnOk" type="button" style="width:40%;display:inline-block;">Ok</button></div></div>';
+        div.classList.add('info-message');
+        div.classList.add('message-overlay');
+        el.appendChild(div);
+        if (typeof onOk === 'function') div.querySelector('#btnOk').addEventListener('click', onOk);
+        else div.querySelector('#btnOk').addEventListener('click', (e) => { div.remove() });
+        //div.querySelector('#btnYes').addEventListener('click', onYes);
+        return div;
+
+    }
     clearErrors() {
         let errors = document.querySelectorAll('div.message-overlay');
         if (errors && errors.length > 0) errors.forEach((el) => { el.remove(); });
@@ -1235,7 +1252,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.1.10';
+    appVersion = 'v2.2.0';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -2444,7 +2461,7 @@ class Somfy {
                 }
                 divCtl += '</div></div>';
                 divCtl += `<div class="groupctl-buttons">`;
-                divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-groupid="${group.groupId}" data-on="${group.flags & 0x01 ? 'true' : 'false'}" style="${!group.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
+                divCtl += `<div class="button-sunflag cmd-button" data-cmd="sunflag" data-groupid="${group.groupId}" data-on="${group.flags & 0x20 ? 'true' : 'false'}" style="${!group.sunSensor ? 'display:none' : ''}"><i class="icss-sun-c"></i><i class="icss-sun-o"></i></div>`;
                 divCtl += `<div class="button-outline cmd-button" data-cmd="up" data-groupid="${group.groupId}"><i class="icss-somfy-up"></i></div>`;
                 divCtl += `<div class="button-outline cmd-button my-button" data-cmd="my" data-groupid="${group.groupId}" style="font-size:2em;padding:10px;"><span>my</span></div>`;
                 divCtl += `<div class="button-outline cmd-button" data-cmd="down" data-groupid="${group.groupId}"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>`;
@@ -2648,7 +2665,7 @@ class Somfy {
         let flags = document.querySelectorAll(`.button-sunflag[data-groupid="${state.groupId}"]`);
         for (let i = 0; i < flags.length; i++) {
             flags[i].style.display = state.sunSensor ? '' : 'none';
-            flags[i].setAttribute('data-on', state.flags & 0x01 === 0x01 ? 'true' : 'false');
+            flags[i].setAttribute('data-on', state.flags & 0x20 === 0x20 ? 'true' : 'false');
         }
     }
     procShadeState(state) {
@@ -4180,12 +4197,12 @@ class Firmware {
                 div.style.alignContent = 'center';
                 let html = `<div>Select a version from the repository to install using the dropdown below.  Then press the update button to install that version.</div><div style="font-size:.7em;margin-top:4px;">Select Main to install the most recent alpha version from the repository.</div>`;
                 html += `<div class="field-group" style = "text-align:center;">`;
-                html += `<select id="selVersion" data-bind="version" style="width:50%;font-size:2em;color:white;">`
+                html += `<select id="selVersion" data-bind="version" style="width:50%;font-size:2em;color:white;" onchange="firmware.gitReleaseSelected(document.getElementById('divGitInstall'));">`
                 for (let i = 0; i < rel.releases.length; i++) {
                     html += `<option style="text-align:left;font-size:.5em;color:black;" value="${rel.releases[i].version.name}">${rel.releases[i].name}</option>`
                 }
-                html += `<label for="selVersion">Select a version</label>`;
-                html += '</select></div>';
+                html += `</select><label for="selVersion">Select a version</label></div>`;
+                html += `<div class="button-container" id="divReleaseNotes" style="text-align:center;margin-top:-20px;display:none;"><button type="button" onclick="firmware.showReleaseNotes(document.getElementById('selVersion').value);" style="display:inline-block;width:auto;padding-left:20px;padding-right:20px;">Release Notes</button></div>`;
                 if (this.isMobile()) {
                     html += `<div style="width:100%;color:red;text-align:center;font-weight:bold;"><span style="margin-top:7px;width:100%;background:yellow;padding:3px;display:inline-block;border-radius:5px;background:white;">WARNING<span></div>`;
                     html += '<hr/><div style="font-size:14px;margin-bottom:10px;">This browser does not support automatic backups.  It is highly recommended that you back up your configuration using the backup button before proceeding.</div>';
@@ -4204,9 +4221,103 @@ class Firmware {
 
                 div.innerHTML = html;
                 document.getElementById('divContainer').appendChild(div);
+                this.gitReleaseSelected(div);
             }
         });
         
+    }
+    gitReleaseSelected(div) {
+        let obj = ui.fromElement(div);
+        let divNotes = div.querySelector('#divReleaseNotes');
+        if (divNotes) {
+            if (!obj.version || obj.version === 'main' || obj.version === '') divNotes.style.display = 'none';
+            else divNotes.style.display = '';
+        }
+    }
+    async getReleaseInfo(tag) {
+        let overlay = ui.waitMessage(document.getElementById('divContainer'));
+        try {
+            let ret = {};
+            ret.resp = await fetch(`https://api.github.com/repos/rstrouse/espsomfy-rts/releases/tags/${tag}`);
+            if (ret.resp.ok)
+                ret.info = await ret.resp.json();
+            return ret;
+        }
+        catch (err) {
+            return { err: err };
+        }
+        finally { overlay.remove(); }
+    }
+    async showReleaseNotes(tagName) {
+        console.log(tagName);
+        let r = await this.getReleaseInfo(tagName);
+        console.log(r);
+        let fnToItem = (txt, tag) => {  }
+        if (r.resp.ok) {
+            // Convert this to html.
+            let lines = r.info.body.split('\r\n');
+            let ctx = { html: '', llvl: 0, lines: r.info.body.split('\r\n'), ndx: 0 };
+            ctx.toHead = function (txt) {
+                let num = txt.indexOf(' ');
+                return `<h${num}>${txt.substring(num).trim()}</h${num}>`;
+            };
+            ctx.toUL = function () {
+                let txt = this.lines[this.ndx++];
+                let tok = this.token(txt);
+                this.html += `<ul>${this.toLI(tok.txt)}`;
+                while (this.ndx < this.lines.length) {
+                    txt = this.lines[this.ndx];
+                    let t = this.token(txt);
+                    if (t.ch === '*') {
+                        if (t.indent !== tok.indent) this.toUL();
+                        else {
+                            this.html += this.toLI(t.txt);
+                            this.ndx++;
+                        }
+                    }
+                    else break;
+                }
+                this.html += '</ul>';
+            };
+            ctx.toLI = function (txt) { return `<li>${txt.trim()}</li>`; }
+            ctx.token = function (txt) {
+                let tok = { ch: '', indent: 0, txt:'' }
+                for (let i = 0; i < txt.length; i++) {
+                    if (txt[i] === ' ') tok.indent++;
+                    else {
+                        tok.ch = txt[i];
+                        let tmp = txt.substring(tok.indent);
+                        tok.txt = tmp.substring(tmp.indexOf(' '));
+                        break;
+                    }
+                }
+                return tok;
+            };
+            ctx.next = function () {
+                if (this.ndx >= this.lines.length) return false;
+                let tok = this.token(this.lines[this.ndx]);
+                switch (tok.ch) {
+                    case '#':
+                        this.html += this.toHead(this.lines[this.ndx]);
+                        this.ndx++;
+                        break;
+                    case '*':
+                        this.toUL();
+                        break;
+                    case '':
+                        this.ndx++;
+                        this.html += `<br/><div>${tok.txt}</div>`;
+                        break;
+                    default:
+                        this.ndx++;
+                        break;
+                }
+                return true;
+            };
+            while (ctx.next());
+            console.log(ctx);
+            ui.infoMessage(ctx.html);
+        }
     }
     updateFirmware() {
         let div = this.createFileUploader('/updateFirmware');

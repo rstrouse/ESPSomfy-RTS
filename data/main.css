@@ -218,6 +218,7 @@ a {
     bottom: 7px;
     border-bottom: 1px solid #00bcd4;
 }
+div.info-message,
 div.prompt-message,
 div.error-message {
     position:absolute;

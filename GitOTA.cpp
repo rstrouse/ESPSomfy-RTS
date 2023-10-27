@@ -46,7 +46,7 @@ bool GitRelease::toJSON(JsonObject &obj) {
 }
 #define ERR_CLIENT_OFFSET -50
 
-int8_t GitRepo::getReleases(uint8_t num) {
+int16_t GitRepo::getReleases(uint8_t num) {
   WiFiClientSecure *client = new WiFiClientSecure;
   if(client) {
     client->setInsecure();
@@ -63,8 +63,8 @@ int8_t GitRepo::getReleases(uint8_t num) {
     strcpy(main->version.name, "main");
     strcpy(main->name, "Main");
     if(https.begin(*client, url)) {
-      Serial.print("[HTTPS] GET...\n");
       int httpCode = https.GET();
+      Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
       if(httpCode > 0) {
         int len = https.getSize();
         Serial.printf("[HTTPS] GET... code: %d - %d\n", httpCode, len);
@@ -154,6 +154,7 @@ int8_t GitRepo::getReleases(uint8_t num) {
       }
       https.end();  
     }
+    delete client;
   }
   return 0;
 }
@@ -201,8 +202,12 @@ void GitUpdater::checkForUpdate() {
   GitRepo repo;
   this->lastCheck = millis();
   this->updateAvailable = false;
-  if(repo.getReleases(2) == 0) { // Get 2 releases so we can filter our pre-releases
+  this->error = repo.getReleases(2);
+  if(this->error == 0) { // Get 2 releases so we can filter our pre-releases
     this->setCurrentRelease(repo);
+  }
+  else {
+    this->emitUpdateCheck();
   }
   this->status = GIT_STATUS_READY;
 }

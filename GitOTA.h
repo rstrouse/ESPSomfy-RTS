@@ -28,7 +28,7 @@ class GitRelease {
 
 class GitRepo {
   public:
-    int8_t getReleases(uint8_t num = GIT_MAX_RELEASES);
+    int16_t getReleases(uint8_t num = GIT_MAX_RELEASES);
     GitRelease releases[GIT_MAX_RELEASES + 1];
     bool toJSON(JsonObject &obj);
 };
@@ -39,7 +39,7 @@ class GitUpdater {
     bool updateAvailable = false;
     appver_t latest;
     bool cancelled = false;
-    int8_t error = 0;
+    int16_t error = 0;
     char targetRelease[32];
     char currentFile[64] = "";
     char baseUrl[128] = "";
