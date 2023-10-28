@@ -573,6 +573,7 @@ bool ShadeConfigFile::readSettingsRecord() {
 }
 bool ShadeConfigFile::readGroupRecord(SomfyGroup *group) {
   pref.begin("ShadeCodes");
+  uint32_t startPos = this->file.position();
   group->setGroupId(this->readUInt8(255));
   group->groupType = static_cast<group_types>(this->readUInt8(0));
   group->setRemoteAddress(this->readUInt32(0));
@@ -597,10 +598,15 @@ bool ShadeConfigFile::readGroupRecord(SomfyGroup *group) {
   if(group->getGroupId() == 255) group->clear();
   else group->compressLinkedShadeIds();
   pref.end();
+  if(this->file.position() != startPos + this->header.groupRecordSize) {
+    Serial.println("Reading to end of group record");
+    this->seekChar(CFG_REC_END);
+  }
   return true;
 }
 bool ShadeConfigFile::readShadeRecord(SomfyShade *shade) {
   pref.begin("ShadeCodes");
+  uint32_t startPos = this->file.position();
   shade->setShadeId(this->readUInt8(255));
   shade->paired = this->readBool(false);
   shade->shadeType = static_cast<shade_types>(this->readUInt8(0));
@@ -676,6 +682,10 @@ bool ShadeConfigFile::readShadeRecord(SomfyShade *shade) {
   }
   if(shade->proto == radio_proto::GP_Remote)
     pinMode(shade->gpioMy, OUTPUT);
+  if(this->file.position() != startPos + this->header.shadeRecordSize) {
+    Serial.println("Reading to end of shade record");
+    this->seekChar(CFG_REC_END);
+  }
   return true;
 }
 bool ShadeConfigFile::loadFile(SomfyShadeController *s, const char *filename) {

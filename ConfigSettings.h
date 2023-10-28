@@ -131,12 +131,14 @@ class SecuritySettings: BaseSettings {
 class MQTTSettings: BaseSettings {
   public:
     bool enabled = false;
+    bool pubDisco = false;
     char hostname[65] = "ESPSomfyRTS";
     char protocol[10] = "mqtt://";
     uint16_t port = 1883;
     char username[33] = "";
     char password[33] = "";
     char rootTopic[65] = "";
+    char discoTopic[65] = "homeassistant";
     bool begin();
     bool save();
     bool load();

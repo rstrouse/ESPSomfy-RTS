@@ -309,6 +309,27 @@ bool MQTTClass::publish(const char *topic, JsonObject &obj, bool retain) {
   serializeJson(obj, g_content, sizeof(g_content));
   return this->publish(topic, g_content, retain);
 }
+bool MQTTClass::publishBuffer(const char *topic, uint8_t *data, uint16_t len, bool retain) {
+  size_t res;
+  uint16_t offset = 0;
+  uint16_t to_write = len;
+  uint16_t buff_len;
+  mqttClient.beginPublish(topic, len, retain);
+  do { 
+    buff_len = to_write;
+    if(buff_len > 128) buff_len = 128;
+    res = mqttClient.write(data+offset, buff_len);
+    offset += buff_len;
+    to_write -= buff_len;
+  } while(res == buff_len && to_write > 0);
+  mqttClient.endPublish();
+  return true;
+}
+bool MQTTClass::publishDisco(const char *topic, JsonObject &obj, bool retain) {
+  serializeJson(obj, g_content, sizeof(g_content));
+  this->publishBuffer(topic, (uint8_t *)g_content, strlen(g_content), retain);
+  return true;
+}
 bool MQTTClass::publish(const char *topic, int8_t val, bool retain) {
   snprintf(g_content, sizeof(g_content), "%d", val);
   return this->publish(topic, g_content, retain);

@@ -245,9 +245,15 @@
 
                     </div>
                     <div id="divMQTT" class="subtab-content" style="display:none;">
-                        <div class="field-group" style="vertical-align:middle;">
-                            <input id="cbMqttEnabled" name="mqtt-enabled" type="checkbox" data-bind="mqtt.enabled" style="display:inline-block;" />
-                            <label for="cbMqttEnabled" style="display:inline-block;cursor:pointer;">Enable MQTT client</label>
+                        <div class="field-group" style="vertical-align:middle;margin-top:-20px;">
+                            <div class="field-group" style="display:inline-block;width:auto;">
+                                <input id="cbMqttEnabled" name="mqtt-enabled" type="checkbox" data-bind="mqtt.enabled" style="display:inline-block;" />
+                                <label for="cbMqttEnabled" style="display:inline-block;cursor:pointer;">Enable MQTT client</label>
+                            </div>
+                            <div class="field-group" style="display:inline-block;width:auto;float:right;">
+                                <input id="cbPubDisco" name="pub-disco" type="checkbox" data-bind="mqtt.pubDisco" style="display:inline-block;margin-left:7px;" onclick="document.getElementById('divDiscoveryTopic').style.display = this.checked ? '' : 'none'" />
+                                <label for="cbPubDisco" style="display:inline-block;cursor:pointer;">Publish Discovery</label>
+                            </div>
                         </div>
                         <div class="field-group1" style="white-space:nowrap;">
                             <select name="mqtt-protocol" data-bind="mqtt.protocol" style="width:54px;">
@@ -270,6 +276,10 @@
                         <div class="field-group">
                             <input id="fldMqttTopic" name="mqtt-topic" type="text" length=64 data-bind="mqtt.rootTopic" placeholder="Root Topic">
                             <label for="fldMqttTopic">Root Topic</label>
+                        </div>
+                        <div class="field-group" id="divDiscoveryTopic" style="display:none;">
+                            <input id="fldDiscoTopic" name="disco-topic" type="text" length=64 data-bind="mqtt.discoTopic" placeholder="Discovery Topic">
+                            <label for="fldDiscoTopic">Discovery Topic</label>
                         </div>
 
                         <div class="button-container">
@@ -785,11 +795,11 @@
             </div>
             <div id="divLoginPassword" style="display:none;" onkeyup="if (event.code === 'Enter') security.login();">
                 <div class="field-group">
-                    <input id="fldLoginUsername" name="username" type="text" data-bind="login.username" length=32 placeholder="Username"/>
+                    <input id="fldLoginUsername" name="username" type="text" data-bind="login.username" length=32 placeholder="Username" />
                     <label for="fldLoginUsername">Username</label>
                 </div>
                 <div class="field-group">
-                    <input id="fldLoginPassword" name="password" type="password" data-bind="login.password" length=32 placeholder="Password"/>
+                    <input id="fldLoginPassword" name="password" type="password" data-bind="login.password" length=32 placeholder="Password" />
                     <label for="fldLoginPassword">Password</label>
                 </div>
             </div>
@@ -853,7 +863,7 @@
             mouseDown = false;
         });
         (async () => { await init(); })();
-        /*
+            /*
         security.init();
         //(async () => { await general.init(); })();
         general.init();
@@ -868,9 +878,9 @@
 
         }
         */
-        //ui.toElement(document.getElementById('divContainer'), o);
-        //console.log(ui.fromElement(document.getElementById('divContainer')));
-        //(async () => { await initSockets(); })();
+            //ui.toElement(document.getElementById('divContainer'), o);
+            //console.log(ui.fromElement(document.getElementById('divContainer')));
+            //(async () => { await initSockets(); })();
     </script>
 </body>
 </html>

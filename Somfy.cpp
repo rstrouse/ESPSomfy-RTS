@@ -1299,8 +1299,99 @@ void SomfyShade::publishState() {
     mqtt.publish(topic, isWindy);
   }
 }
+void SomfyShade::publishDisco() {
+  if(!mqtt.connected() || !settings.MQTT.pubDisco) return;
+  char topic[128] = "";
+  DynamicJsonDocument doc(2048);
+  JsonObject obj = doc.to<JsonObject>();
+  snprintf(topic, sizeof(topic), "%s/shades/%d", settings.MQTT.rootTopic, this->shadeId);
+  obj["~"] = topic;
+  JsonObject dobj = obj.createNestedObject("device");
+  dobj["hw_version"] = settings.fwVersion.name;
+  dobj["name"] = settings.hostname;
+  dobj["mf"] = "rstrouse";
+  JsonArray arrids = dobj.createNestedArray("identifiers");
+  //snprintf(topic, sizeof(topic), "mqtt_espsomfyrts_%s_shade%d", settings.serverId, this->shadeId);
+  snprintf(topic, sizeof(topic), "mqtt_espsomfyrts_%s", settings.serverId);
+  arrids.add(topic);
+  //snprintf(topic, sizeof(topic), "ESPSomfy-RTS_%s", settings.serverId);
+  dobj["via_device"] = topic;
+  dobj["model"] = "ESPSomfy-RTS MQTT";
+  snprintf(topic, sizeof(topic), "%s/status", settings.MQTT.rootTopic);
+  obj["availability_topic"] = topic;
+  obj["payload_available"] = "online";
+  obj["payload_not_available"] = "offline";
+  obj["name"] = this->name;
+  snprintf(topic, sizeof(topic), "mqtt_%s_shade%d", settings.serverId, this->shadeId);
+  obj["unique_id"] = topic;
+  switch(this->shadeType) {
+    case shade_types::blind:
+      obj["device_class"] = "blind";
+      break;
+    case shade_types::ldrapery:
+    case shade_types::rdrapery:
+    case shade_types::cdrapery:
+      obj["device_class"] = "curtain";
+      break;
+    case shade_types::garage1:
+    case shade_types::garage3:
+      obj["device_class"] = "garage";
+      break;
+    case shade_types::awning:
+      obj["device_class"] = "awning";
+      break;
+    case shade_types::shutter:
+      obj["device_class"] = "shutter";
+      break;
+    case shade_types::drycontact:
+      break;
+    default:
+      obj["device_class"] = "shade";
+      break;
+  }
+  if(this->shadeType != shade_types::drycontact) {
+    if(this->tiltType != tilt_types::tiltonly) {
+      obj["command_topic"] = "~/direction/set";
+      obj["position_topic"] = "~/position";
+      obj["set_position_topic"] = "~/target/set";
+      obj["state_topic"] = "~/direction";
+      obj["payload_close"] = "1";
+      obj["payload_open"] = "-1";
+      obj["payload_stop"] = "0";
+    }
+    else {
+      obj["payload_close"] = nullptr;
+      obj["payload_open"] = nullptr;
+      obj["payload_stop"] = nullptr;
+    }
+    
+    if(this->tiltType != tilt_types::none) {
+      obj["tilt_command_topic"] = "~/tiltTarget/set";
+      obj["tilt_status_topic"] = "~/tiltPosition";
+    }
+    obj["position_open"] = 0;
+    obj["position_closed"] = 100;
+    obj["state_closing"] = "1";
+    obj["state_opening"] = "-1";
+    obj["state_stopped"] = "0";
+    snprintf(topic, sizeof(topic), "%s/cover/%d/config", settings.MQTT.discoTopic, this->shadeId);
+  }
+  else {
+    obj["payload_on"] = 100;
+    obj["payload_off"] = 0;
+    obj["state_off"] = 0;
+    obj["state_on"] = 100;
+    obj["state_topic"] = "~/position";
+    obj["command_topic"] = "~/target/set";
+    snprintf(topic, sizeof(topic), "%s/switch/%d/config", settings.MQTT.discoTopic, this->shadeId);
+  }
+  
+  obj["enabled_by_default"] = true;
+  mqtt.publishDisco(topic, obj);  
+}
 void SomfyShade::publish() {
   if(mqtt.connected()) {
+    this->publishDisco();
     char topic[32];
     snprintf(topic, sizeof(topic), "shades/%u/shadeId", this->shadeId);
     mqtt.publish(topic, this->shadeId);
@@ -2511,6 +2602,7 @@ bool SomfyShade::save() {
     pref.end();
   }
   this->commit();
+  this->publishDisco();
   return true;
 }
 bool SomfyGroup::save() { somfy.commit(); return true; }

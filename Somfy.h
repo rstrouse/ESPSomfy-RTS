@@ -319,6 +319,7 @@ class SomfyShade : public SomfyRemote {
     bool publish(const char *topic, uint32_t val, bool retain = false);
     bool publish(const char *topic, uint16_t val, bool retain = false);
     bool publish(const char *topic, bool val, bool retain = false);
+    void publishDisco();
 };
 class SomfyGroup : public SomfyRemote {
   protected:

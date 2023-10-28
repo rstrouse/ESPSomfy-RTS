@@ -3947,6 +3947,7 @@ class MQTT {
             else {
                 console.log(settings);
                 ui.toElement(document.getElementById('divMQTT'), { mqtt: settings });
+                document.getElementById('divDiscoveryTopic').style.display = settings.pubDisco ? '' : 'none';
             }
         });
     }
