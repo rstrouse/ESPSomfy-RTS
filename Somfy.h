@@ -313,6 +313,8 @@ class SomfyShade : public SomfyRemote {
     bool p_sunFlag(bool val);
     bool p_sunny(bool val);
     bool p_windy(bool val);
+    float p_currentPos(float pos);
+    float p_currentTiltPos(float pos);
     uint16_t p_lastRollingCode(uint16_t code);
     bool publish(const char *topic, uint8_t val, bool retain = false);
     bool publish(const char *topic, int8_t val, bool retain = false);
@@ -347,6 +349,12 @@ class SomfyGroup : public SomfyRemote {
     void emitState(uint8_t num, const char *evt = "groupState");
     void sendCommand(somfy_commands cmd);
     void sendCommand(somfy_commands cmd, uint8_t repeat);
+    int8_t p_direction(int8_t dir);
+    bool publish(const char *topic, uint8_t val, bool retain = false);
+    bool publish(const char *topic, int8_t val, bool retain = false);
+    bool publish(const char *topic, uint32_t val, bool retain = false);
+    bool publish(const char *topic, uint16_t val, bool retain = false);
+    bool publish(const char *topic, bool val, bool retain = false);
 };
 struct transceiver_config_t {
     bool printBuffer = false;

@@ -104,7 +104,7 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
       int val = atoi(value);
       if(strncmp(command, "target", sizeof(command)) == 0) {
         if(val >= 0 && val <= 100)
-          shade->moveToTarget(atoi(value));
+          shade->moveToTarget(shade->transformPosition(atoi(value)));
       }
       if(strncmp(command, "tiltTarget", sizeof(command)) == 0) {
         if(val >= 0 && val <= 100)
@@ -132,7 +132,7 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
       }
       else if(strncmp(command, "position", sizeof(command)) == 0) {
         if(val >= 0 && val <= 100) {
-          shade->target = shade->currentPos = (float)val;
+          shade->target = shade->currentPos = shade->transformPosition((float)val);
           shade->emitState();
         }
       }
