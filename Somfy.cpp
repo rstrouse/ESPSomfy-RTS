@@ -1714,7 +1714,7 @@ void SomfyShade::emitCommand(uint8_t num, somfy_commands cmd, const char *source
 void SomfyGroup::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyGroup::emitState(uint8_t num, const char *evt) {
   ClientSocketEvent e(evt);
-  char buf[30];
+  char buf[55];
   uint8_t flags = 0;
   snprintf(buf, sizeof(buf), "{\"groupId\":%d,", this->groupId);
   e.appendMessage(buf);
