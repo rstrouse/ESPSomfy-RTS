@@ -1205,7 +1205,7 @@ void Web::begin() {
         int groupId = atoi(server.arg("groupId").c_str());
         SomfyGroup* group = somfy.getGroupById(groupId);
         if (group) {
-          DynamicJsonDocument doc(4096);
+          DynamicJsonDocument doc(8192);
           JsonObject obj = doc.to<JsonObject>();
           group->toJSON(obj);
           JsonArray arr = obj.createNestedArray("availShades");
@@ -1214,7 +1214,7 @@ void Web::begin() {
             if(shade->getShadeId() != 255) {
               bool isLinked = false;
               for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
-                if(group->linkedShades[i] == shade->getShadeId()) {
+                if(group->linkedShades[j] == shade->getShadeId()) {
                   isLinked = true;
                   break;
                 }
