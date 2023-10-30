@@ -926,13 +926,11 @@ void SomfyShade::checkMovement() {
   // moving. If this is only a tilt action then the regular tilt action should operate fine.
   int8_t currDir = this->direction;
   int8_t currTiltDir = this->tiltDirection;
-  this->p_direction(this->currentPos == this->target ? 0 : this->currentPos > this->target ? -1 : 1);
+  this->p_direction(floor(this->currentPos) == floor(this->target) ? 0 : floor(this->currentPos) > floor(this->target) ? -1 : 1);
   bool tilt_first = this->tiltType == tilt_types::integrated && ((this->direction == -1 && this->currentTiltPos != 0.0f) || (this->direction == 1 && this->currentTiltPos != 100.0f));
+
   this->p_tiltDirection(this->currentTiltPos == this->tiltTarget ? 0 : this->currentTiltPos > this->tiltTarget ? -1 : 1);
-  if(tilt_first) {
-    this->p_tiltDirection(this->direction);
-    this->p_direction(0);
-  }
+  if(tilt_first) { this->p_tiltDirection(this->direction); }
   else if(this->direction != 0) this->p_tiltDirection(0);
   uint8_t currPos = floor(this->currentPos);
   uint8_t currTiltPos = floor(this->currentTiltPos);
