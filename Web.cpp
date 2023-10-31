@@ -202,6 +202,8 @@ void Web::handleLogin(WebServer &server) {
 }
 void Web::handleStreamFile(WebServer &server, const char *filename, const char *encoding) {
   webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  
   // Load the index html page from the data directory.
   Serial.print("Loading file ");
   Serial.println(filename);
@@ -209,7 +211,7 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
   if (!file) {
     Serial.print("Error opening");
     Serial.println(filename);
-    server.send(500, _encoding_text, "shades.cfg");
+    server.send(500, _encoding_text, "Error opening file");
   }
   server.streamFile(file, encoding);
   file.close();
@@ -1477,7 +1479,7 @@ void Web::begin() {
     else {
       shade->paired = paired;
       shade->save();
-      DynamicJsonDocument doc(512);
+      DynamicJsonDocument doc(1024);
       JsonObject obj = doc.to<JsonObject>();
       shade->toJSON(obj);
       serializeJson(doc, g_content);
@@ -1526,7 +1528,7 @@ void Web::begin() {
           shade->sendCommand(somfy_commands::Prog, 1);
         shade->paired = false;
         shade->save();
-        DynamicJsonDocument doc(512);
+        DynamicJsonDocument doc(1024);
         JsonObject obj = doc.to<JsonObject>();
         shade->toJSON(obj);
         serializeJson(doc, g_content);

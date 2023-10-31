@@ -198,16 +198,19 @@ void GitUpdater::loop() {
 }
 void GitUpdater::checkForUpdate() {
   if(this->status != 0) return; // If we are already checking.
+  Serial.println("Check github for updates...");
   this->status = GIT_STATUS_CHECK;
-  GitRepo repo;
-  this->lastCheck = millis();
-  this->updateAvailable = false;
-  this->error = repo.getReleases(2);
-  if(this->error == 0) { // Get 2 releases so we can filter our pre-releases
-    this->setCurrentRelease(repo);
-  }
-  else {
-    this->emitUpdateCheck();
+  if(this->checkInternet() == 0) {
+    GitRepo repo;
+    this->lastCheck = millis();
+    this->updateAvailable = false;
+    this->error = repo.getReleases(2);
+    if(this->error == 0) { // Get 2 releases so we can filter our pre-releases
+      this->setCurrentRelease(repo);
+    }
+    else {
+      this->emitUpdateCheck();
+    }
   }
   this->status = GIT_STATUS_READY;
 }
@@ -238,14 +241,39 @@ void GitUpdater::toJSON(JsonObject &obj) {
   this->latest.toJSON(latest);
 }
 void GitUpdater::emitUpdateCheck(uint8_t num) {
-    ClientSocketEvent evt("fwStatus");
-    DynamicJsonDocument doc(512);
-    JsonObject obj = doc.to<JsonObject>();
-    this->toJSON(obj);
-    if(num == 255)
-      sockEmit.sendToClients("fwStatus", doc);
-    else
-      sockEmit.sendToClient(num, "fwStatus", doc);
+  ClientSocketEvent evt("fwStatus");
+  DynamicJsonDocument doc(512);
+  JsonObject obj = doc.to<JsonObject>();
+  this->toJSON(obj);
+  if(num == 255)
+    sockEmit.sendToClients("fwStatus", doc);
+  else
+    sockEmit.sendToClient(num, "fwStatus", doc);
+}
+int GitUpdater::checkInternet() {
+  int err = 500;
+  uint32_t t = millis();
+  WiFiClientSecure *client = new WiFiClientSecure;
+  if(client) {
+    client->setInsecure();
+    HTTPClient https;
+    if(https.begin(*client, "https://github.com/rstrouse/ESPSomfy-RTS")) {
+      https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+      https.setTimeout(5000);
+      int httpCode = https.sendRequest("HEAD");
+      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
+        err = 0;
+        Serial.printf("Check Internet Success: %dms\n", millis() - t);
+      }
+      else {
+        err = httpCode;
+        Serial.printf("Check Internet Error: %d: %dms\n", err, millis() - t);
+      }
+      https.end();
+    }
+    delete client;
+  }
+  return err;
 }
 void GitUpdater::emitDownloadProgress(size_t total, size_t loaded, const char *evt) { this->emitDownloadProgress(255, total, loaded, evt); }
 void GitUpdater::emitDownloadProgress(uint8_t num, size_t total, size_t loaded, const char *evt) {

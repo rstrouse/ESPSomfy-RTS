@@ -809,6 +809,8 @@ void SomfyShade::setGPIOs() {
     int8_t dir = this->direction;
     if(dir == 0 && this->tiltType == tilt_types::integrated)
       dir = this->tiltDirection;
+    else if(this->tiltType == tilt_types::tiltonly)
+      dir = this->tiltDirection;
     if(this->shadeType == shade_types::drycontact) {
       digitalWrite(this->gpioDown, this->currentPos == 100 ? HIGH : LOW);
       this->gpioDir = this->currentPos == 100 ? 1 : -1;
@@ -1268,40 +1270,25 @@ void SomfyShade::load() {
 }
 void SomfyShade::publishState() {
   if(mqtt.connected()) {
-    char topic[32];
-    snprintf(topic, sizeof(topic), "shades/%u/position", this->shadeId);
-    mqtt.publish(topic, this->transformPosition(this->currentPos));
-    snprintf(topic, sizeof(topic), "shades/%u/direction", this->shadeId);
-    mqtt.publish(topic, this->direction);
-    snprintf(topic, sizeof(topic), "shades/%u/target", this->shadeId);
-    mqtt.publish(topic, this->transformPosition(this->target));
-    snprintf(topic, sizeof(topic), "shades/%u/lastRollingCode", this->shadeId);
-    mqtt.publish(topic, this->lastRollingCode);
-    snprintf(topic, sizeof(topic), "shades/%u/mypos", this->shadeId);
-    mqtt.publish(topic, this->transformPosition(this->myPos));
-    snprintf(topic, sizeof(topic), "shades/%u/myTiltPos", this->shadeId);
-    mqtt.publish(topic, this->transformPosition(this->myTiltPos));
+    this->publish("position", this->transformPosition(this->currentPos));
+    this->publish("direction", this->direction);
+    this->publish("target", this->transformPosition(this->target));
+    this->publish("lastRollingCode", this->lastRollingCode);
+    this->publish("mypos", this->transformPosition(this->myPos));
+    this->publish("myTiltPos", this->transformPosition(this->myTiltPos));
     if(this->tiltType != tilt_types::none) {
-      snprintf(topic, sizeof(topic), "shades/%u/tiltDirection", this->shadeId);
-      mqtt.publish(topic, this->tiltDirection);
-      snprintf(topic, sizeof(topic), "shades/%u/tiltPosition", this->shadeId);
-      mqtt.publish(topic, this->transformPosition(this->currentTiltPos));
-      snprintf(topic, sizeof(topic), "shades/%u/tiltTarget", this->shadeId);
-      mqtt.publish(topic, this->transformPosition(this->tiltTarget));
+      this->publish("tiltDirection", this->tiltDirection);
+      this->publish("tiltPosition", this->transformPosition(this->currentTiltPos));
+      this->publish("tiltTarget", this->transformPosition(this->tiltTarget));
     }
     const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
     const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
     const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
-    snprintf(topic, sizeof(topic), "shades/%u/sunSensor", this->shadeId);
-    mqtt.publish(topic, this->hasSunSensor());
     if(this->hasSunSensor()) {
-      snprintf(topic, sizeof(topic), "shades/%u/sunFlag", this->shadeId);
-      mqtt.publish(topic, sunFlag);
-      snprintf(topic, sizeof(topic), "shades/%u/sunny", this->shadeId);
-      mqtt.publish(topic, isSunny);
-      snprintf(topic, sizeof(topic), "shades/%u/windy", this->shadeId);
+      this->publish("sunFlag", sunFlag);
+      this->publish("sunny", isSunny);
     }
-    mqtt.publish(topic, isWindy);
+    this->publish("windy", isWindy);
   }
 }
 void SomfyShade::publishDisco() {
@@ -1426,65 +1413,43 @@ void SomfyShade::publishDisco() {
 }
 void SomfyShade::publish() {
   if(mqtt.connected()) {
-    char topic[32];
-    snprintf(topic, sizeof(topic), "shades/%u/shadeId", this->shadeId);
-    mqtt.publish(topic, this->shadeId);
-    snprintf(topic, sizeof(topic), "shades/%u/name", this->shadeId);
-    mqtt.publish(topic, this->name);
-    snprintf(topic, sizeof(topic), "shades/%u/remoteAddress", this->shadeId);
-    mqtt.publish(topic, this->getRemoteAddress());
-    snprintf(topic, sizeof(topic), "shades/%u/shadeType", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(this->shadeType));
-    snprintf(topic, sizeof(topic), "shades/%u/tiltType", this->shadeId);
-    mqtt.publish(topic, static_cast<uint8_t>(this->tiltType));
-    //snprintf(topic, sizeof(topic), "shades/%u/flags", this->shadeId);
-    mqtt.publish(topic, this->flags);
-    snprintf(topic, sizeof(topic), "shades/%u/flipCommands", this->shadeId);
-    mqtt.publish(topic, this->flipCommands);
-    snprintf(topic, sizeof(topic), "shades/%u/flipPosition", this->shadeId);
-    mqtt.publish(topic, this->flipPosition);
+    this->publish("shadeId", this->shadeId);
+    this->publish("name", this->name);
+    this->publish("remoteAddress", this->getRemoteAddress());
+    this->publish("shadeType", static_cast<uint8_t>(this->shadeType));
+    this->publish("tiltType", static_cast<uint8_t>(this->tiltType));
+    this->publish("flags", this->flags);
+    this->publish("flipCommands", this->flipCommands);
+    this->publish("flipPosition", this->flipPosition);
     this->publishState();
-    mqtt.loop();
     this->publishDisco();
+    sockEmit.loop(); // Keep our socket alive.
   }
 }
 void SomfyGroup::publishState() {
   if(mqtt.connected()) {
-    char topic[32];
-    snprintf(topic, sizeof(topic), "groups/%u/direction", this->groupId);
-    mqtt.publish(topic, this->direction);
-    snprintf(topic, sizeof(topic), "groups/%u/lastRollingCode", this->groupId);
-    mqtt.publish(topic, this->lastRollingCode);
+    this->publish("direction", this->direction);
+    this->publish("lastRollingCode", this->lastRollingCode);
     const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
     const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
     const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
-    snprintf(topic, sizeof(topic), "groups/%u/sunFlag", this->groupId);
-    mqtt.publish(topic, sunFlag);
-    snprintf(topic, sizeof(topic), "groups/%u/sunny", this->groupId);
-    mqtt.publish(topic, isSunny);
-    snprintf(topic, sizeof(topic), "groups/%u/windy", this->groupId);
-    mqtt.publish(topic, isWindy);
+    this->publish("sunFlag", sunFlag);
+    this->publish("sunny", isSunny);
+    this->publish("windy", isWindy);    
   }  
 }
 void SomfyGroup::publish() {
   if(mqtt.connected()) {
-    char topic[32];
-    snprintf(topic, sizeof(topic), "groups/%u/groupId", this->groupId);
-    mqtt.publish(topic, this->groupId);
-    snprintf(topic, sizeof(topic), "groups/%u/name", this->groupId);
-    mqtt.publish(topic, this->name);
-    snprintf(topic, sizeof(topic), "groups/%u/remoteAddress", this->groupId);
-    mqtt.publish(topic, this->getRemoteAddress());
-    snprintf(topic, sizeof(topic), "groups/%u/groupType", this->groupId);
-    mqtt.publish(topic, static_cast<uint8_t>(this->groupType));
-    snprintf(topic, sizeof(topic), "groups/%u/flags", this->groupId);
-    mqtt.publish(topic, this->flags);
-    snprintf(topic, sizeof(topic), "groups/%u/sunSensor", this->groupId);
-    mqtt.publish(topic, this->hasSunSensor());
+    this->publish("groupId", this->groupId);
+    this->publish("name", this->name);
+    this->publish("remoteAddress", this->getRemoteAddress());
+    this->publish("groupType", static_cast<uint8_t>(this->groupType));
+    this->publish("flags", this->flags);
+    this->publish("sunSensor", this->hasSunSensor());
     this->publishState();
   }
 }
-char mqttTopicBuffer[32];
+char mqttTopicBuffer[55];
 bool SomfyShade::publish(const char *topic, int8_t val, bool retain) {
   if(mqtt.connected()) {
     snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
@@ -1566,9 +1531,6 @@ bool SomfyGroup::publish(const char *topic, bool val, bool retain) {
   }
   return false;
 }
-
-
-
 // State Setters
 float SomfyShade::p_currentPos(float pos) {
   float old = this->currentPos;
@@ -1582,7 +1544,6 @@ float SomfyShade::p_currentTiltPos(float pos) {
   if(floor(old) != floor(pos)) this->publish("tiltPosition", this->transformPosition(static_cast<uint8_t>(floor(this->currentTiltPos))));
   return old;
 }
-
 uint16_t SomfyShade::p_lastRollingCode(uint16_t code) {
   uint16_t old = SomfyRemote::p_lastRollingCode(code);
   if(old != code) this->publish("lastRollingCode", code);
