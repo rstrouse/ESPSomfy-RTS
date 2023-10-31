@@ -1458,6 +1458,14 @@ bool SomfyShade::publish(const char *topic, int8_t val, bool retain) {
   }
   return false;
 }
+bool SomfyShade::publish(const char *topic, const char *val, bool retain) { 
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
+    mqtt.publish(mqttTopicBuffer, val, retain);
+    return true;
+  }
+  return false;
+}
 bool SomfyShade::publish(const char *topic, uint8_t val, bool retain) {
   if(mqtt.connected()) {
     snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
@@ -1666,9 +1674,13 @@ void SomfyShade::emitCommand(uint8_t num, somfy_commands cmd, const char *source
   e.appendMessage(buf);
   snprintf(buf, sizeof(buf), ",\"sourceAddress\":%d}", sourceAddress);
   e.appendMessage(buf);
-
   if(num >= 255) sockEmit.sendToClients(&e);
   else sockEmit.sendToClient(num, &e);
+  if(mqtt.connected()) {
+    this->publish("cmdSource", source);
+    this->publish("cmdAddress", sourceAddress);
+    this->publish("cmd", translateSomfyCommand(cmd).c_str());
+  }
 }
 void SomfyGroup::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyGroup::emitState(uint8_t num, const char *evt) {
@@ -2030,6 +2042,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         else if(this->currentPos == 100.0f) this->p_target(0);
         else if(this->currentPos == 0.0f) this->p_target(100);
         else this->p_target(this->lastMovement == -1 ? 100 : 0);
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
         return;
       }
       else if(this->shadeType == shade_types::drycontact) {
@@ -2040,6 +2053,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         if(this->currentPos == 100.0f) this->p_target(0);
         else if(this->currentPos == 0.0f) this->p_target(100);
         else this->p_target(this->lastMovement == -1 ? 100 : 0);
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
         return;
       }
       if(this->isIdle()) {
@@ -2061,6 +2075,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
           if(this->tiltType != tilt_types::tiltonly) this->p_target(this->currentPos);
           this->p_tiltTarget(this->currentTiltPos);
         }
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       }
       break;
     case somfy_commands::StepUp:

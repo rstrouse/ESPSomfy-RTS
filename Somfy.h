@@ -316,6 +316,7 @@ class SomfyShade : public SomfyRemote {
     float p_currentPos(float pos);
     float p_currentTiltPos(float pos);
     uint16_t p_lastRollingCode(uint16_t code);
+    bool publish(const char *topic, const char *val, bool retain = false);
     bool publish(const char *topic, uint8_t val, bool retain = false);
     bool publish(const char *topic, int8_t val, bool retain = false);
     bool publish(const char *topic, uint32_t val, bool retain = false);
