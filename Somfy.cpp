@@ -2079,9 +2079,9 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       break;
     case somfy_commands::StepUp:
+      if(this->lastFrame.processed) return;
       this->lastFrame.processed = true;
       if(this->shadeType == shade_types::drycontact) return;
-      if(this->lastFrame.repeats != 0) return;
       dir = 0;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
@@ -2098,9 +2098,12 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         if(this->downTime == 0 || this->stepSize == 0) return;
         this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
       }
+      this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
     case somfy_commands::StepDown:
+      if(this->lastFrame.processed) return;
       this->lastFrame.processed = true;
+      if(this->shadeType == shade_types::drycontact) return;
       dir = 1;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
