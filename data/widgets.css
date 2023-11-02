@@ -148,6 +148,27 @@
 .shadectl-buttons:not([data-shadetype="5"]):not([data-shadetype="9"]) > .button-outline[data-cmd="toggle"] {
     display: none;
 }
+.somfyShadeCtl[data-shadetype="5"] .shadectl-mypos,
+.somfyShadeCtl[data-shadetype="9"] .shadectl-mypos,
+.somfyShadeCtl[data-tilt="3"] .shadectl-mypos .my-pos,
+.somfyShadeCtl:not([data-shadetype="1"]) .shadectl-mypos .my-pos-tilt {
+    display: none;
+}
+.somfyShadeCtl:not([data-shadetype="1"][data-tilt="3"]) .shadectl-mypos label.my-pos:after {
+    content: "My:"
+}
+.somfyShadeCtl[data-shadetype="1"][data-tilt="3"] .shadectl-mypos label.my-pos {
+    display:none;
+}
+.somfyShadeCtl[data-shadetype="1"][data-tilt="3"] .shadectl-mypos label.my-pos-tilt:after {
+    content:"My Tilt:";
+}
+.somfyShadeCtl:not([data-shadetype="1"][data-tilt="3"]) .shadectl-mypos label.my-pos-tilt:after {
+    content:"Tilt:";
+}
+.somfyShadeCtl .shadectl-mypos span.my-pos {
+    margin-right:14px;
+}
 #somfyShade #divGPIOControl {
     display: none;
 }
@@ -204,3 +225,4 @@
 .shade-draggable.over {
     border-top: solid 2px var(--shade-color, '#00bcd4');
 }
+

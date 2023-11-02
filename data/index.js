@@ -1252,7 +1252,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.2.0';
+    appVersion = 'v2.2.1b';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -2098,7 +2098,7 @@ class Somfy {
         }
         for (let i = 0; i < shades.length; i++) {
             let shade = shades[i];
-            divCfg += `<div class="somfyShade shade-draggable" draggable="true" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType}">`;
+            divCfg += `<div class="somfyShade shade-draggable" draggable="true" data-mypos="${shade.myPos}" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType}">`;
             divCfg += `<div class="button-outline" onclick="somfy.openEditShade(${shade.shadeId});"><i class="icss-edit"></i></div>`;
             //divCfg += `<i class="shade-icon" data-position="${shade.position || 0}%"></i>`;
             divCfg += `<span class="shade-name">${shade.name}</span>`;
@@ -2106,7 +2106,7 @@ class Somfy {
             divCfg += `<div class="button-outline" onclick="somfy.deleteShade(${shade.shadeId});"><i class="icss-trash"></i></div>`;
             divCfg += '</div>';
 
-            divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}" data-mytiltpos="${shade.myTiltPos} data-shadetype="${shade.shadeType}" data-tilt="${shade.tiltType}"`;
+            divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}" data-mytiltpos="${shade.myTiltPos}" data-shadetype="${shade.shadeType}" data-tilt="${shade.tiltType}"`;
             divCtl += ` data-windy="${(shade.flags & 0x10) === 0x10 ? 'true' : false}" data-sunny=${(shade.flags & 0x20) === 0x20 ? 'true' : 'false'}`;
             if (shade.tiltType !== 0) {
                 divCtl += ` data-tiltposition="${shade.tiltPosition}" data-tiltdirection="${shade.tiltDirection}" data-tilttarget="${shade.tiltTarget}"`;
@@ -2149,12 +2149,7 @@ class Somfy {
             divCtl += `<div class="shade-name">`;
 
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
-            if (shade.tiltType === 3)
-                divCtl += `<span class="shadectl-mypos"><label>My Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`
-            else if (shade.shadeType !== 5 && shade.shadeType !== 9) {
-                divCtl += `<span class="shadectl-mypos"><label>My: </label><span id="spanMyPos">${shade.myPos > 0 ? shade.myPos + '%' : '---'}</span>`;
-                if (shade.myTiltPos > 0 && shade.tiltType !== 3) divCtl += `<label> Tilt: </label><span id="spanMyTiltPos">${shade.myTiltPos > 0 ? shade.myTiltPos + '%' : '---'}</span>`;
-            }
+            divCtl += `<span class="shadectl-mypos"><label class="my-pos"></label><span class="my-pos">${shade.myPos === -1 ? '---' : shade.myPos + '%'}</span><label class="my-pos-tilt"></label><span class="my-pos-tilt">${shade.myTiltPos === -1 ? '---' : shade.myTiltPos + '%'}</span >`;
             divCtl += '</div>';
             divCtl += `<div class="shadectl-buttons" data-shadeType="${shade.shadeType}">`;
             divCtl += `<div class="button-light cmd-button" data-cmd="light" data-shadeid="${shade.shadeId}" data-on="${shade.flags & 0x08 ? 'true' : 'false'}" style="${!shade.light ? 'display:none' : ''}"><i class="icss-lightbuld-c"></i><i class="icss-lightbulb-o"></i></div>`;
@@ -2701,9 +2696,9 @@ class Somfy {
                 divs[i].setAttribute('data-tiltposition', state.tiltPosition);
                 divs[i].setAttribute('data-tilttarget', state.tiltTarget);
             }
-            let span = divs[i].querySelector('#spanMyPos');
+            let span = divs[i].querySelector('span.my-pos');
             if (span) span.innerHTML = typeof state.myPos !== 'undefined' && state.myPos >= 0 ? `${state.myPos}%` : '---';
-            span = divs[i].querySelector('#spanMyTiltPos');
+            span = divs[i].querySelector('span.my-pos-tilt');
             if (span) span.innerHTML = typeof state.myTiltPos !== 'undefined' && state.myTiltPos >= 0 ? `${state.myTiltPos}%` : '---';
         }
     }
