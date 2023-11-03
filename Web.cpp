@@ -693,6 +693,7 @@ void Web::handleDiscovery(WebServer &server) {
     JsonObject obj = doc.to<JsonObject>();
     obj["serverId"] = settings.serverId;
     obj["version"] = settings.fwVersion.name;
+    obj["latest"] = git.latest.name;
     obj["model"] = "ESPSomfyRTS";
     obj["hostname"] = settings.hostname;
     obj["authType"] = static_cast<uint8_t>(settings.Security.type);
@@ -706,6 +707,40 @@ void Web::handleDiscovery(WebServer &server) {
   }
   else
     server.send(500, _encoding_text, "Invalid http method");
+}
+void Web::handleBackup(WebServer &server, bool attach) {
+  webServer.sendCORSHeaders(server);
+  if(server.hasArg("attach")) attach = toBoolean(server.arg("attach").c_str(), attach);
+  if(attach) {
+    char filename[120];
+    Timestamp ts;
+    char * iso = ts.getISOTime();
+    // Replace the invalid characters as quickly as we can.
+    for(uint8_t i = 0; i < strlen(iso); i++) {
+      switch(iso[i]) {
+        case '.':
+          // Just trim off the ms.
+          iso[i] = '\0';
+          break;
+        case ':':
+          iso[i] = '_';
+          break;
+      }
+    }
+    snprintf(filename, sizeof(filename), "attachment; filename=\"ESPSomfyRTS %s.backup\"", iso);
+    Serial.println(filename);
+    server.sendHeader(F("Content-Disposition"), filename);
+    server.sendHeader(F("Access-Control-Expose-Headers"), F("Content-Disposition"));
+  }
+  Serial.println("Saving current shade information");
+  somfy.writeBackup();
+  File file = LittleFS.open("/controller.backup", "r");
+  if (!file) {
+    Serial.println("Error opening shades.cfg");
+    server.send(500, _encoding_text, "shades.cfg");
+  }
+  server.streamFile(file, _encoding_text);
+  file.close();
 }
 void Web::handleSetPositions(WebServer &server) {
   webServer.sendCORSHeaders(server);
@@ -833,7 +868,46 @@ void Web::handleSetSensor(WebServer &server) {
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"shadeId was not provided\"}"));
   }
 }
-
+void Web::handleDownloadFirmware(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  GitRepo repo;
+  GitRelease *rel = nullptr;
+  int8_t err = repo.getReleases();
+  Serial.println("downloadFirmware called...");
+  if(err == 0) {
+    if(server.hasArg("ver")) {
+      if(strcmp(server.arg("ver").c_str(), "latest") == 0) rel = &repo.releases[0];
+      else if(strcmp(server.arg("ver").c_str(), "main") == 0) {
+        rel = &repo.releases[GIT_MAX_RELEASES];
+      }
+      else {
+        for(uint8_t i = 0; i < GIT_MAX_RELEASES; i++) {
+          if(repo.releases[i].id == 0) continue;
+          if(strcmp(repo.releases[i].name, server.arg("ver").c_str()) == 0) {
+            rel = &repo.releases[i];  
+          }
+        }
+      }
+      if(rel) {
+        DynamicJsonDocument sdoc(512);
+        JsonObject sobj = sdoc.to<JsonObject>();
+        rel->toJSON(sobj);
+        serializeJson(sdoc, g_content);
+        server.send(200, _encoding_json, g_content);
+        strcpy(git.targetRelease, rel->name);
+        git.status = GIT_AWAITING_UPDATE;
+      }
+      else
+        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release not found in repo.\"}"));
+    }
+    else
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release version not supplied.\"}"));
+  }
+  else {
+      server.send(err, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error communicating with Github.\"}"));
+  }
+}
 void Web::handleNotFound(WebServer &server) {
     HTTPMethod method = server.method();
     Serial.printf("Request %s 404-%d ", server.uri().c_str(), method);
@@ -883,6 +957,8 @@ void Web::begin() {
   apiServer.on("/group", HTTP_GET, [] () { webServer.handleGroup(apiServer); });
   apiServer.on("/setPositions", []() { webServer.handleSetPositions(apiServer); });
   apiServer.on("/setSensor", []() { webServer.handleSetSensor(apiServer); });
+  apiServer.on("/downloadFirmware", []() { webServer.handleDownloadFirmware(apiServer); });
+  apiServer.on("/backup", []() { webServer.handleBackup(apiServer); });
   
   // Web Interface
   server.on("/tiltCommand", []() { webServer.handleTiltCommand(server); });
@@ -909,46 +985,7 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
   });
-  server.on("/downloadFirmware", []() {
-    webServer.sendCORSHeaders(server);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    GitRepo repo;
-    GitRelease *rel = nullptr;
-    int8_t err = repo.getReleases();
-    Serial.println("downloadFirmware called...");
-    if(err == 0) {
-      if(server.hasArg("ver")) {
-        if(strcmp(server.arg("ver").c_str(), "latest") == 0) rel = &repo.releases[0];
-        else if(strcmp(server.arg("ver").c_str(), "main") == 0) {
-          rel = &repo.releases[GIT_MAX_RELEASES];
-        }
-        else {
-          for(uint8_t i = 0; i < GIT_MAX_RELEASES; i++) {
-            if(repo.releases[i].id == 0) continue;
-            if(strcmp(repo.releases[i].name, server.arg("ver").c_str()) == 0) {
-              rel = &repo.releases[i];  
-            }
-          }
-        }
-        if(rel) {
-          DynamicJsonDocument sdoc(512);
-          JsonObject sobj = sdoc.to<JsonObject>();
-          rel->toJSON(sobj);
-          serializeJson(sdoc, g_content);
-          server.send(200, _encoding_json, g_content);
-          strcpy(git.targetRelease, rel->name);
-          git.status = GIT_AWAITING_UPDATE;
-        }
-        else
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release not found in repo.\"}"));
-      }
-      else
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release version not supplied.\"}"));
-    }
-    else {
-        server.send(err, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error communicating with Github.\"}"));
-    }
-  });
+  server.on("/downloadFirmware", []() { webServer.handleDownloadFirmware(server); });
   server.on("/cancelFirmware", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -960,37 +997,7 @@ void Web::begin() {
     serializeJson(sdoc, g_content);
     server.send(200, _encoding_json, g_content);
   });
-  server.on("/backup", []() {
-    webServer.sendCORSHeaders(server);
-    char filename[120];
-    Timestamp ts;
-    char * iso = ts.getISOTime();
-    // Replace the invalid characters as quickly as we can.
-    for(uint8_t i = 0; i < strlen(iso); i++) {
-      switch(iso[i]) {
-        case '.':
-          // Just trim off the ms.
-          iso[i] = '\0';
-          break;
-        case ':':
-          iso[i] = '_';
-          break;
-      }
-    }
-    snprintf(filename, sizeof(filename), "attachment; filename=\"ESPSomfyRTS %s.backup\"", iso);
-    Serial.println(filename);
-    server.sendHeader(F("Content-Disposition"), filename);
-    server.sendHeader(F("Access-Control-Expose-Headers"), F("Content-Disposition"));
-    Serial.println("Saving current shade information");
-    somfy.writeBackup();
-    File file = LittleFS.open("/controller.backup", "r");
-    if (!file) {
-      Serial.println("Error opening shades.cfg");
-      server.send(500, _encoding_text, "shades.cfg");
-    }
-    server.streamFile(file, _encoding_text);
-    file.close();
-  });
+  server.on("/backup", []() { webServer.handleBackup(server, true); });
   server.on("/restore", HTTP_POST, []() {
     webServer.sendCORSHeaders(server);
     server.sendHeader("Connection", "close");
