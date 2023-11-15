@@ -937,7 +937,7 @@ void SomfyShade::checkMovement() {
   bool tilt_first = this->tiltType == tilt_types::integrated && ((this->direction == -1 && this->currentTiltPos != 0.0f) || (this->direction == 1 && this->currentTiltPos != 100.0f));
 
   this->p_tiltDirection(this->currentTiltPos == this->tiltTarget ? 0 : this->currentTiltPos > this->tiltTarget ? -1 : 1);
-  if(tilt_first) { this->p_tiltDirection(this->direction); }
+  if(tilt_first) this->p_tiltDirection(this->direction);
   else if(this->direction != 0) this->p_tiltDirection(0);
   uint8_t currPos = floor(this->currentPos);
   uint8_t currTiltPos = floor(this->currentTiltPos);
@@ -1128,11 +1128,11 @@ void SomfyShade::checkMovement() {
       if(this->settingTiltPos) {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
-          if(this->tiltTarget != 100.0 || this->currentPos != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->tiltTarget != 100.0f || this->currentTiltPos != 100.0f) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
-          // This is a tilt motor so let it complete if it is going to 0.
-          if(this->tiltTarget != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          // This is a tilt motor so let it complete if it is going to 100.
+          if(this->tiltTarget != 100.0f) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
       }
       this->p_tiltDirection(0);
@@ -1177,7 +1177,7 @@ void SomfyShade::checkMovement() {
       if(this->settingTiltPos) {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
-          if(this->tiltTarget != 0.0 || this->currentPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->tiltTarget != 0.0 || this->currentTiltPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
           // This is a tilt motor so let it complete if it is going to 0.
