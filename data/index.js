@@ -169,7 +169,7 @@ Number.prototype.fmt = function (format, empty) {
     if (rd.length === 0 && rw.length === 0) return '';
     return pfx + rw + rd + sfx;
 };
-var baseUrl = window.location.protocol === 'file:' ? 'http://ESPSomfyRTS' : '';
+var baseUrl = window.location.protocol === 'file:' ? 'http://192.168.1.152' : '';
 //var baseUrl = '';
 function makeBool(val) {
     if (typeof val === 'boolean') return val;
@@ -1252,7 +1252,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.2.2b';
+    appVersion = 'v2.2.2c';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1885,6 +1885,22 @@ var wifi = new Wifi();
 class Somfy {
     initialized = false;
     frames = [];
+    shadeTypes = [
+        { type: 0, name: 'Roller Shade', ico: 'icss-window-shade', lift: true, sun: true, fcmd: true, fpos: true },
+        { type: 1, name: 'Blind', ico: 'icss-window-blind', lift: true, tilt: true, sun: true, fcmd: true, fpos: true },
+        { type: 2, name: 'Drapery (left)', ico: 'icss-ldrapery', lift: true, sun: true, fcmd: true, fpos: true },
+        { type: 3, name: 'Awning', ico: 'icss-awning', lift: true, sun: true, fcmd: true, fpos: true },
+        { type: 4, name: 'Shutter', ico: 'icss-shutter', lift: true, sun: true, fcmd: true, fpos: true },
+        { type: 5, name: 'Garage (1-button)', ico: 'icss-garage', lift: true, light: true, fpos: true },
+        { type: 6, name: 'Garage (3-button)', ico: 'icss-garage', lift: true, light: true, fcmd: true, fpos: true },
+        { type: 7, name: 'Drapery (right)', ico: 'icss-rdrapery', lift: true, sun: true, fcmd: true, fpos: true },
+        { type: 8, name: 'Drapery (center)', ico: 'icss-cdrapery', lift: true, sun: true, fcmd: true, fpos: true },
+        { type: 9, name: 'Dry Contact (1-button)', ico: 'icss-lightbulb', fpos: true },
+        { type: 10, name: 'Dry Contact (2-button)', ico: 'icss-lightbulb', fcmd: true, fpos: true },
+        { type: 11, name: 'Gate (left)', ico: 'icss-lgate', lift: true, fcmd: true, fpos: true },
+        { type: 12, name: 'Gate (center)', ico: 'icss-cgate', lift: true, fcmd: true, fpos: true },
+        { type: 13, name: 'Gate (right)', ico: 'icss-rgate', lift: true, fcmd: true, fpos: true },
+    ];
     init() {
         if (this.initialized) return;
         this.loadPins('inout', document.getElementById('selTransSCKPin'));
@@ -2098,6 +2114,8 @@ class Somfy {
         }
         for (let i = 0; i < shades.length; i++) {
             let shade = shades[i];
+            let st = this.shadeTypes.find(x => x.type === shade.shadeType) || { type: shade.shadeType, ico: 'icss-window-shade' };
+
             divCfg += `<div class="somfyShade shade-draggable" draggable="true" data-mypos="${shade.myPos}" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType}">`;
             divCfg += `<div class="button-outline" onclick="somfy.openEditShade(${shade.shadeId});"><i class="icss-edit"></i></div>`;
             //divCfg += `<i class="shade-icon" data-position="${shade.position || 0}%"></i>`;
@@ -2112,38 +2130,10 @@ class Somfy {
                 divCtl += ` data-tiltposition="${shade.tiltPosition}" data-tiltdirection="${shade.tiltDirection}" data-tilttarget="${shade.tiltTarget}"`;
             }
             divCtl += `><div class="shade-icon" data-shadeid="${shade.shadeId}" onclick="event.stopPropagation(); console.log(event); somfy.openSetPosition(${shade.shadeId});">`;
-            divCtl += `<i class="somfy-shade-icon`;
-            switch (shade.shadeType) {
-                case 1:
-                    divCtl += ' icss-window-blind';
-                    break;
-                case 2:
-                    divCtl += ' icss-ldrapery';
-                    break;
-                case 3:
-                    divCtl += ' icss-awning';
-                    break;
-                case 4:
-                    divCtl += ' icss-shutter';
-                    break;
-                case 5:
-                case 6:
-                    divCtl += ' icss-garage';
-                    break;
-                case 7:
-                    divCtl += ' icss-rdrapery';
-                    break;
-                case 8:
-                    divCtl += ' icss-cdrapery';
-                    break;
-                case 9:
-                    divCtl += ' icss-lightbulb';
-                    break;
-                default:
-                    divCtl += ' icss-window-shade';
-                    break;
-            }
-            divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.flipPosition ? 100 - shade.position : shade.position}%;vertical-align: top;"><span class="icss-panel-left"></span><span class="icss-panel-right"></span></i>`;
+            divCtl += `<i class="somfy-shade-icon ${st.ico}`;
+            //divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.flipPosition ? 100 - shade.position : shade.position}%;vertical-align: top;"><span class="icss-panel-left"></span><span class="icss-panel-right"></span></i>`;
+            divCtl += `" data-shadeid="${shade.shadeId}" style="--shade-position:${shade.position}%;vertical-align: top;"><span class="icss-panel-left"></span><span class="icss-panel-right"></span></i>`;
+
             divCtl += shade.tiltType !== 0 ? `<i class="icss-window-tilt" data-shadeid="${shade.shadeId}" data-tiltposition="${shade.tiltPosition}"></i></div>` : '</div>';
             divCtl += `<div class="indicator indicator-wind"><i class="icss-warning"></i></div><div class="indicator indicator-sun"><i class="icss-sun"></i></div>`;
             divCtl += `<div class="shade-name">`;
@@ -2667,7 +2657,9 @@ class Somfy {
         console.log(state);
         let icons = document.querySelectorAll(`.somfy-shade-icon[data-shadeid="${state.shadeId}"]`);
         for (let i = 0; i < icons.length; i++) {
-            icons[i].style.setProperty('--shade-position', `${state.flipPosition ? 100 - state.position : state.position}%`);
+            //icons[i].style.setProperty('--shade-position', `${state.flipPosition ? 100 - state.position : state.position}%`);
+            icons[i].style.setProperty('--shade-position', `${state.position}%`);
+
         }
         if (state.tiltType !== 0) {
             let tilts = document.querySelectorAll(`.icss-window-tilt[data-shadeid="${state.shadeId}"]`);
@@ -2792,153 +2784,35 @@ class Somfy {
     onShadeTypeChanged(el) {
         let sel = document.getElementById('selShadeType');
         let tilt = parseInt(document.getElementById('selTiltType').value, 10);
-        let sun = true;
-        let light = false;
-        let lift = true;
-        let flipCommands = true;
-        let flipPosition = true;
         let ico = document.getElementById('icoShade');
         let type = parseInt(sel.value, 10);
         document.getElementById('somfyShade').setAttribute('data-shadetype', type);
         document.getElementById('divSomfyButtons').setAttribute('data-shadetype', type);
-        switch (type) {
-            case 1:
-                document.getElementById('divTiltSettings').style.display = '';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (!ico.classList.contains('icss-window-blind')) ico.classList.add('icss-window-blind');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                break;
-            case 2:
-                document.getElementById('divTiltSettings').style.display = 'none';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (!ico.classList.contains('icss-ldrapery')) ico.classList.add('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                tilt = false;
-                break;
-            case 3:
-                document.getElementById('divTiltSettings').style.display = 'none';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (!ico.classList.contains('icss-awning')) ico.classList.add('icss-awning');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                tilt = false;
-                break;
-            case 4:
-                document.getElementById('divTiltSettings').style.display = 'none';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (!ico.classList.contains('icss-shutter')) ico.classList.add('icss-shutter');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                tilt = false;
-                break;
-            case 5:
-                flipCommands = false;
-            case 6:
-                document.getElementById('divTiltSettings').style.display = 'none';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (!ico.classList.contains('icss-garage')) ico.classList.add('icss-garage');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                light = true;
-                sun = false;
-                tilt = false;
-                break;
-            case 7:
-                document.getElementById('divTiltSettings').style.display = 'none';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (!ico.classList.contains('icss-rdrapery')) ico.classList.add('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                tilt = false;
-                break;
-            case 8:
-                document.getElementById('divTiltSettings').style.display = 'none';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (!ico.classList.contains('icss-cdrapery')) ico.classList.add('icss-cdrapery');
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                tilt = false;
-                break;
-            case 9:
-                document.getElementById('divTiltSettings').style.display = 'none';
-                if (ico.classList.contains('icss-window-shade')) ico.classList.remove('icss-window-shade');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (!ico.classList.contains('icss-lightbulb')) ico.classList.add('icss-lightbulb');
-                lift = false;
-                tilt = false;
-                light = false;
-                sun = false;
-                flipPosition = false;
-                flipCommands = false;
-                break;
-            default:
-                if (ico.classList.contains('icss-window-blind')) ico.classList.remove('icss-window-blind');
-                if (ico.classList.contains('icss-awning')) ico.classList.remove('icss-awning');
-                if (ico.classList.contains('icss-ldrapery')) ico.classList.remove('icss-ldrapery');
-                if (ico.classList.contains('icss-rdrapery')) ico.classList.remove('icss-rdrapery');
-                if (ico.classList.contains('icss-cdrapery')) ico.classList.remove('icss-cdrapery');
-                if (!ico.classList.contains('icss-window-shade')) ico.classList.add('icss-window-shade');
-                if (ico.classList.contains('icss-garage')) ico.classList.remove('icss-garage');
-                if (ico.classList.contains('icss-shutter')) ico.classList.remove('icss-shutter');
-                if (ico.classList.contains('icss-lightbulb')) ico.classList.remove('icss-lightbulb');
-                document.getElementById('divTiltSettings').style.display = 'none';
-                tilt = false;
-                light = false;
-                break;
+        
+        let st = this.shadeTypes.find(x => x.type === type) || { type: type };
+        for (let i = 0; i < this.shadeTypes.length; i++) {
+            let t = this.shadeTypes[i];
+            if (t.type !== type) {
+                if (ico.classList.contains(t.ico) && t.ico !== st.ico) ico.classList.remove(t.ico);
+            }
+            else {
+                if (!ico.classList.contains(st.ico)) ico.classList.add(st.ico);
+                document.getElementById('divTiltSettings').style.display = st.tilt !== false ? '' : 'none';
+                let lift = st.lift || false;
+                if (lift && tilt == 3) lift = false;
+                if (!st.tilt) tilt = 0;
+                document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
+                document.getElementById('divLiftSettings').style.display = lift ? '' : 'none';
+                document.getElementById('divTiltSettings').style.display = st.tilt ? '' : 'none';
+                document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
+                document.getElementById('divSunSensor').style.display = st.sun ? '' : 'none';
+                document.getElementById('divLightSwitch').style.display = st.light ? '' : 'none';
+                document.getElementById('divFlipPosition').style.display = st.fpos ? '' : 'none';
+                document.getElementById('divFlipCommands').style.display = st.fcmd ? '' : 'none';
+                if (!st.light) document.getElementById('cbHasLight').checked = false;
+                if (!st.sun) document.getElementById('cbHasSunsensor').checked = false;
+            }
         }
-        document.getElementById('fldTiltTime').parentElement.style.display = tilt ? 'inline-block' : 'none';
-        if (lift && tilt == 3) lift = false;
-        document.getElementById('divLiftSettings').style.display = lift ? '' : 'none';
-        document.querySelector('#divSomfyButtons i.icss-window-tilt').style.display = tilt ? '' : 'none';
-        document.getElementById('divSunSensor').style.display = sun ? '' : 'none';
-        document.getElementById('divLightSwitch').style.display = light ? '' : 'none';
-        document.getElementById('divFlipPosition').style.display = flipPosition ? '' : 'none';
-        document.getElementById('divFlipCommands').style.display = flipCommands ? '' : 'none';
-        if (!light) document.getElementById('cbHasLight').checked = false;
-        if (!sun) document.getElementById('cbHasSunsensor').checked = false;
     }
     onShadeBitLengthChanged(el) {
         document.getElementById('somfyShade').setAttribute('data-bitlength', el.value);
@@ -2997,54 +2871,15 @@ class Somfy {
                     document.getElementById('btnLinkRemote').style.display = '';
                     this.onShadeTypeChanged(document.getElementById('selShadeType'));
                     let ico = document.getElementById('icoShade');
-                    switch (shade.shadeType) {
-                        case 0:
-                            document.getElementById('divSunSensor').style.display = '';
-                            break;
-                        case 1:
-                            ico.classList.remove('icss-window-shade');
-                            ico.classList.add('icss-window-blind');
-                            break;
-                        case 2:
-                            ico.classList.remove('icss-window-shade');
-                            ico.classList.add('icss-ldrapery');
-                            document.getElementById('divSunSensor').style.display = '';
-                            break;
-                        case 3:
-                            ico.classList.remove('icss-window-shade');
-                            ico.classList.add('icss-awning');
-                            document.getElementById('divSunSensor').style.display = '';
-                            break;
-                        case 4:
-                            ico.classList.remove('icss-window-shade');
-                            ico.classList.add('icss-shutter');
-                            document.getElementById('divSunSensor').style.display = '';
-                            break;
-                        case 5:
-                        case 6:
-                            ico.classList.remove('icss-window-shade');
-                            ico.classList.add('icss-garage');
-                            document.getElementById('divSunSensor').style.display = 'none';
-                            break;
-                        case 7:
-                            ico.classList.remove('icss-window-shade');
-                            ico.classList.add('icss-rdrapery');
-                            document.getElementById('divSunSensor').style.display = '';
-                            break;
-                        case 8:
-                            ico.classList.remove('icss-window-shade');
-                            ico.classList.add('icss-cdrapery');
-                            document.getElementById('divSunSensor').style.display = '';
-                            break;
-
-
-                    }
                     let tilt = ico.parentElement.querySelector('i.icss-window-tilt');
                     tilt.style.display = shade.tiltType !== 0 ? '' : 'none';
                     tilt.setAttribute('data-tiltposition', shade.tiltPosition);
                     tilt.setAttribute('data-shadeid', shade.shadeId);
-                    ico.style.setProperty('--shade-position', `${shade.flipPosition ? 100 - shade.position : shade.position}%`);
-                    ico.style.setProperty('--tilt-position', `${shade.flipPosition ? 100 - shade.tiltPosition : shade.tiltPosition}%`);
+                    //ico.style.setProperty('--shade-position', `${shade.flipPosition ? 100 - shade.position : shade.position}%`);
+                    //ico.style.setProperty('--tilt-position', `${shade.flipPosition ? 100 - shade.tiltPosition : shade.tiltPosition}%`);
+                    ico.style.setProperty('--shade-position', `${shade.position}%`);
+                    ico.style.setProperty('--tilt-position', `${shade.tiltPosition}%`);
+
                     ico.setAttribute('data-shadeid', shade.shadeId);
                     somfy.onShadeBitLengthChanged(document.getElementById('selShadeBitLength'));
                     somfy.onShadeProtoChanged(document.getElementById('selShadeProto'));
@@ -3147,6 +2982,7 @@ class Somfy {
         if (obj.proto === 8 || obj.proto === 9) {
             switch (obj.shadeType) {
                 case 5: // Garage 1-button
+                case 10: // Two button dry contact
                     if (obj.proto !== 9 && obj.gpioUp === obj.gpioDown) {
                         ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down GPIO selections must be unique.');
                         valid = false;
@@ -3702,23 +3538,40 @@ class Somfy {
             });
         });
         let btnPairToGroup = div.querySelector('#btnPairToGroup');
-        btnPairToGroup.addEventListener('click', (evt) => {
+        let fnRepeatProgCommand = (err, o) => {
+            console.log(o);
+            if (this.btnTimer) {
+                clearTimeout(this.btnTimer);
+                this.btnTimer = null;
+            }
+            if (err) return;
+            if (mouseDown) {
+                if (o.cmd === 'Sensor')
+                    somfy.sendSetSensor(o);
+                else if (typeof o.groupId !== 'undefined')
+                    somfy.sendGroupRepeat(o.groupId, 'prog', null, fnRepeatProgCommand);
+                else
+                    somfy.sendCommandRepeat(o.shadeId, 'prog', null, fnRepeatProgCommand);
+            }
+        }
+        btnPairToGroup.addEventListener('mousedown', (evt) => {
+            mouseDown = true;
+            somfy.sendGroupCommand(groupId, 'prog', null, fnRepeatProgCommand);
+        });
+        btnPairToGroup.addEventListener('mouseup', (evt) => {
+            mouseDown = false;
             let obj = ui.fromElement(div);
-            putJSONSync('/groupCommand', { groupId: groupId, command: 'prog', repeat: 1 }, (err, shade) => {
-                if (err) ui.serviceError(err);
-                else {
-                    let prompt = ui.promptMessage('Confirm Motor Response', () => {
-                        putJSONSync('/linkToGroup', { groupId: groupId, shadeId: obj.shadeId }, (err, group) => {
-                            console.log(group);
-                            somfy.setLinkedShadesList(group);
-                            this.updateGroupList();
-                        });
-                        prompt.remove();
-                        div.remove();
-                    });
-                    prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog?  If the shade jogged press the YES button and your shade will be linked to the group.  If it did not press the NO button and try again.</p></p><p>Once the shade has jogged the shade will be added to the group and this process will be finished.</p>`;
-                }
+            let prompt = ui.promptMessage('Confirm Motor Response', () => {
+                putJSONSync('/linkToGroup', { groupId: groupId, shadeId: obj.shadeId }, (err, group) => {
+                    console.log(group);
+                    somfy.setLinkedShadesList(group);
+                    this.updateGroupList();
+                });
+                prompt.remove();
+                div.remove();
             });
+            prompt.querySelector('.sub-message').innerHTML = `<hr></hr><p>Did the shade jog?  If the shade jogged press the YES button and your shade will be linked to the group.  If it did not press the NO button and try again.</p></p><p>Once the shade has jogged the shade will be added to the group and this process will be finished.</p>`;
+
         });
         getJSONSync(`/groupOptions?groupId=${groupId}`, (err, options) => {
             if (err) {

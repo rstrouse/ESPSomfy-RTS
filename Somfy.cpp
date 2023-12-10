@@ -820,6 +820,17 @@ void SomfyShade::setGPIOs() {
       digitalWrite(this->gpioDown, this->currentPos == 100 ? HIGH : LOW);
       this->gpioDir = this->currentPos == 100 ? 1 : -1;
     }
+    else if(this->shadeType == shade_types::drycontact2) {
+      if(this->currentPos == 100) {
+        digitalWrite(this->gpioDown, LOW);
+        digitalWrite(this->gpioUp, HIGH);
+      }
+      else {
+        digitalWrite(this->gpioUp, LOW);
+        digitalWrite(this->gpioDown, HIGH);
+      }
+      this->gpioDir = this->currentPos == 100 ? 1 : -1;
+    }
     else {
       switch(dir) {
         case -1:
@@ -867,7 +878,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         }
         break;
       case somfy_commands::Up:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioMy, LOW);
           digitalWrite(this->gpioDown, LOW);
           digitalWrite(this->gpioUp, HIGH);
@@ -877,7 +888,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         break;
       case somfy_commands::Toggle:
       case somfy_commands::Down:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioMy, LOW);
           digitalWrite(this->gpioUp, LOW);
         }
@@ -886,7 +897,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         Serial.printf("UP: false, DOWN: true, MY: false\n");
         break;
       case somfy_commands::MyUp:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioDown, LOW);
           digitalWrite(this->gpioMy, HIGH);
           digitalWrite(this->gpioUp, HIGH);
@@ -894,7 +905,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         }
         break;
       case somfy_commands::MyDown:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioUp, LOW);
           digitalWrite(this->gpioMy, HIGH);
           digitalWrite(this->gpioDown, HIGH);
@@ -902,7 +913,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         }
         break;
       case somfy_commands::MyUpDown:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioUp, HIGH);
           digitalWrite(this->gpioMy, HIGH);
           digitalWrite(this->gpioDown, HIGH);
@@ -924,7 +935,7 @@ void SomfyShade::checkMovement() {
   int32_t downTime = (int32_t)this->downTime;
   int32_t upTime = (int32_t)this->upTime;
   int32_t tiltTime = (int32_t)this->tiltTime;
-  if(this->shadeType == shade_types::drycontact) downTime = upTime = tiltTime = 1;
+  if(this->shadeType == shade_types::drycontact || this->shadeType == shade_types::drycontact2) downTime = upTime = tiltTime = 1;
   
 
   // We are checking movement for essentially 3 types of motors.
@@ -1334,6 +1345,9 @@ void SomfyShade::publishDisco() {
       obj["state_closing"] = this->flipPosition ? "-1" : "1";
       obj["state_opening"] = this->flipPosition ? "1" : "-1";
       break;
+    case shade_types::lgate:
+    case shade_types::cgate:
+    case shade_types::rgate:
     case shade_types::ldrapery:
     case shade_types::rdrapery:
     case shade_types::cdrapery:
@@ -1373,6 +1387,7 @@ void SomfyShade::publishDisco() {
       obj["state_closing"] = this->flipPosition ? "-1" : "1";
       obj["state_opening"] = this->flipPosition ? "1" : "-1";
       break;
+    case shade_types::drycontact2:
     case shade_types::drycontact:
       break;
     default:
@@ -1385,7 +1400,7 @@ void SomfyShade::publishDisco() {
       obj["state_opening"] = this->flipPosition ? "1" : "-1";
       break;
   }
-  if(this->shadeType != shade_types::drycontact) {
+  if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::drycontact2) {
     if(this->tiltType != tilt_types::tiltonly) {
       obj["command_topic"] = "~/direction/set";
       obj["position_topic"] = "~/position";
@@ -1881,7 +1896,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
   switch(cmd) {
     case somfy_commands::Sensor:
       this->lastFrame.processed = true;
-      if(this->shadeType == shade_types::drycontact) return;
+      if(this->shadeType == shade_types::drycontact || this->shadeType == shade_types::drycontact2) return;
       {
         const uint8_t prevFlags = this->flags;
         const bool wasSunny = prevFlags & static_cast<uint8_t>(somfy_flags_t::Sunny);
@@ -1960,13 +1975,13 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::MyUpDown:
     case somfy_commands::UpDown:
       this->lastFrame.processed = true;
-      if(this->shadeType == shade_types::drycontact) return;
+      if(this->shadeType == shade_types::drycontact || this->shadeType == shade_types::drycontact2) return;
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
       
     case somfy_commands::Flag:
       this->lastFrame.processed = true;
-      if(this->shadeType == shade_types::drycontact) return;
+      if(this->shadeType == shade_types::drycontact || this->shadeType == shade_types::drycontact2) return;
       if(this->lastFrame.rollingCode & 0x8000) return; // Some sensors send bogus frames with a rollingCode >= 32768 that cause them to change the state.
       this->p_sunFlag(false);
       //this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunFlag));
@@ -1976,7 +1991,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       somfy.updateGroupFlags();
       break;    
     case somfy_commands::SunFlag:
-      if(this->shadeType == shade_types::drycontact) return;
+      if(this->shadeType == shade_types::drycontact || this->shadeType == shade_types::drycontact2) return;
       if(this->lastFrame.rollingCode & 0x8000) return; // Some sensors send bogus frames with a rollingCode >= 32768 that cause them to change the state.
       {
         const bool isWindy = this->flags & static_cast<uint8_t>(somfy_flags_t::Windy);
@@ -2009,6 +2024,13 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         this->lastFrame.processed = true;
         return;
       }
+      else if(this->shadeType == shade_types::drycontact2) {
+        if(this->lastFrame.processed) return;
+        this->lastFrame.processed = true;
+        if(this->currentPos != 0.0f) this->p_target(0);
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
+        return;
+      }
       if(this->tiltType == tilt_types::tiltmotor || this->tiltType == tilt_types::euromode) {
         // Wait another half second just in case we are potentially processing a tilt.
         if(!internal) this->lastFrame.await = curTime + 500;
@@ -2030,6 +2052,13 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         this->lastFrame.processed = true;
         return;
       }
+      else if(this->shadeType == shade_types::drycontact2) {
+        if(this->lastFrame.processed) return;
+        this->lastFrame.processed = true;
+        if(this->currentPos != 100.0f) this->p_target(100);
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
+        return;
+      }
       if (!this->windLast || (curTime - this->windLast) >= SOMFY_NO_WIND_REMOTE_TIMEOUT) {
         if(this->tiltType == tilt_types::tiltmotor || this->tiltType == tilt_types::euromode) {
           // Wait another half seccond just in case we are potentially processing a tilt.
@@ -2047,6 +2076,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       }
       break;
     case somfy_commands::My:
+      if(this->shadeType == shade_types::drycontact2) return;
       if(this->shadeType == shade_types::garage1) {
         if(this->lastFrame.processed) return;
         this->lastFrame.processed = true;
@@ -2093,7 +2123,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::StepUp:
       if(this->lastFrame.processed) return;
       this->lastFrame.processed = true;
-      if(this->shadeType == shade_types::drycontact) return;
+      if(this->shadeType == shade_types::drycontact || this->shadeType == shade_types::drycontact2) return;
       dir = 0;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
@@ -2115,7 +2145,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::StepDown:
       if(this->lastFrame.processed) return;
       this->lastFrame.processed = true;
-      if(this->shadeType == shade_types::drycontact) return;
+      if(this->shadeType == shade_types::drycontact || this->shadeType == shade_types::drycontact2) return;
       dir = 1;
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
@@ -2474,6 +2504,7 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
   else if(cmd == somfy_commands::My) {
     if(this->shadeType == shade_types::garage1 || this->shadeType == shade_types::drycontact)
       SomfyRemote::sendCommand(cmd, repeat);
+    else if(this->shadeType == shade_types::drycontact2) return;   
     else if(this->isIdle()) {
       this->moveToMyPosition();      
       return;
@@ -2653,6 +2684,8 @@ bool SomfyShade::usesPin(uint8_t pin) {
   else if(this->shadeType == shade_types::garage1) {
     if(this->proto == radio_proto::GP_Relay && this->gpioUp == pin) return true;    
   }
+  else if(this->shadeType == shade_types::drycontact2)
+    if(this->proto == radio_proto::GP_Relay && (this->gpioUp == pin || this->gpioDown == pin)) return true;
   else {
     if(this->gpioUp == pin) return true;
     else if(this->proto == radio_proto::GP_Remote && this->gpioMy == pin) return true;    
@@ -2682,6 +2715,8 @@ int8_t SomfyShade::validateJSON(JsonObject &obj) {
         type = shade_types::awning;
       else if(strncmp(obj["shadeType"].as<const char *>(), "shutter", 8) == 0)
         type = shade_types::shutter;
+      else if(strncmp(obj["shadeType"].as<const char *>(), "drycontact2", 12) == 0)
+        type = shade_types::drycontact2;
       else if(strncmp(obj["shadeType"].as<const char *>(), "drycontact", 11) == 0)
         type = shade_types::drycontact;
     }
@@ -2698,6 +2733,7 @@ int8_t SomfyShade::validateJSON(JsonObject &obj) {
       uint8_t downPin = obj.containsKey("gpioDown") ? obj["gpioDown"].as<uint8_t>() : this->gpioDown;
       uint8_t myPin = obj.containsKey("gpioMy") ? obj["gpioMy"].as<uint8_t>() : this->gpioMy;
       if(type == shade_types::drycontact || (type == shade_types::garage1 && proto == radio_proto::GP_Remote)) upPin = myPin = 255;
+      else if(type == shade_types::drycontact2) myPin = 255;
       if(proto == radio_proto::GP_Relay) myPin = 255;
       if(somfy.transceiver.config.enabled) {
         if((upPin != 255 && somfy.transceiver.usesPin(upPin)) ||
@@ -2761,6 +2797,8 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
           this->shadeType = shade_types::awning;
         else if(strncmp(obj["shadeType"].as<const char *>(), "shutter", 8) == 0)
           this->shadeType = shade_types::shutter;
+        else if(strncmp(obj["shadeType"].as<const char *>(), "drycontact2", 12) == 0)
+          this->shadeType = shade_types::drycontact2;
         else if(strncmp(obj["shadeType"].as<const char *>(), "drycontact", 11) == 0)
           this->shadeType = shade_types::drycontact;
       }

@@ -142,9 +142,25 @@
 .shadectl-buttons[data-shadetype="9"] > .button-outline[data-cmd="down"],
 .shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="my"],
 .shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="up"],
-.shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="down"] {
+.shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="down"],
+.shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="my"] {
     display: none;
 }
+
+.shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="up"],
+.shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="down"] {
+    width: 3em;
+    border-radius: 30%;
+    text-align: center;
+    height:2.4em;
+}
+.shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="up"] i,
+.shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="down"] i {
+    top:.3em;
+}
+
+
+
 .shadectl-buttons:not([data-shadetype="5"]):not([data-shadetype="9"]) > .button-outline[data-cmd="toggle"] {
     display: none;
 }
@@ -157,9 +173,11 @@
 .somfyShadeCtl:not([data-shadetype="1"][data-tilt="3"]) .shadectl-mypos label.my-pos:after {
     content: "My:"
 }
-.somfyShadeCtl[data-shadetype="1"][data-tilt="3"] .shadectl-mypos label.my-pos {
-    display:none;
+.somfyShadeCtl[data-shadetype="1"][data-tilt="3"] .shadectl-mypos label.my-pos,
+.somfyShadeCtl[data-shadetype="10"] .shadectl-mypos {
+    display: none;
 }
+
 .somfyShadeCtl[data-shadetype="1"][data-tilt="3"] .shadectl-mypos label.my-pos-tilt:after {
     content:"My Tilt:";
 }

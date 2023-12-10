@@ -59,6 +59,10 @@ enum class shade_types : byte {
   rdrapery = 0x07,
   cdrapery = 0x08,
   drycontact = 0x09,
+  drycontact2 = 0x0A,
+  lgate = 0x0B,
+  cgate = 0x0C,
+  rgate = 0x0D
 };
 enum class tilt_types : byte {
   none = 0x00,
