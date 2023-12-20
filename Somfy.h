@@ -153,6 +153,9 @@ enum class somfy_flags_t : byte {
     Sunny = 0x20,
     Lighted = 0x40
 };
+enum class gpio_flags_t : byte {
+  LowLevelTrigger = 0x01
+};
 struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
@@ -186,6 +189,7 @@ class SomfyRemote {
     uint32_t m_remoteAddress = 0;
   public:
     radio_proto proto = radio_proto::RTS;
+    uint8_t gpioFlags = 0;
     int8_t gpioDir = 0;
     uint8_t gpioUp = 0;
     uint8_t gpioDown = 0;

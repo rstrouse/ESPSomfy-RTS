@@ -211,6 +211,14 @@
         width: 70px;
         display: inline-block;
     }
+#somfyShade #divLLTrigger {
+    display:none;
+}
+
+#somfyShade[data-proto="8"] #divLLTrigger,
+#somfyShade[data-proto="9"] #divLLTrigger {
+    display: block;
+}
 #somfyShade[data-proto="8"] #divStepSettings,
 #somfyShade[data-proto="9"] #divStepSettings,
 #somfyShade[data-proto="8"] #divGPIOMy,

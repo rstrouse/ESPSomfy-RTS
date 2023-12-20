@@ -811,43 +811,46 @@ bool SomfyShade::isInGroup() {
 void SomfyShade::setGPIOs() {
   if(this->proto == radio_proto::GP_Relay) {
     // Determine whether the direction needs to be set.
+    uint8_t p_on = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? HIGH : LOW;
+    uint8_t p_off = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? LOW : HIGH;
+    
     int8_t dir = this->direction;
     if(dir == 0 && this->tiltType == tilt_types::integrated)
       dir = this->tiltDirection;
     else if(this->tiltType == tilt_types::tiltonly)
       dir = this->tiltDirection;
     if(this->shadeType == shade_types::drycontact) {
-      digitalWrite(this->gpioDown, this->currentPos == 100 ? HIGH : LOW);
+      digitalWrite(this->gpioDown, this->currentPos == 100 ? p_on : p_off);
       this->gpioDir = this->currentPos == 100 ? 1 : -1;
     }
     else if(this->shadeType == shade_types::drycontact2) {
       if(this->currentPos == 100) {
-        digitalWrite(this->gpioDown, LOW);
-        digitalWrite(this->gpioUp, HIGH);
+        digitalWrite(this->gpioDown, p_off);
+        digitalWrite(this->gpioUp, p_on);
       }
       else {
-        digitalWrite(this->gpioUp, LOW);
-        digitalWrite(this->gpioDown, HIGH);
+        digitalWrite(this->gpioUp, p_off);
+        digitalWrite(this->gpioDown, p_on);
       }
       this->gpioDir = this->currentPos == 100 ? 1 : -1;
     }
     else {
       switch(dir) {
         case -1:
-          digitalWrite(this->gpioDown, LOW);
-          digitalWrite(this->gpioUp, HIGH);
+          digitalWrite(this->gpioDown, p_off);
+          digitalWrite(this->gpioUp, p_on);
           if(dir != this->gpioDir) Serial.printf("UP: true, DOWN: false\n");
           this->gpioDir = dir;
           break;
         case 1:
-          digitalWrite(this->gpioUp, LOW);
-          digitalWrite(this->gpioDown, HIGH);
+          digitalWrite(this->gpioUp, p_off);
+          digitalWrite(this->gpioDown, p_on);
           if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: true\n");
           this->gpioDir = dir;
           break;
         default:
-          digitalWrite(this->gpioUp, LOW);
-          digitalWrite(this->gpioDown, LOW);
+          digitalWrite(this->gpioUp, p_off);
+          digitalWrite(this->gpioDown, p_off);
           if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false\n");
           this->gpioDir = dir;
           break;
@@ -856,9 +859,11 @@ void SomfyShade::setGPIOs() {
   }
   else if(this->proto == radio_proto::GP_Remote) {
     if(millis() > this->gpioRelease) {
-      digitalWrite(this->gpioUp, LOW);
-      digitalWrite(this->gpioDown, LOW);
-      digitalWrite(this->gpioMy, LOW);
+      uint8_t p_on = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? HIGH : LOW;
+      uint8_t p_off = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? LOW : HIGH;
+      digitalWrite(this->gpioUp, p_off);
+      digitalWrite(this->gpioDown, p_off);
+      digitalWrite(this->gpioMy, p_off);
       this->gpioRelease = 0;
     }
   }
@@ -866,22 +871,24 @@ void SomfyShade::setGPIOs() {
 void SomfyRemote::triggerGPIOs(somfy_frame_t &frame) { }
 void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
   if(this->proto == radio_proto::GP_Remote) {
+    uint8_t p_on = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? HIGH : LOW;
+    uint8_t p_off = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? LOW : HIGH;
     int8_t dir = 0;
     switch(frame.cmd) {
       case somfy_commands::My:
         if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
-          digitalWrite(this->gpioUp, LOW);
-          digitalWrite(this->gpioDown, LOW);
-          digitalWrite(this->gpioMy, HIGH);
+          digitalWrite(this->gpioUp, p_off);
+          digitalWrite(this->gpioDown, p_off);
+          digitalWrite(this->gpioMy, p_on);
           dir = 0;
           if(dir != this->gpioDir) Serial.printf("UP: false, DOWN: false, MY: true\n");
         }
         break;
       case somfy_commands::Up:
         if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
-          digitalWrite(this->gpioMy, LOW);
-          digitalWrite(this->gpioDown, LOW);
-          digitalWrite(this->gpioUp, HIGH);
+          digitalWrite(this->gpioMy, p_off);
+          digitalWrite(this->gpioDown, p_off);
+          digitalWrite(this->gpioUp, p_on);
           dir = -1;
           Serial.printf("UP: true, DOWN: false, MY: false\n");
         }
@@ -889,34 +896,34 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
       case somfy_commands::Toggle:
       case somfy_commands::Down:
         if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
-          digitalWrite(this->gpioMy, LOW);
-          digitalWrite(this->gpioUp, LOW);
+          digitalWrite(this->gpioMy, p_off);
+          digitalWrite(this->gpioUp, p_off);
         }
-        digitalWrite(this->gpioDown, HIGH);
+        digitalWrite(this->gpioDown, p_on);
         dir = 1;
         Serial.printf("UP: false, DOWN: true, MY: false\n");
         break;
       case somfy_commands::MyUp:
         if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
-          digitalWrite(this->gpioDown, LOW);
-          digitalWrite(this->gpioMy, HIGH);
-          digitalWrite(this->gpioUp, HIGH);
+          digitalWrite(this->gpioDown, p_off);
+          digitalWrite(this->gpioMy, p_on);
+          digitalWrite(this->gpioUp, p_on);
           Serial.printf("UP: true, DOWN: false, MY: true\n");
         }
         break;
       case somfy_commands::MyDown:
         if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
-          digitalWrite(this->gpioUp, LOW);
-          digitalWrite(this->gpioMy, HIGH);
-          digitalWrite(this->gpioDown, HIGH);
+          digitalWrite(this->gpioUp, p_off);
+          digitalWrite(this->gpioMy, p_on);
+          digitalWrite(this->gpioDown, p_on);
           Serial.printf("UP: false, DOWN: true, MY: true\n");
         }
         break;
       case somfy_commands::MyUpDown:
         if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
-          digitalWrite(this->gpioUp, HIGH);
-          digitalWrite(this->gpioMy, HIGH);
-          digitalWrite(this->gpioDown, HIGH);
+          digitalWrite(this->gpioUp, p_on);
+          digitalWrite(this->gpioMy, p_on);
+          digitalWrite(this->gpioDown, p_on);
           Serial.printf("UP: true, DOWN: true, MY: true\n");
         }
         break;
@@ -2777,6 +2784,9 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
     if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
     if(obj.containsKey("sunSensor")) this->setSunSensor(obj["sunSensor"]);
     if(obj.containsKey("light")) this->setLight(obj["light"]);
+    if(obj.containsKey("gpioFlags")) this->gpioFlags = obj["gpioFlags"];
+    if(obj.containsKey("gpioLLTrigger")) this->gpioFlags = obj["gpioLLTrigger"].as<bool>() ? this->gpioFlags |= (uint8_t)gpio_flags_t::LowLevelTrigger : this->gpioFlags &= ~(uint8_t)gpio_flags_t::LowLevelTrigger;
+    
     if(obj.containsKey("shadeType")) {
       if(obj["shadeType"].is<const char *>()) {
         if(strncmp(obj["shadeType"].as<const char *>(), "roller", 7) == 0)
@@ -2904,6 +2914,8 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["gpioUp"] = this->gpioUp;
   obj["gpioDown"] = this->gpioDown;
   obj["gpioMy"] = this->gpioMy;
+  obj["gpioLLTrigger"] = ((this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0) ? false : true;
+  Serial.println(this->gpioFlags);
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {

@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.2.2c" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.2.2c" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.2.2c" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.2.2d" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.2.2d" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.2.2d" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.2.2c"></script>
+    <script type="text/javascript" src="index.js?v=2.2.2d"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -413,6 +413,12 @@
                                             <span id="spanStepSize" data-bind="stepSize" data-datatype="int" data-fmttype="number" data-fmtmask="#,##0" style="color:black;"></span><span>(larger)</span>
                                         </span>
                                     </label>
+                                </div>
+                            </div>
+                            <div id="divLLTrigger" style="margin-top:-10px;">
+                                <div class="field-group">
+                                    <input id="cbLLTrigger" name="hasLLTrigger" data-bind="gpioLLTrigger" type="checkbox" style="" />
+                                    <label for="cbLLTrigger" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Low Level Trigger</label>
                                 </div>
                             </div>
                             <div id="divSunSensor" style="margin-top:-10px;">
