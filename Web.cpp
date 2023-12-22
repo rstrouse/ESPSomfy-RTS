@@ -1253,7 +1253,7 @@ void Web::begin() {
       // We are updating an existing shade.
       if (server.hasArg("plain")) {
         Serial.println("Updating a shade");
-        DynamicJsonDocument doc(512);
+        DynamicJsonDocument doc(1024);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
           switch (err.code()) {
@@ -1276,7 +1276,7 @@ void Web::begin() {
               int8_t err = shade->fromJSON(obj);
               if(err == 0) {
                 shade->save();
-                DynamicJsonDocument sdoc(512);
+                DynamicJsonDocument sdoc(1024);
                 JsonObject sobj = sdoc.to<JsonObject>();
                 shade->toJSON(sobj);
                 serializeJson(sdoc, g_content);

@@ -158,16 +158,14 @@
 .shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="down"] i {
     top:.3em;
 }
-
-
-
 .shadectl-buttons:not([data-shadetype="5"]):not([data-shadetype="9"]) > .button-outline[data-cmd="toggle"] {
     display: none;
 }
 .somfyShadeCtl[data-shadetype="5"] .shadectl-mypos,
 .somfyShadeCtl[data-shadetype="9"] .shadectl-mypos,
 .somfyShadeCtl[data-tilt="3"] .shadectl-mypos .my-pos,
-.somfyShadeCtl:not([data-shadetype="1"]) .shadectl-mypos .my-pos-tilt {
+.somfyShadeCtl:not([data-shadetype="1"]) .shadectl-mypos .my-pos-tilt,
+.somfyShadeCtl[data-tilt="0"] .shadectl-mypos .my-pos-tilt {
     display: none;
 }
 .somfyShadeCtl:not([data-shadetype="1"][data-tilt="3"]) .shadectl-mypos label.my-pos:after {

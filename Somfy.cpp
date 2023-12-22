@@ -1007,8 +1007,8 @@ void SomfyShade::checkMovement() {
 
   if(!tilt_first && this->direction > 0) {
     if(downTime == 0) {
-      this->p_direction(0);
       this->p_currentPos(100.0);
+      //this->p_direction(0);
     }
     else {
       // The shade is moving down so we need to calculate its position through the down position.
@@ -1026,7 +1026,7 @@ void SomfyShade::checkMovement() {
       msFrom0 = min(downTime, msFrom0);
       if(msFrom0 >= downTime) {
         this->p_currentPos(100.0f);
-        this->p_direction(0);        
+        //this->p_direction(0);        
       }
       else {
         // So now we know how much time has elapsed from the 0 position to down.  The current position should be
@@ -1036,8 +1036,8 @@ void SomfyShade::checkMovement() {
         this->p_currentPos((min(max((float)0.0, (float)msFrom0 / (float)downTime), (float)1.0)) * 100);
         // If the current position is >= 1 then we are at the bottom of the shade.
         if(this->currentPos >= 100) {
-          this->p_direction(0);
           this->p_currentPos(100.0);
+          //this->p_direction(0);
         }
       }
     }
@@ -1048,6 +1048,7 @@ void SomfyShade::checkMovement() {
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
         if(!isAtTarget()) {
+          Serial.printf("We are not at our tilt target: %.2f\n", this->tiltTarget);
           if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
           delay(100);
           // We now need to move the tilt to the position we requested.
@@ -1064,8 +1065,8 @@ void SomfyShade::checkMovement() {
   }
   else if(!tilt_first && this->direction < 0) {
     if(upTime == 0) {
-      this->p_direction(0);
       this->p_currentPos(0);
+      //this->p_direction(0);
     }
     else {
       // The shade is moving up so we need to calculate its position through the up position. Shades
@@ -1077,7 +1078,7 @@ void SomfyShade::checkMovement() {
       msFrom100 = min(upTime, msFrom100);
       if(msFrom100 >= upTime) {
         this->p_currentPos(0.0f);
-        this->p_direction(0);
+        //this->p_direction(0);
       }
       else {
         float fpos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)upTime), (float)1.0)) * 100;
@@ -1085,7 +1086,7 @@ void SomfyShade::checkMovement() {
         // If we are at the top of the shade then set the movement to 0.
         if(fpos <= 0.0) {
           this->p_currentPos(0.0f);
-          this->p_direction(0);
+          //this->p_direction(0);
         }
         else 
           this->p_currentPos(fpos);
@@ -1099,6 +1100,7 @@ void SomfyShade::checkMovement() {
       // not moving otherwise the my function will kick in.
       if(this->settingPos) {
         if(!isAtTarget()) {
+          Serial.printf("We are not at our tilt target: %.2f\n", this->tiltTarget);
           if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
           delay(100);
           // We now need to move the tilt to the position we requested.
@@ -1120,14 +1122,16 @@ void SomfyShade::checkMovement() {
     msFrom0 = min(tiltTime, msFrom0);
     if(msFrom0 >= tiltTime) {
       this->p_currentTiltPos(100.0f);
-      this->p_tiltDirection(0);        
+      //this->p_tiltDirection(0);        
+      //Serial.printf("Setting tiltDirection to 0 (not enough time) %.4f %.4f\n", msFrom0, tiltTime);
     }
     else {
       float fpos = (min(max((float)0.0, (float)msFrom0 / (float)tiltTime), (float)1.0)) * 100;
       
       if(fpos > 100.0f) {
-        this->p_tiltDirection(0);
         this->p_currentTiltPos(100.0f);
+        //this->p_tiltDirection(0);
+        //Serial.println("Setting tiltDirection to 0 (100%)");
       }
       else this->p_currentTiltPos(fpos);
     }
@@ -1136,7 +1140,8 @@ void SomfyShade::checkMovement() {
         this->p_currentTiltPos(100.0f);
         this->moveStart = curTime;
         this->startPos = this->currentPos;
-        this->p_tiltDirection(0);
+        //this->p_tiltDirection(0);
+        //Serial.println("Setting tiltDirection to 0 (tilt_first)");
       }
     }
     else if(this->currentTiltPos >= this->tiltTarget) {
@@ -1146,6 +1151,7 @@ void SomfyShade::checkMovement() {
       if(this->settingTiltPos) {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
+          //Serial.printf("Sending My -- tiltTarget: %.2f, tiltDirection: %d\n", this->tiltTarget, this->tiltDirection);
           if(this->tiltTarget != 100.0f || this->currentTiltPos != 100.0f) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
@@ -1170,13 +1176,13 @@ void SomfyShade::checkMovement() {
       msFrom100 = min(tiltTime, msFrom100);
       if(msFrom100 >= tiltTime) {
         this->p_currentTiltPos(0.0f);
-        this->p_tiltDirection(0);
+        //this->p_tiltDirection(0);
       }
       float fpos = ((float)1.0 - min(max((float)0.0, (float)msFrom100 / (float)tiltTime), (float)1.0)) * 100;
       // If we are at the top of the shade then set the movement to 0.
       if(fpos <= 0.0f) {
-        this->p_tiltDirection(0);
         this->p_currentTiltPos(0.0f);
+        //this->p_tiltDirection(0);
       }
       else this->p_currentTiltPos(fpos);
     }
@@ -1185,7 +1191,7 @@ void SomfyShade::checkMovement() {
         this->p_currentTiltPos(0.0f);
         this->moveStart = curTime;
         this->startPos = this->currentPos;
-        this->p_tiltDirection(0);
+        //this->p_tiltDirection(0);
       }
     }
     else if(this->currentTiltPos <= this->tiltTarget) {
@@ -1195,6 +1201,7 @@ void SomfyShade::checkMovement() {
       if(this->settingTiltPos) {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
+          //Serial.printf("Sending My -- tiltTarget: %.2f, tiltDirection: %d\n", this->tiltTarget, this->tiltDirection);
           if(this->tiltTarget != 0.0 || this->currentTiltPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
@@ -1751,7 +1758,9 @@ int8_t SomfyShade::transformPosition(float fpos) {
   if(fpos < 0) return -1;
   return static_cast<int8_t>(this->flipPosition && fpos >= 0.00f ? floor(100.0f - fpos) : floor(fpos)); 
 }
-bool SomfyShade::isIdle() { return this->direction == 0 && this->tiltDirection == 0; }
+bool SomfyShade::isIdle() { 
+  return this->isAtTarget() && this->direction == 0 && this->tiltDirection == 0; 
+}
 void SomfyShade::processWaitingFrame() {
   if(this->shadeId == 255) {
     this->lastFrame.await = 0; 
@@ -2112,6 +2121,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
           this->lastFrame.await = curTime + 500;
         }
         else {
+          Serial.println("Moving to My target");
           this->lastFrame.processed = true;
           if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->p_tiltTarget(this->myTiltPos);
           if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->p_target(this->myPos);
@@ -2450,6 +2460,7 @@ void SomfyShade::setMyPosition(int8_t pos, int8_t tilt) {
 }
 void SomfyShade::moveToMyPosition() {
   if(!this->isIdle()) return;
+  Serial.println("Moving to My Position");
   if(this->tiltType == tilt_types::tiltonly) {
     this->p_currentPos(100.0f);
     this->p_myPos(-1.0f);
@@ -2915,7 +2926,6 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   obj["gpioDown"] = this->gpioDown;
   obj["gpioMy"] = this->gpioMy;
   obj["gpioLLTrigger"] = ((this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0) ? false : true;
-  Serial.println(this->gpioFlags);
   SomfyRemote::toJSON(obj);
   JsonArray arr = obj.createNestedArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
@@ -3388,7 +3398,7 @@ uint16_t SomfyRemote::getNextRollingCode() {
   pref.putUShort(this->m_remotePrefId, code);
   pref.end();
   this->p_lastRollingCode(code);
-  Serial.printf("Getting Next Rolling code %d\n", this->lastRollingCode);
+  //Serial.printf("Getting Next Rolling code %d\n", this->lastRollingCode);
   return code;
 }
 uint16_t SomfyRemote::p_lastRollingCode(uint16_t code) { 
