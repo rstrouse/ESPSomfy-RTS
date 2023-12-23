@@ -1152,7 +1152,7 @@ void SomfyShade::checkMovement() {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
           //Serial.printf("Sending My -- tiltTarget: %.2f, tiltDirection: %d\n", this->tiltTarget, this->tiltDirection);
-          if(this->tiltTarget != 100.0f || this->currentTiltPos != 100.0f) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->tiltTarget != 100.0f || this->currentPos != 100.0f) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
           // This is a tilt motor so let it complete if it is going to 100.
@@ -1202,7 +1202,7 @@ void SomfyShade::checkMovement() {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
           //Serial.printf("Sending My -- tiltTarget: %.2f, tiltDirection: %d\n", this->tiltTarget, this->tiltDirection);
-          if(this->tiltTarget != 0.0 || this->currentTiltPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->tiltTarget != 0.0 || this->currentPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
         }
         else {
           // This is a tilt motor so let it complete if it is going to 0.
