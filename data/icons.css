@@ -888,7 +888,7 @@ i.icss-lightbulb {
         border-width: 0.068em;
         border-style: solid;
         border-radius: 100% 100% 100% .2em;
-        background-color: rgba(255,255,0, var(--shade-position, 0%));
+        background-color: rgba(255,255,0, var(--fpos, 0%));
         left: 50%;
         transform: translateX(-50%) rotate(-45deg);
         bottom: .11em;
