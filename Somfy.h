@@ -300,6 +300,9 @@ class SomfyShade : public SomfyRemote {
     void moveToMyPosition();
     void processWaitingFrame();
     void publish();
+    void unpublish();
+    static void unpublish(uint8_t id);
+    static void unpublish(uint8_t id, const char *topic);
     void publishState();
     void commit();
     void commitShadePosition();
@@ -352,6 +355,9 @@ class SomfyGroup : public SomfyRemote {
     bool hasShadeId(uint8_t shadeId);
     void compressLinkedShadeIds();
     void publish();
+    void unpublish();
+    static void unpublish(uint8_t id);
+    static void unpublish(uint8_t id, const char *topic);
     void publishState();
     void updateFlags();
     void emitState(const char *evt = "groupState");

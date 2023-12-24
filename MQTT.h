@@ -15,6 +15,7 @@ class MQTTClass {
     bool disconnect();
     bool connected();
     void reset();
+    bool unpublish(const char *topic);
     bool publish(const char *topic, const char *payload, bool retain = false);
     bool publish(const char *topic, JsonDocument &doc, bool retain = false);
     bool publish(const char *topic, JsonArray &arr, bool retain = false);

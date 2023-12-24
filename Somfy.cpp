@@ -1303,16 +1303,16 @@ void SomfyShade::load() {
 }
 void SomfyShade::publishState() {
   if(mqtt.connected()) {
-    this->publish("position", this->transformPosition(this->currentPos));
-    this->publish("direction", this->direction);
-    this->publish("target", this->transformPosition(this->target));
+    this->publish("position", this->transformPosition(this->currentPos), true);
+    this->publish("direction", this->direction, true);
+    this->publish("target", this->transformPosition(this->target), true);
     this->publish("lastRollingCode", this->lastRollingCode);
-    this->publish("mypos", this->transformPosition(this->myPos));
-    this->publish("myTiltPos", this->transformPosition(this->myTiltPos));
+    this->publish("mypos", this->transformPosition(this->myPos), true);
+    this->publish("myTiltPos", this->transformPosition(this->myTiltPos), true);
     if(this->tiltType != tilt_types::none) {
-      this->publish("tiltDirection", this->tiltDirection);
-      this->publish("tiltPosition", this->transformPosition(this->currentTiltPos));
-      this->publish("tiltTarget", this->transformPosition(this->tiltTarget));
+      this->publish("tiltDirection", this->tiltDirection, true);
+      this->publish("tiltPosition", this->transformPosition(this->currentTiltPos), true);
+      this->publish("tiltTarget", this->transformPosition(this->tiltTarget), true);
     }
     const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
     const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
@@ -1450,14 +1450,14 @@ void SomfyShade::publishDisco() {
 }
 void SomfyShade::publish() {
   if(mqtt.connected()) {
-    this->publish("shadeId", this->shadeId);
-    this->publish("name", this->name);
-    this->publish("remoteAddress", this->getRemoteAddress());
-    this->publish("shadeType", static_cast<uint8_t>(this->shadeType));
-    this->publish("tiltType", static_cast<uint8_t>(this->tiltType));
-    this->publish("flags", this->flags);
-    this->publish("flipCommands", this->flipCommands);
-    this->publish("flipPosition", this->flipPosition);
+    this->publish("shadeId", this->shadeId, true);
+    this->publish("name", this->name, true);
+    this->publish("remoteAddress", this->getRemoteAddress(), true);
+    this->publish("shadeType", static_cast<uint8_t>(this->shadeType), true);
+    this->publish("tiltType", static_cast<uint8_t>(this->tiltType), true);
+    this->publish("flags", this->flags, true);
+    this->publish("flipCommands", this->flipCommands, true);
+    this->publish("flipPosition", this->flipPosition, true);
     this->publishState();
     this->publishDisco();
     sockEmit.loop(); // Keep our socket alive.
@@ -1465,8 +1465,8 @@ void SomfyShade::publish() {
 }
 void SomfyGroup::publishState() {
   if(mqtt.connected()) {
-    this->publish("direction", this->direction);
-    this->publish("lastRollingCode", this->lastRollingCode);
+    this->publish("direction", this->direction, true);
+    this->publish("lastRollingCode", this->lastRollingCode, true);
     const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
     const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
     const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
@@ -1477,16 +1477,63 @@ void SomfyGroup::publishState() {
 }
 void SomfyGroup::publish() {
   if(mqtt.connected()) {
-    this->publish("groupId", this->groupId);
-    this->publish("name", this->name);
-    this->publish("remoteAddress", this->getRemoteAddress());
-    this->publish("groupType", static_cast<uint8_t>(this->groupType));
-    this->publish("flags", this->flags);
-    this->publish("sunSensor", this->hasSunSensor());
+    this->publish("groupId", this->groupId, true);
+    this->publish("name", this->name, true);
+    this->publish("remoteAddress", this->getRemoteAddress(), true);
+    this->publish("groupType", static_cast<uint8_t>(this->groupType), true);
+    this->publish("flags", this->flags, true);
+    this->publish("sunSensor", this->hasSunSensor(), true);
     this->publishState();
   }
 }
 char mqttTopicBuffer[55];
+void SomfyGroup::unpublish() { SomfyGroup::unpublish(this->groupId); }
+void SomfyShade::unpublish() { SomfyShade::unpublish(this->shadeId); }
+void SomfyShade::unpublish(uint8_t id) {
+  if(mqtt.connected()) {
+    SomfyShade::unpublish(id, "shadeId");
+    SomfyShade::unpublish(id, "name");
+    SomfyShade::unpublish(id, "remoteAddress");
+    SomfyShade::unpublish(id, "shadeType");
+    SomfyShade::unpublish(id, "tiltType");
+    SomfyShade::unpublish(id, "flags");
+    SomfyShade::unpublish(id, "flipCommands");
+    SomfyShade::unpublish(id, "flipPosition");
+    SomfyShade::unpublish(id, "position");
+    SomfyShade::unpublish(id, "direction");
+    SomfyShade::unpublish(id, "target");
+    SomfyShade::unpublish(id, "lastRollingCode");
+    SomfyShade::unpublish(id, "mypos");
+    SomfyShade::unpublish(id, "myTiltPos");
+    SomfyShade::unpublish(id, "tiltDirection");
+    SomfyShade::unpublish(id, "tiltPosition");
+    SomfyShade::unpublish(id, "tiltTarget");
+  }
+}
+void SomfyGroup::unpublish(uint8_t id) {
+  if(mqtt.connected()) {
+    SomfyGroup::unpublish(id, "groupId");
+    SomfyGroup::unpublish(id, "name");
+    SomfyGroup::unpublish(id, "remoteAddress");
+    SomfyGroup::unpublish(id, "groupType");
+    SomfyGroup::unpublish(id, "direction");
+    SomfyGroup::unpublish(id, "lastRollingCode");
+    SomfyGroup::unpublish(id, "flags");
+    SomfyGroup::unpublish(id, "SunSensor");
+  }
+}
+void SomfyGroup::unpublish(uint8_t id, const char *topic) {
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "groups/%u/%s", id, topic);
+    mqtt.unpublish(mqttTopicBuffer);
+  }
+}
+void SomfyShade::unpublish(uint8_t id, const char *topic) {
+  if(mqtt.connected()) {
+    snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", id, topic);
+    mqtt.unpublish(mqttTopicBuffer);
+  }
+}
 bool SomfyShade::publish(const char *topic, int8_t val, bool retain) {
   if(mqtt.connected()) {
     snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
@@ -1495,6 +1542,7 @@ bool SomfyShade::publish(const char *topic, int8_t val, bool retain) {
   }
   return false;
 }
+
 bool SomfyShade::publish(const char *topic, const char *val, bool retain) { 
   if(mqtt.connected()) {
     snprintf(mqttTopicBuffer, sizeof(mqttTopicBuffer), "shades/%u/%s", this->shadeId, topic);
@@ -1621,7 +1669,7 @@ int8_t SomfyShade::p_direction(int8_t dir) {
   int8_t old = this->direction;
   if(old != dir) {
     this->direction = dir;
-    this->publish("direction", this->direction);
+    this->publish("direction", this->direction, true);
   }
   return old;
 }
@@ -1637,7 +1685,7 @@ int8_t SomfyShade::p_tiltDirection(int8_t dir) {
   int8_t old = this->tiltDirection;
   if(old != dir) {
     this->tiltDirection = dir;
-    this->publish("tiltDirection", this->tiltDirection);
+    this->publish("tiltDirection", this->tiltDirection, true);
   }
   return old;
 }
@@ -1646,7 +1694,7 @@ float SomfyShade::p_target(float target) {
   if(old != target) {
     this->target = target;
     if(this->transformPosition(old) != this->transformPosition(target))
-      this->publish("target", this->transformPosition(this->target));
+      this->publish("target", this->transformPosition(this->target), true);
   }
   return old;
 }
@@ -1655,7 +1703,7 @@ float SomfyShade::p_tiltTarget(float target) {
   if(old != target) {
     this->tiltTarget = target;
     if(this->transformPosition(old) != this->transformPosition(target))
-      this->publish("tiltTarget", this->transformPosition(this->tiltTarget));
+      this->publish("tiltTarget", this->transformPosition(this->tiltTarget), true);
   }
   return old;
 }
@@ -1665,7 +1713,7 @@ float SomfyShade::p_myPos(float pos) {
     //if(this->transformPosition(pos) == 0) Serial.println("MyPos = %.2f", pos);
     this->myPos = pos;
     if(this->transformPosition(old) != this->transformPosition(pos))
-      this->publish("mypos", this->transformPosition(this->myPos));
+      this->publish("mypos", this->transformPosition(this->myPos), true);
   }
   return old;
 }
@@ -1674,7 +1722,7 @@ float SomfyShade::p_myTiltPos(float pos) {
   if(old != pos) {
     this->myTiltPos = pos;
     if(this->transformPosition(old) != this->transformPosition(pos))
-      this->publish("myTiltPos", this->transformPosition(this->myTiltPos));
+      this->publish("myTiltPos", this->transformPosition(this->myTiltPos), true);
   }
   return old;
 }
@@ -3012,18 +3060,32 @@ void SomfyShadeController::publish() {
   JsonArray arrGroups = docGroups.to<JsonArray>();
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade *shade = &this->shades[i];
-    if(shade->getShadeId() == 255) continue;
+    if(shade->getShadeId() == 255) {
+      continue;
+    }
     arrShades.add(shade->getShadeId());
     shade->publish();
   }
-  mqtt.publish("shades", arrShades);
+  mqtt.publish("shades", arrShades, true);
+  for(uint8_t i = 1; i <= SOMFY_MAX_SHADES; i++) {
+    SomfyShade *shade = this->getShadeById(i);
+    if(shade) continue;
+    else {
+      SomfyShade::unpublish(i);
+    }
+  }
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
     SomfyGroup *group = &this->groups[i];
     if(group->getGroupId() == 255) continue;
     arrGroups.add(group->getGroupId());
     group->publish();
   }
-  mqtt.publish("groups", arrGroups);
+  for(uint8_t i = 1; i <= SOMFY_MAX_GROUPS; i++) {
+    SomfyGroup *group = this->getGroupById(i);
+    if(group) continue;
+    else SomfyGroup::unpublish(i);
+  }
+  mqtt.publish("groups", arrGroups, true);
 }
 uint8_t SomfyShadeController::getNextShadeId() {
   // There is no shortcut for this since the deletion of
@@ -3359,6 +3421,7 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() == shadeId) {
       shades[i].emitState("shadeRemoved");
+      shades[i].unpublish();
       this->shades[i].clear();
     }
   }
@@ -3382,7 +3445,8 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
 bool SomfyShadeController::deleteGroup(uint8_t groupId) {
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
     if(this->groups[i].getGroupId() == groupId) {
-      shades[i].emitState("groupRemoved");
+      groups[i].emitState("groupRemoved");
+      groups[i].unpublish();
       this->groups[i].clear();
     }
   }

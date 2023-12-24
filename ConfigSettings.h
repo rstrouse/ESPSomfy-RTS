@@ -3,7 +3,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v2.2.2"
+#define FW_VERSION "v2.2.3a"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,

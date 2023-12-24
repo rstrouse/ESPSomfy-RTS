@@ -309,6 +309,22 @@ bool MQTTClass::publish(const char *topic, JsonObject &obj, bool retain) {
   serializeJson(obj, g_content, sizeof(g_content));
   return this->publish(topic, g_content, retain);
 }
+bool MQTTClass::unpublish(const char *topic) {
+  if(mqttClient.connected()) {
+    char top[128];
+    if(strlen(settings.MQTT.rootTopic) > 0)
+      snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
+    else
+      strlcpy(top, topic, sizeof(top));
+    mqttClient.publish(top, (const uint8_t *)"", 0, true);
+    return true;
+  }
+  return false;
+
+//  mqttClient.beginPublish(topic, 0, true);
+//  mqttClient.endPublish();
+}
+
 bool MQTTClass::publishBuffer(const char *topic, uint8_t *data, uint16_t len, bool retain) {
   size_t res;
   uint16_t offset = 0;
