@@ -2,7 +2,7 @@ name: ESPSomfy-RTS Release
 
 on: 
   release:
-    types: [created]
+    types: published
 
 env:
   ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json"
