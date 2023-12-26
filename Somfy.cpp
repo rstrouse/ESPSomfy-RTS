@@ -4270,7 +4270,7 @@ void transceiver_config_t::apply() {
       
     }
     else {
-      ELECHOUSE_cc1101.setSidle();
+      if(this->radioInit) ELECHOUSE_cc1101.setSidle();
       somfy.transceiver.disableReceive();
       this->radioInit = false;
     }

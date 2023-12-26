@@ -1,0 +1,160 @@
+name: ESPSomfy-RTS Release
+
+on: 
+  release:
+    types: [created]
+
+env:
+  ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json"
+  ARDUINO_CLI_VERSION: "0.x"
+  ARDUINO_ESP32_VERSION: "2.0.10"
+  ARDUINO_JSON_VERSION: "6.21.3"
+  ESPTOOL_VERSION: "4.6"
+  LITTLEFS_VERSION: "v2.5.1"
+  MKLITTLEFS_VERSION: "3.1.0"
+  PUB_SUB_CLIENT_VERSION: "2.8.0"
+  PYTHON_VERSION: "3.10"
+  SMARTRC_CC1101_VERSION: "2.5.7"
+  WEB_SOCKET_VERSION: "2.4.0"
+
+jobs:
+  littlefs:
+    name: LittleFS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Checkout mklittlefs
+        uses: actions/checkout@v3
+        with:
+          repository: earlephilhower/mklittlefs
+          path: mklittlefs
+          ref: ${{ env.MKLITTLEFS_VERSION }}
+
+      - name: Checkout LittleFS
+        uses: actions/checkout@v3
+        with:
+          repository: littlefs-project/littlefs
+          path: mklittlefs/littlefs
+          ref: ${{ env.LITTLEFS_VERSION }}
+
+      - name: Build mklittlefs
+        run: |
+          make -C mklittlefs
+
+      - name: Create LittleFS
+        run: |
+          ./mklittlefs/mklittlefs --create data --size 1441792 SomfyController.littlefs.bin
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: LittleFS
+          path: SomfyController.littlefs.bin
+          retention-days: 5
+
+  arduino:
+    name: ${{ matrix.name }}
+    needs: [littlefs]
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: esp32
+            addr_bootloader: 0x1000
+            chip: ESP32
+            fqbn: esp32:esp32:esp32wrover
+            name: ESP32
+            obname: SomfyController.onboard.esp32.bin
+          - board: esp32c3
+            addr_bootloader: 0x0
+            chip: ESP32-C3
+            fqbn: esp32:esp32:esp32c3
+            name: C3-mini
+            obname: SomfyController.onboard.esp32c3.bin
+          - board: esp32s2
+            addr_bootloader: 0x1000
+            chip: ESP32-S2
+            fqbn: esp32:esp32:esp32s2
+            name: S2-mini
+            obname: SomfyController.onboard.esp32s2.bin
+          - board: esp32s3
+            addr_bootloader: 0x0
+            chip: ESP32-S3
+            fqbn: esp32:esp32:esp32s3
+            name: S3-mini
+            obname: SomfyController.onboard.esp32s3.bin
+    steps:
+      - name: Get Release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          path: SomfyController
+
+      - name: Get LittleFS
+        uses: actions/download-artifact@v3
+        with:
+          name: LittleFS
+
+      - name: Install Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Upgrade pip
+        run: |
+          python -m pip install --upgrade pip
+          pip --version
+
+      - name: Install ESPTool
+        run: |
+          pip install esptool==${{ env.ESPTOOL_VERSION }}
+
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+        with:
+          version: ${{ env.ARDUINO_CLI_VERSION }}
+
+      - name: Configure Arduino CLI
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@${{ env.ARDUINO_ESP32_VERSION }}
+
+      - name: Configure Arduino Libraries
+        run: |
+          arduino-cli lib install ArduinoJson@${{ env.ARDUINO_JSON_VERSION }}
+          arduino-cli lib install PubSubClient@${{ env.PUB_SUB_CLIENT_VERSION }}
+          arduino-cli lib install SmartRC-CC1101-Driver-Lib@${{ env.SMARTRC_CC1101_VERSION }}
+          arduino-cli lib install WebSockets@${{ env.WEB_SOCKET_VERSION }}
+
+      - name: Build ${{ matrix.name }}
+        run: |
+          mkdir -p build
+          arduino-cli compile --clean --output-dir build --fqbn ${{ matrix.fqbn }} --warnings default ./SomfyController
+
+      - name: ${{ matrix.name }} Image
+        run: |
+          python -m esptool --chip ${{ matrix.chip }} \
+            merge_bin -o build/${{ matrix.obname }} \
+            ${{ matrix.addr_bootloader }} build/SomfyController.ino.bootloader.bin \
+            0x8000 build/SomfyController.ino.partitions.bin \
+            0x10000 build/SomfyController.ino.bin \
+            0x290000 SomfyController.littlefs.bin
+
+      - name: Upload ${{ matrix.name }}
+        uses: actions/upload-release-asset@v1.0.2
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_name: ${{ matrix.name }}
+          asset_path: ./build/${{ matrix.obname }}
+          asset_content_type: application/octet-stream
+          

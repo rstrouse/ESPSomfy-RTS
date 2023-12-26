@@ -1,3 +1,4 @@
+var hst = '192.168.1.209';
 var errors = [
     { code: -10, desc: "Pin setting in use for Transceiver.  Output pins cannot be re-used." },
     { code: -11, desc: "Pin setting in use for Ethernet Adapter.  Output pins cannot be re-used." },
@@ -169,7 +170,7 @@ Number.prototype.fmt = function (format, empty) {
     if (rd.length === 0 && rw.length === 0) return '';
     return pfx + rw + rd + sfx;
 };
-var baseUrl = window.location.protocol === 'file:' ? 'http://192.168.1.152' : '';
+var baseUrl = window.location.protocol === 'file:' ? `http://${hst}` : '';
 //var baseUrl = '';
 function makeBool(val) {
     if (typeof val === 'boolean') return val;
@@ -460,7 +461,7 @@ async function initSockets() {
         wms[i].remove();
     }
     ui.waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
-    let host = window.location.protocol === 'file:' ? 'ESPSomfyRTS' : window.location.hostname;
+    let host = window.location.protocol === 'file:' ? hst : window.location.hostname;
     try {
         socket = new WebSocket(`ws://${host}:8080/`);
         socket.onmessage = (evt) => {
@@ -1396,6 +1397,8 @@ class General {
             else {
                 console.log(settings);
                 document.getElementById('spanFwVersion').innerText = settings.fwVersion;
+                document.getElementById('spanHwVersion').innerText = settings.chipModel;
+                document.getElementById('divContainer').setAttribute('data-chipmodel', settings.chipModel);
                 general.setAppVersion();
                 ui.toElement(pnl, { general: settings });
             }
@@ -4063,6 +4066,7 @@ class Firmware {
             else {
                 console.log(rel);
                 let div = document.createElement('div');
+                let chip = document.getElementById('divContainer').getAttribute('data-chipmodel');
                 div.setAttribute('id', 'divGitInstall')
                 div.setAttribute('class', 'inst-overlay');
                 div.style.width = '100%';
@@ -4071,6 +4075,7 @@ class Firmware {
                 html += `<div class="field-group" style = "text-align:center;">`;
                 html += `<select id="selVersion" data-bind="version" style="width:50%;font-size:2em;color:white;" onchange="firmware.gitReleaseSelected(document.getElementById('divGitInstall'));">`
                 for (let i = 0; i < rel.releases.length; i++) {
+                    //if (rel.releases[i].hwVersions.length === 0 || rel.releases[i].hwVersions.indexOf(chip) >= 0)
                     html += `<option style="text-align:left;font-size:.5em;color:black;" value="${rel.releases[i].version.name}">${rel.releases[i].name}</option>`
                 }
                 html += `</select><label for="selVersion">Select a version</label></div>`;

@@ -5,7 +5,7 @@
 #include <Preferences.h>
 #include "ConfigSettings.h"
 #include "Utils.h"
-
+#include "esp_chip_info.h"
 
 Preferences pref;
 
@@ -134,6 +134,35 @@ double BaseSettings::parseValueDouble(JsonObject &obj, const char *prop, double 
 }
 bool ConfigSettings::begin() {
   uint32_t chipId = 0;
+  esp_chip_info_t ci;
+  esp_chip_info(&ci);
+  switch(ci.model) {
+    case esp_chip_model_t::CHIP_ESP32:
+      strcpy(this->chipModel, "");
+      break;
+    case esp_chip_model_t::CHIP_ESP32S3:
+      strcpy(this->chipModel, "s3");
+      break;
+    case esp_chip_model_t::CHIP_ESP32S2:
+      strcpy(this->chipModel, "s2");
+      break;
+    case esp_chip_model_t::CHIP_ESP32C3:
+      strcpy(this->chipModel, "c3");
+      break;
+//    case esp_chip_model_t::CHIP_ESP32C2:
+//      strcpy(this->chipModel, "c2");
+//      break;
+//    case esp_chip_model_t::CHIP_ESP32C6:
+//      strcpy(this->chipModel, "c6");
+//      break;
+    case esp_chip_model_t::CHIP_ESP32H2:
+      strcpy(this->chipModel, "h2");
+      break;
+    default:
+      sprintf(this->chipModel, "UNK%d", static_cast<int>(ci.model));
+      break;
+  }
+  Serial.printf("Chip Model ESP32-%s\n", this->chipModel);
   this->fwVersion.parse(FW_VERSION);
   uint64_t mac = ESP.getEfuseMac();
   for(int i=0; i<17; i=i+8) {
@@ -198,6 +227,7 @@ bool ConfigSettings::toJSON(JsonObject &obj) {
   obj["ssdpBroadcast"] = this->ssdpBroadcast;
   obj["hostname"] = this->hostname;
   obj["connType"] = static_cast<uint8_t>(this->connType);
+  obj["chipModel"] = this->chipModel;
   return true;
 }
 bool ConfigSettings::requiresAuth() { return this->Security.type != security_types::None; }

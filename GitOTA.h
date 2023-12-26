@@ -19,13 +19,16 @@ class GitRelease {
     bool draft = false;
     bool preRelease = false;
     bool main = false;
+    bool hasFS = false;
+    char hwVersions[128] = "";
     time_t releaseDate;
     char name[32] = "";   
     appver_t version;
-    void setProperty(const char *key, const char *val);
+    void setReleaseProperty(const char *key, const char *val);
+    void setAssetProperty(const char *key, const char *val);
     bool toJSON(JsonObject &obj);
+    
 };
-
 class GitRepo {
   public:
     int16_t getReleases(uint8_t num = GIT_MAX_RELEASES);

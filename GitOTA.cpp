@@ -18,7 +18,7 @@ extern Web webServer;
 
 
 #define MAX_BUFF_SIZE 4096
-void GitRelease::setProperty(const char *key, const char *val) {
+void GitRelease::setReleaseProperty(const char *key, const char *val) {
   if(strcmp(key, "id") == 0) this->id = atol(val);
   else if(strcmp(key, "draft") == 0) this->draft = toBoolean(val, false);
   else if(strcmp(key, "prerelease") == 0) this->preRelease = toBoolean(val, false);
@@ -32,6 +32,36 @@ void GitRelease::setProperty(const char *key, const char *val) {
     //Serial.println(this->releaseDate);
   }
 }
+void GitRelease::setAssetProperty(const char *key, const char *val) {
+  if(strcmp(key, "name") == 0) {
+    Serial.println(val);
+    if(strstr(val, "littlefs.bin")) this->hasFS = true;
+    else if(strstr(val, "ino.esp32.bin")) {
+      if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
+      strcat(this->hwVersions, "32");
+    }
+    else if(strstr(val, "ino.esp32s3.bin")) {
+      if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
+      strcat(this->hwVersions, "s3");
+    }
+    else if(strstr(val, "ino.esp32c3.bin")) {
+      if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
+      strcat(this->hwVersions, "c3");
+    }
+    else if(strstr(val, "ino.esp32c2.bin")) {
+      if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
+      strcat(this->hwVersions, "c2");
+    }
+    else if(strstr(val, "ino.esp32c6.bin")) {
+      if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
+      strcat(this->hwVersions, "c6");
+    }
+    else if(strstr(val, "ino.esp32h2.bin")) {
+      if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
+      strcat(this->hwVersions, "h2");
+    }
+  }
+}
 bool GitRelease::toJSON(JsonObject &obj) {
   Timestamp ts;
   obj["id"] = this->id;
@@ -40,6 +70,8 @@ bool GitRelease::toJSON(JsonObject &obj) {
   obj["draft"] = this->draft;
   obj["preRelease"] = this->preRelease;
   obj["main"] = this->main;
+  obj["hasFS"] = this->hasFS;
+  obj["hwVersions"] = this->hwVersions;
   JsonObject ver = obj.createNestedObject("version");
   this->version.toJSON(ver);
   return true;
@@ -79,6 +111,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
           bool inElem = false;
           bool inValue = false;
           bool awaitValue = false;
+          bool inAss = false;
           while(https.connected() && (len > 0 || len == -1) && ndx < count) {
             size_t size = stream->available();
             if(size) {
@@ -87,19 +120,32 @@ int16_t GitRepo::getReleases(uint8_t num) {
               if(len > 0) len -= c;
               // Now we should have some data.
               for(uint8_t i = 0; i < c; i++) {
+                // Read the buffer a byte at a time until we have a key value pair.
                 char ch = static_cast<char>(buff[i]);
-                if(ch == '[') arrTok++;
-                else if(ch == ']') arrTok--;
+                if(ch == '[') {
+                  arrTok++;
+                  if(arrTok == 2 && strcmp(jsonElem, "assets") == 0) {
+                    inElem = inValue = awaitValue = false;
+                    inAss = true;
+                    Serial.printf("%s: %d\n", jsonElem, arrTok);
+                  }
+                  else if(arrTok < 2) inAss = false;
+                }
+                else if(ch == ']') {
+                  arrTok--;
+                  if(arrTok < 2) inAss = false;
+                }
                 else if(ch == '{') {
                   objTok++;
-                  if(objTok != 1) inElem = inValue = awaitValue = false;
+                  if(objTok != 1 && !inAss) inElem = inValue = awaitValue = false;
                 }
                 else if(ch == '}') {
                   objTok--;
                   if(objTok == 0) ndx++;
                 }
-                else if(objTok == 1) {
+                else if(objTok == 1 || inAss) {
                   // We only want data from the root object.
+                  //if(inAss) Serial.print(ch);
                   if(ch == '\"') {
                     inQuote = !inQuote;
                     if(inElem) {
@@ -110,7 +156,10 @@ int16_t GitRepo::getReleases(uint8_t num) {
                       inValue = false;
                       inElem = false;
                       awaitValue = false;
-                      this->releases[ndx].setProperty(jsonElem, jsonValue);
+                      if(inAss)
+                        this->releases[ndx].setAssetProperty(jsonElem, jsonValue);
+                      else
+                        this->releases[ndx].setReleaseProperty(jsonElem, jsonValue);
                       memset(jsonElem, 0x00, sizeof(jsonElem));
                       memset(jsonValue, 0x00, sizeof(jsonValue));
                     }
@@ -130,7 +179,10 @@ int16_t GitRepo::getReleases(uint8_t num) {
                   else if((!inQuote && ch == ',') || ch == '\r' || ch == '\n') {
                     inElem = inValue = awaitValue = false;
                     if(strlen(jsonElem) > 0) {
-                      this->releases[ndx].setProperty(jsonElem, jsonValue);
+                      if(inAss)
+                        this->releases[ndx].setAssetProperty(jsonElem, jsonValue);
+                      else
+                        this->releases[ndx].setReleaseProperty(jsonElem, jsonValue);
                     }
                     memset(jsonElem, 0x00, sizeof(jsonElem));
                     memset(jsonValue, 0x00, sizeof(jsonValue));

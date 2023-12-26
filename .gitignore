@@ -1,3 +1,6 @@
 .theia/
 debug_custom.json
 esp32.vsd
+esp32s3.svd
+debug.cfg
+SomfyController.ino.esp32s3.bin

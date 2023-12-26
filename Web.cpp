@@ -890,7 +890,7 @@ void Web::handleDownloadFirmware(WebServer &server) {
         }
       }
       if(rel) {
-        DynamicJsonDocument sdoc(512);
+        DynamicJsonDocument sdoc(1024);
         JsonObject sobj = sdoc.to<JsonObject>();
         rel->toJSON(sobj);
         serializeJson(sdoc, g_content);

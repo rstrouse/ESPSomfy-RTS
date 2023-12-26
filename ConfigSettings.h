@@ -155,6 +155,7 @@ class ConfigSettings: BaseSettings {
   public:
     char serverId[10] = "";
     char hostname[32] = "ESPSomfyRTS";
+    char chipModel[10] = "ESP32";
     conn_types connType = conn_types::unset;
     appver_t fwVersion;
     appver_t appVersion;
