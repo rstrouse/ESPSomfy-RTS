@@ -75,19 +75,19 @@ jobs:
             addr_bootloader: 0x0
             chip: ESP32-C3
             fqbn: esp32:esp32:esp32c3
-            name: C3-mini
+            name: ESP32C3
             obname: SomfyController.onboard.esp32c3.bin
           - board: esp32s2
             addr_bootloader: 0x1000
             chip: ESP32-S2
             fqbn: esp32:esp32:esp32s2
-            name: S2-mini
+            name: ESP32S2
             obname: SomfyController.onboard.esp32s2.bin
           - board: esp32s3
             addr_bootloader: 0x0
             chip: ESP32-S3
             fqbn: esp32:esp32:esp32s3
-            name: S3-mini
+            name: ESP32S3
             obname: SomfyController.onboard.esp32s3.bin
     steps:
       - name: Get Release
@@ -151,14 +151,17 @@ jobs:
             0x10000 build/SomfyController.ino.bin \
             0x290000 SomfyController.littlefs.bin
 
-      - name: Upload ${{ matrix.name }}
+      - name: ${{ matrix.name }} Compress Image
+        run: |
+          zip -r .build/${{ matrix.obname }}.zip ./build/${{ matrix.obname }}
 
+      - name: Upload ${{ matrix.name }}
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.get_release.outputs.upload_url }}
-          asset_name: ${{ matrix.name }}
-          asset_path: ./build/${{ matrix.obname }}
+          asset_name: ${{ matrix.obname }}
+          asset_path: ./build/${{ matrix.obname }}.zip
           asset_content_type: application/octet-stream
           
