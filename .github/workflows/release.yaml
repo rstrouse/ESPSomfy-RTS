@@ -86,7 +86,8 @@ jobs:
           - board: esp32s3
             addr_bootloader: 0x0
             chip: ESP32-S3
-            fqbn: esp32:esp32:esp32s3
+            fqbn: esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc
+            # esp32:esp32:esp32s3:JTAGAdapter=default,PSRAM=disabled,FlashMode=qio,FlashSize=4M,LoopCore=1,EventsCore=1,USBMode=hwcdc,CDCOnBoot=cdc,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,PartitionScheme=default,CPUFreq=240,UploadSpeed=921600,DebugLevel=none,EraseFlash=none
             name: ESP32S3
             obname: SomfyController.onboard.esp32s3.bin
     steps:
