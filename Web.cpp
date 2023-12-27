@@ -1954,6 +1954,7 @@ void Web::begin() {
     });
   server.on("/scanaps", []() {
     webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     int statusCode = 200;
     int n = WiFi.scanNetworks();
     Serial.print("Scanned ");
