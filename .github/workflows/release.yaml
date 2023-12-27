@@ -153,7 +153,7 @@ jobs:
 
       - name: ${{ matrix.name }} Compress Image
         run: |
-          zip -r ./build/${{ matrix.obname }}.zip ./build/${{ matrix.obname }}
+          zip ${{ matrix.obname }}.zip ./build/${{ matrix.obname }}
 
       - name: Upload ${{ matrix.name }}
         uses: actions/upload-release-asset@v1.0.2
@@ -162,6 +162,6 @@ jobs:
         with:
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: ${{ matrix.obname }}
-          asset_path: ./build/${{ matrix.obname }}.zip
-          asset_content_type: application/octet-stream
+          asset_path: ${{ matrix.obname }}.zip
+          asset_content_type: application/zip
           
