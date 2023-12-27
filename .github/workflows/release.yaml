@@ -145,7 +145,7 @@ jobs:
       - name: ${{ matrix.name }} Image
         run: |
           python -m esptool --chip ${{ matrix.chip }} \
-            merge_bin -o build/${{ matrix.obname }} \
+            merge_bin -o ${{ matrix.obname }} \
             ${{ matrix.addr_bootloader }} build/SomfyController.ino.bootloader.bin \
             0x8000 build/SomfyController.ino.partitions.bin \
             0x10000 build/SomfyController.ino.bin \
@@ -153,7 +153,7 @@ jobs:
 
       - name: ${{ matrix.name }} Compress Image
         run: |
-          zip ${{ matrix.obname }}.zip ./build/${{ matrix.obname }}
+          zip ${{ matrix.obname }}.zip ./${{ matrix.obname }}
 
       - name: Upload ${{ matrix.name }}
         uses: actions/upload-release-asset@v1.0.2
