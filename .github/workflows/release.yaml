@@ -2,7 +2,7 @@ name: ESPSomfy-RTS Release
 
 on: 
   release:
-    types: published
+    types: [published]
 
 env:
   ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json"
@@ -62,14 +62,15 @@ jobs:
           retention-days: 5
 
       - name: Upload LittleFS
-        uses: actions/upload-release-asset@v1.0.2
+        uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: SomfyController.littlefs.bin
-          asset_path: build/SomfyController.ino.bin
-          asset_content_type: application/zip
+          asset_path: SomfyController.littlefs.bin
+          overwrite: true
+          asset_content_type: application/octet-stream
 
 
   arduino:
@@ -173,26 +174,27 @@ jobs:
             0x290000 SomfyController.littlefs.bin
 
       - name: Upload Firmware ${{ matrix.name }}
-        uses: actions/upload-release-asset@v1.0.2
+        uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: ${{ matrix.fwname }}
           asset_path: build/SomfyController.ino.bin
-          asset_content_type: application/zip
+          asset_content_type: application/octet-stream
 
       - name: ${{ matrix.name }} Compress Onboard Image
         run: |
           zip ${{ matrix.obname }}.zip ./${{ matrix.obname }}
 
       - name: Upload Onboard ${{ matrix.name }}
-        uses: actions/upload-release-asset@v1.0.2
+        uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: ${{ matrix.obname }}.zip
           asset_path: ${{ matrix.obname }}.zip
+          overwrite: true
           asset_content_type: application/zip
           

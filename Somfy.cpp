@@ -1508,6 +1508,8 @@ void SomfyShade::unpublish(uint8_t id) {
     SomfyShade::unpublish(id, "tiltDirection");
     SomfyShade::unpublish(id, "tiltPosition");
     SomfyShade::unpublish(id, "tiltTarget");
+    SomfyShade::unpublish(id, "windy");
+    SomfyShade::unpublish(id, "sunny");
   }
 }
 void SomfyGroup::unpublish(uint8_t id) {
@@ -4157,6 +4159,43 @@ void transceiver_config_t::removeNVSKey(const char *key) {
   }
 }
 void transceiver_config_t::load() {
+    esp_chip_info_t ci;
+    esp_chip_info(&ci);
+    switch(ci.model) {
+      case esp_chip_model_t::CHIP_ESP32S3:
+        Serial.println("Setting S3 Transceiver Defaults...");
+        this->TXPin = 15;
+        this->RXPin = 14;
+        this->MOSIPin = 11;
+        this->MISOPin = 13;
+        this->SCKPin = 12;
+        this->CSNPin = 10;
+        break;
+      case esp_chip_model_t::CHIP_ESP32S2:
+        this->TXPin = 15;
+        this->RXPin = 14;
+        this->MOSIPin = 35;
+        this->MISOPin = 37;
+        this->SCKPin = 36;
+        this->CSNPin = 34;
+        break;
+      case esp_chip_model_t::CHIP_ESP32C3:
+        this->TXPin = 13;
+        this->RXPin = 12;
+        this->MOSIPin = 16;
+        this->MISOPin = 17;
+        this->SCKPin = 15;
+        this->CSNPin = 14;
+        break;
+      default:
+        this->TXPin = 13;
+        this->RXPin = 12;
+        this->MOSIPin = 23;
+        this->MISOPin = 19;
+        this->SCKPin = 18;
+        this->CSNPin = 5;
+        break;
+    }
     pref.begin("CC1101");
     this->type = pref.getUChar("type", 56);
     this->TXPin = pref.getUChar("TXPin", this->TXPin);

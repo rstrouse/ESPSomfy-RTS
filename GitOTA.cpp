@@ -34,7 +34,7 @@ void GitRelease::setReleaseProperty(const char *key, const char *val) {
 }
 void GitRelease::setAssetProperty(const char *key, const char *val) {
   if(strcmp(key, "name") == 0) {
-    Serial.println(val);
+    //Serial.println(val);
     if(strstr(val, "littlefs.bin")) this->hasFS = true;
     else if(strstr(val, "ino.esp32.bin")) {
       if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
@@ -94,6 +94,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
     main->main = true;
     strcpy(main->version.name, "main");
     strcpy(main->name, "Main");
+    strcpy(main->hwVersions, "32,s3");
     if(https.begin(*client, url)) {
       int httpCode = https.GET();
       Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
@@ -127,7 +128,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
                   if(arrTok == 2 && strcmp(jsonElem, "assets") == 0) {
                     inElem = inValue = awaitValue = false;
                     inAss = true;
-                    Serial.printf("%s: %d\n", jsonElem, arrTok);
+                    //Serial.printf("%s: %d\n", jsonElem, arrTok);
                   }
                   else if(arrTok < 2) inAss = false;
                 }
@@ -336,7 +337,24 @@ void GitUpdater::emitDownloadProgress(uint8_t num, size_t total, size_t loaded, 
   sockEmit.loop();
   webServer.loop();
 }
-
+void GitUpdater::setFirmwareFile() {
+    esp_chip_info_t ci;
+    esp_chip_info(&ci);
+    switch(ci.model) {
+      case esp_chip_model_t::CHIP_ESP32S3:
+        strcpy(this->currentFile, "SomfyController.ino.esp32s3.bin");
+        break;
+      case esp_chip_model_t::CHIP_ESP32S2:
+        strcpy(this->currentFile, "SomfyController.ino.esp32s2.bin");
+        break;
+      case esp_chip_model_t::CHIP_ESP32C3:
+        strcpy(this->currentFile, "SomfyController.ino.esp32c3.bin");
+        break;
+      default:
+        strcpy(this->currentFile, "SomfyController.ino.esp32.bin");
+        break;
+    }
+}
 
 bool GitUpdater::beginUpdate(const char *version) {
   Serial.println("Begin update called...");
@@ -345,7 +363,7 @@ bool GitUpdater::beginUpdate(const char *version) {
   
   strcpy(this->targetRelease, version);
   this->emitUpdateCheck();
-  strcpy(this->currentFile, "SomfyController.ino.esp32.bin");
+  this->setFirmwareFile();
   this->partition = U_FLASH;
   this->cancelled = false;
   this->error = 0;

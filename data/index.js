@@ -1,4 +1,6 @@
-var hst = '192.168.1.209';
+var hst = '192.168.1.208';
+//var hst = '192.168.1.152';
+
 var errors = [
     { code: -10, desc: "Pin setting in use for Transceiver.  Output pins cannot be re-used." },
     { code: -11, desc: "Pin setting in use for Ethernet Adapter.  Output pins cannot be re-used." },
@@ -1253,7 +1255,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.2.3';
+    appVersion = 'v2.2.4';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1397,8 +1399,9 @@ class General {
             else {
                 console.log(settings);
                 document.getElementById('spanFwVersion').innerText = settings.fwVersion;
-                document.getElementById('spanHwVersion').innerText = settings.chipModel;
+                document.getElementById('spanHwVersion').innerText = settings.chipModel.length > 0 ? '-' + settings.chipModel : '';
                 document.getElementById('divContainer').setAttribute('data-chipmodel', settings.chipModel);
+                somfy.initPins();
                 general.setAppVersion();
                 ui.toElement(pnl, { general: settings });
             }
@@ -1906,6 +1909,9 @@ class Somfy {
     ];
     init() {
         if (this.initialized) return;
+        this.initialized = true;
+    }
+    initPins() {
         this.loadPins('inout', document.getElementById('selTransSCKPin'));
         this.loadPins('inout', document.getElementById('selTransCSNPin'));
         this.loadPins('inout', document.getElementById('selTransMOSIPin'));
@@ -1919,7 +1925,6 @@ class Somfy {
         this.loadPins('out', document.getElementById('selShadeGPIOUp'));
         this.loadPins('out', document.getElementById('selShadeGPIODown'));
         this.loadPins('out', document.getElementById('selShadeGPIOMy'));
-        this.initialized = true;
     }
     async loadSomfy() {
         getJSONSync('/controller', (err, somfy) => {
@@ -2621,30 +2626,21 @@ class Somfy {
         }
         document.getElementById('divLinkedShadeList').innerHTML = divCfg;
     }
+    pinMaps = [
+        { name: '', maxPins: 39, inputs: [0, 1, 6, 7, 8, 9, 10, 11, 37, 38], outputs: [3, 6, 7, 8, 9, 10, 11, 34, 35, 36, 37, 38, 39] },
+        { name: 's2', maxPins: 46, inputs: [0, 15, 16, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 45], outputs: [0, 15, 16, 19, 20, 26, 27, 28, 29, 30, 31, 32, 45, 46]},
+        { name: 's3', maxPins: 48, inputs: [0, 3, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 39, 40, 41, 42, 43, 44], outputs: [0, 3, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 39, 40, 41, 42, 43, 44] },
+        { name: 'c3', maxPins: 21, inputs: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20], outputs: [11, 12, 13, 14, 15, 16, 17, 21] }
+    ];
+
     loadPins(type, sel, opt) {
         while (sel.firstChild) sel.removeChild(sel.firstChild);
-        for (let i = 0; i < 40; i++) {
-            switch (i) {
-                case 6: // SPI Flash Pins
-                case 7:
-                case 8:
-                case 9:
-                case 10:
-                case 11:
-                    if (type !== 'inout' && type !== 'input') continue;
-                    break;
-                case 37:
-                case 38:
-                    continue;
-                case 32: // We cannot use this pin with the mask for TX.
-                case 33:
-                case 34: // Input only
-                case 35:
-                case 36:
-                case 39:
-                    if (type !== 'input') continue;
-                    break;
-            }
+        let cm = document.getElementById('divContainer').getAttribute('data-chipmodel');
+        let pm = this.pinMaps.find(x => x.name === cm) || { name: '', maxPins: 39, inputs: [0, 1, 6, 7, 8, 9, 10, 11, 37, 38], outputs: [3, 6, 7, 8, 9, 10, 11, 34, 35, 36, 37, 38, 39] };
+        console.log({ cm: cm, pm: pm });
+        for (let i = 0; i <= pm.maxPins; i++) {
+            if (type.includes('in') && pm.inputs.includes(i)) continue;
+            if (type.includes('out') && pm.outputs.includes(i)) continue;
             sel.options[sel.options.length] = new Option(`GPIO-${i > 9 ? i.toString() : '0' + i.toString()}`, i, typeof opt !== 'undefined' && opt === i);
         }
     }
@@ -4075,8 +4071,8 @@ class Firmware {
                 html += `<div class="field-group" style = "text-align:center;">`;
                 html += `<select id="selVersion" data-bind="version" style="width:50%;font-size:2em;color:white;" onchange="firmware.gitReleaseSelected(document.getElementById('divGitInstall'));">`
                 for (let i = 0; i < rel.releases.length; i++) {
-                    //if (rel.releases[i].hwVersions.length === 0 || rel.releases[i].hwVersions.indexOf(chip) >= 0)
-                    html += `<option style="text-align:left;font-size:.5em;color:black;" value="${rel.releases[i].version.name}">${rel.releases[i].name}</option>`
+                    if (rel.releases[i].hwVersions.length === 0 || rel.releases[i].hwVersions.indexOf(chip) >= 0)
+                        html += `<option style="text-align:left;font-size:.5em;color:black;" value="${rel.releases[i].version.name}">${rel.releases[i].name}</option>`
                 }
                 html += `</select><label for="selVersion">Select a version</label></div>`;
                 html += `<div class="button-container" id="divReleaseNotes" style="text-align:center;margin-top:-20px;display:none;"><button type="button" onclick="firmware.showReleaseNotes(document.getElementById('selVersion').value);" style="display:inline-block;width:auto;padding-left:20px;padding-right:20px;">Release Notes</button></div>`;
