@@ -63,8 +63,6 @@ jobs:
 
       - name: Upload LittleFS
         uses: shogo82148/actions-upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         with:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
@@ -176,8 +174,6 @@ jobs:
 
       - name: Upload Firmware ${{ matrix.name }}
         uses: shogo82148/actions-upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         with:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
@@ -191,8 +187,8 @@ jobs:
 
       - name: Upload Onboard ${{ matrix.name }}
         uses: shogo82148/actions-upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        # env:
+        #  GITHUB_TOKEN: ${{ github.token }}
         with:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
