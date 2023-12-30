@@ -62,7 +62,7 @@ jobs:
           retention-days: 5
 
       - name: Upload LittleFS
-        uses: shogo82148/actions-upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1.7.2
         with:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
@@ -102,6 +102,7 @@ jobs:
             fqbn: esp32:esp32:esp32s2
             name: ESP32S2
             obname: SomfyController.onboard.esp32s2.bin
+            fwname: SomfyController.ino.esp32s2.bin
           - board: esp32s3
             addr_bootloader: 0x0
             chip: ESP32-S3
@@ -173,7 +174,7 @@ jobs:
             0x290000 SomfyController.littlefs.bin
 
       - name: Upload Firmware ${{ matrix.name }}
-        uses: shogo82148/actions-upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1.7.2
         with:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
@@ -186,7 +187,7 @@ jobs:
           zip ${{ matrix.obname }}.zip ./${{ matrix.obname }}
 
       - name: Upload Onboard ${{ matrix.name }}
-        uses: shogo82148/actions-upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1.7.2
         # env:
         #  GITHUB_TOKEN: ${{ github.token }}
         with:
