@@ -66,6 +66,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
+          github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: SomfyController.littlefs.bin
           asset_path: SomfyController.littlefs.bin
@@ -178,6 +179,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
+          github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: ${{ matrix.fwname }}
           asset_path: build/SomfyController.ino.bin
@@ -192,6 +194,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
+          github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: ${{ matrix.obname }}.zip
           asset_path: ${{ matrix.obname }}.zip
