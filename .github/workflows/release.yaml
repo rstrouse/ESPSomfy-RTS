@@ -23,6 +23,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Get Release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Check out code
         uses: actions/checkout@v3
 
@@ -55,6 +61,17 @@ jobs:
           path: SomfyController.littlefs.bin
           retention-days: 5
 
+      - name: Upload LittleFS
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_name: SomfyController.littlefs.bin
+          asset_path: build/SomfyController.ino.bin
+          asset_content_type: application/zip
+
+
   arduino:
     permissions: write-all
     name: ${{ matrix.name }}
@@ -71,12 +88,14 @@ jobs:
             fqbn: esp32:esp32:esp32wrover
             name: ESP32
             obname: SomfyController.onboard.esp32.bin
+            fwname: SomfyController.ino.esp32.bin
           - board: esp32c3
             addr_bootloader: 0x0
             chip: ESP32-C3
             fqbn: esp32:esp32:esp32c3
             name: ESP32C3
             obname: SomfyController.onboard.esp32c3.bin
+            fwname: SomfyController.ino.esp32c3.bin
           - board: esp32s2
             addr_bootloader: 0x1000
             chip: ESP32-S2
@@ -89,6 +108,7 @@ jobs:
             fqbn: esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc
             # esp32:esp32:esp32s3:JTAGAdapter=default,PSRAM=disabled,FlashMode=qio,FlashSize=4M,LoopCore=1,EventsCore=1,USBMode=hwcdc,CDCOnBoot=cdc,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,PartitionScheme=default,CPUFreq=240,UploadSpeed=921600,DebugLevel=none,EraseFlash=none
             name: ESP32S3
+            fwname: SomfyController.ino.esp32s3.bin
             obname: SomfyController.onboard.esp32s3.bin
     steps:
       - name: Get Release
@@ -152,11 +172,21 @@ jobs:
             0x10000 build/SomfyController.ino.bin \
             0x290000 SomfyController.littlefs.bin
 
-      - name: ${{ matrix.name }} Compress Image
+      - name: Upload Firmware ${{ matrix.name }}
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_name: ${{ matrix.fwname }}
+          asset_path: build/SomfyController.ino.bin
+          asset_content_type: application/zip
+
+      - name: ${{ matrix.name }} Compress Onboard Image
         run: |
           zip ${{ matrix.obname }}.zip ./${{ matrix.obname }}
 
-      - name: Upload ${{ matrix.name }}
+      - name: Upload Onboard ${{ matrix.name }}
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
