@@ -456,7 +456,7 @@ int8_t GitUpdater::downloadFile() {
             }
             free(buff);
             if(len < total) {
-              Serial.println("Error downloading file");
+              Serial.println("Error downloading file!!!");
               return -42;
               
             }
@@ -470,6 +470,7 @@ int8_t GitUpdater::downloadFile() {
           }
         }
         else {
+          Serial.printf("Invalid HTTP Code... %d", httpCode);
           return httpCode;
         }
       }        
