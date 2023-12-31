@@ -9,7 +9,7 @@ env:
   ARDUINO_CLI_VERSION: "0.x"
   ARDUINO_ESP32_VERSION: "2.0.11"
   ARDUINO_JSON_VERSION: "6.21.3"
-  ESPTOOL_VERSION: "4.6"
+  ESPTOOL_VERSION: "4.7"
   LITTLEFS_VERSION: "v2.5.1"
   MKLITTLEFS_VERSION: "3.1.0"
   PUB_SUB_CLIENT_VERSION: "2.8.0"
@@ -83,7 +83,7 @@ jobs:
           - board: esp32
             addr_bootloader: 0x1000
             chip: ESP32
-            fqbn: esp32:esp32:esp32wrover:FlashMode=qio,FlashFreq=80,DebugLevel=none
+            fqbn: esp32:esp32:esp32:FlashMode=qio,FlashFreq=80,DebugLevel=none
             # esp32:esp32:esp32wrover:PartitionScheme=default,FlashMode=qio,FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none 
             name: ESP32
             obname: SomfyController.onboard.esp32.bin

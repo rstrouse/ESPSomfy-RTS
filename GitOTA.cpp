@@ -374,6 +374,7 @@ bool GitUpdater::beginUpdate(const char *version) {
     this->error = this->downloadFile();
     if(this->error == 0) {
       settings.fwVersion.parse(version);
+      Serial.println("Committing Configuration...");
       somfy.commit();
       rebootDelay.reboot = true;
       rebootDelay.rebootTime = millis() + 500;
@@ -433,7 +434,6 @@ int8_t GitUpdater::downloadFile() {
                   https.end();
                   return -(Update.getError() + UPDATE_ERR_OFFSET);
                 }
-                
                 // Calculate the percentage.
                 uint8_t p = (uint8_t)floor(((float)total / (float)len) * 100.0f);
                 if(p != pct) {
@@ -448,7 +448,7 @@ int8_t GitUpdater::downloadFile() {
                     Update.printError(Serial);
                   }
                   else {
-                    
+                    Serial.println("Update.end Called...");
                   }
                   https.end();
                 }
@@ -473,7 +473,7 @@ int8_t GitUpdater::downloadFile() {
           return httpCode;
         }
       }        
-      https.end();  
+      if(https.connected()) https.end();  
       Serial.printf("End update %s\n", this->currentFile);
 
     }

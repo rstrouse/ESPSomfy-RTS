@@ -4069,10 +4069,10 @@ class Firmware {
                 div.style.alignContent = 'center';
                 let html = `<div>Select a version from the repository to install using the dropdown below.  Then press the update button to install that version.</div><div style="font-size:.7em;margin-top:4px;">Select Main to install the most recent alpha version from the repository.</div>`;
                 html += `<div class="field-group" style = "text-align:center;">`;
-                html += `<select id="selVersion" data-bind="version" style="width:50%;font-size:2em;color:white;" onchange="firmware.gitReleaseSelected(document.getElementById('divGitInstall'));">`
+                html += `<select id="selVersion" data-bind="version" style="width:70%;font-size:2em;color:white;text-align-last:center;" onchange="firmware.gitReleaseSelected(document.getElementById('divGitInstall'));">`
                 for (let i = 0; i < rel.releases.length; i++) {
                     if (rel.releases[i].hwVersions.length === 0 || rel.releases[i].hwVersions.indexOf(chip) >= 0)
-                        html += `<option style="text-align:left;font-size:.5em;color:black;" value="${rel.releases[i].version.name}">${rel.releases[i].name}</option>`
+                        html += `<option style="text-align:left;font-size:.5em;color:black;" value="${rel.releases[i].version.name}">${rel.releases[i].name}${rel.releases[i].preRelease ? ' - Pre' : ''}</option>`
                 }
                 html += `</select><label for="selVersion">Select a version</label></div>`;
                 html += `<div class="button-container" id="divReleaseNotes" style="text-align:center;margin-top:-20px;display:none;"><button type="button" onclick="firmware.showReleaseNotes(document.getElementById('selVersion').value);" style="display:inline-block;width:auto;padding-left:20px;padding-right:20px;">Release Notes</button></div>`;
