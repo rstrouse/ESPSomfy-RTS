@@ -369,6 +369,7 @@ bool GitUpdater::beginUpdate(const char *version) {
   this->error = 0;
   this->error = this->downloadFile();
   if(this->error == 0 && !this->cancelled) {
+    somfy.commit();
     strcpy(this->currentFile, "SomfyController.littlefs.bin");
     this->partition = U_SPIFFS;
     this->error = this->downloadFile();
@@ -442,7 +443,7 @@ int8_t GitUpdater::downloadFile() {
                 }
                 delay(1);
                 if(total >= len) {
-                  if(!Update.end()) {
+                  if(!Update.end(true)) {
                     Serial.println("Error downloading update...");
                     Update.printError(Serial);
                   }
@@ -455,6 +456,8 @@ int8_t GitUpdater::downloadFile() {
             }
             free(buff);
             if(len > total) {
+              Update.abort();
+              somfy.commit();
               Serial.println("Error downloading file!!!");
               return -42;
               
@@ -473,6 +476,10 @@ int8_t GitUpdater::downloadFile() {
           return httpCode;
         }
       }        
+      else {
+        Serial.printf("Invalid HTTP Code: %d\n", httpCode);
+      }
+      
       if(https.connected()) https.end();  
       Serial.printf("End update %s\n", this->currentFile);
 

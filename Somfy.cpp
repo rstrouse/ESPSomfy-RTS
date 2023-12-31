@@ -811,8 +811,8 @@ bool SomfyShade::isInGroup() {
 void SomfyShade::setGPIOs() {
   if(this->proto == radio_proto::GP_Relay) {
     // Determine whether the direction needs to be set.
-    uint8_t p_on = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? HIGH : LOW;
-    uint8_t p_off = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? LOW : HIGH;
+    uint8_t p_on = (this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0x00 ? HIGH : LOW;
+    uint8_t p_off = (this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0x00 ? LOW : HIGH;
     
     int8_t dir = this->direction;
     if(dir == 0 && this->tiltType == tilt_types::integrated)
@@ -859,8 +859,8 @@ void SomfyShade::setGPIOs() {
   }
   else if(this->proto == radio_proto::GP_Remote) {
     if(millis() > this->gpioRelease) {
-      uint8_t p_on = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? HIGH : LOW;
-      uint8_t p_off = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? LOW : HIGH;
+      //uint8_t p_on = (this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0x00 ? HIGH : LOW;
+      uint8_t p_off = (this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0x00 ? LOW : HIGH;
       digitalWrite(this->gpioUp, p_off);
       digitalWrite(this->gpioDown, p_off);
       digitalWrite(this->gpioMy, p_off);
@@ -871,8 +871,8 @@ void SomfyShade::setGPIOs() {
 void SomfyRemote::triggerGPIOs(somfy_frame_t &frame) { }
 void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
   if(this->proto == radio_proto::GP_Remote) {
-    uint8_t p_on = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? HIGH : LOW;
-    uint8_t p_off = this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger == 0x00 ? LOW : HIGH;
+    uint8_t p_on = (this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0x00 ? HIGH : LOW;
+    uint8_t p_off = (this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0x00 ? LOW : HIGH;
     int8_t dir = 0;
     switch(frame.cmd) {
       case somfy_commands::My:
@@ -926,6 +926,8 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
           digitalWrite(this->gpioDown, p_on);
           Serial.printf("UP: true, DOWN: true, MY: true\n");
         }
+        break;
+      default:
         break;
     }
     this->gpioRelease = millis() + (frame.repeats * 200);
@@ -1754,7 +1756,7 @@ void SomfyShade::emitCommand(uint8_t num, somfy_commands cmd, const char *source
   e.appendMessage(buf);
   snprintf(buf, sizeof(buf), ",\"remoteAddress\":%d", this->getRemoteAddress());
   e.appendMessage(buf);
-  snprintf(buf, sizeof(buf), ",\"cmd\":\"%s\"", translateSomfyCommand(cmd));
+  snprintf(buf, sizeof(buf), ",\"cmd\":\"%s\"", translateSomfyCommand(cmd).c_str());
   e.appendMessage(buf);
   snprintf(buf, sizeof(buf), ",\"source\":\"%s\"", source);
   e.appendMessage(buf);
@@ -2610,6 +2612,8 @@ void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
     case somfy_commands::Down:
       this->p_direction(1);
       break;
+    default:
+      break;
   }
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
     if(this->linkedShades[i] != 0) {
@@ -2752,8 +2756,9 @@ bool SomfyShade::usesPin(uint8_t pin) {
   else if(this->shadeType == shade_types::garage1) {
     if(this->proto == radio_proto::GP_Relay && this->gpioUp == pin) return true;    
   }
-  else if(this->shadeType == shade_types::drycontact2)
+  else if(this->shadeType == shade_types::drycontact2) {
     if(this->proto == radio_proto::GP_Relay && (this->gpioUp == pin || this->gpioDown == pin)) return true;
+  }
   else {
     if(this->gpioUp == pin) return true;
     else if(this->proto == radio_proto::GP_Remote && this->gpioMy == pin) return true;    
@@ -2846,7 +2851,12 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
     if(obj.containsKey("sunSensor")) this->setSunSensor(obj["sunSensor"]);
     if(obj.containsKey("light")) this->setLight(obj["light"]);
     if(obj.containsKey("gpioFlags")) this->gpioFlags = obj["gpioFlags"];
-    if(obj.containsKey("gpioLLTrigger")) this->gpioFlags = obj["gpioLLTrigger"].as<bool>() ? this->gpioFlags |= (uint8_t)gpio_flags_t::LowLevelTrigger : this->gpioFlags &= ~(uint8_t)gpio_flags_t::LowLevelTrigger;
+    if(obj.containsKey("gpioLLTrigger")) {
+      if(obj["gpioLLTrigger"].as<bool>())
+        this->gpioFlags |= (uint8_t)gpio_flags_t::LowLevelTrigger;
+      else
+        this->gpioFlags &= ~(uint8_t)gpio_flags_t::LowLevelTrigger;
+    }
     
     if(obj.containsKey("shadeType")) {
       if(obj["shadeType"].is<const char *>()) {
@@ -3975,7 +3985,7 @@ void Transceiver::enableReceive(void) {
       interruptPin = digitalPinToInterrupt(this->config.RXPin);
       ELECHOUSE_cc1101.SetRx();
       attachInterrupt(interruptPin, handleReceive, CHANGE);
-      Serial.printf("Enabled receive on Pin #%d Timing: %d\n", this->config.RXPin, millis() - timing);
+      Serial.printf("Enabled receive on Pin #%d Timing: %ld\n", this->config.RXPin, millis() - timing);
     }
 }
 void Transceiver::disableReceive(void) { 

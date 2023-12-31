@@ -346,7 +346,6 @@ void Web::handleRepeatCommand(WebServer& server) {
   if (method == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   uint8_t shadeId = 255;
   uint8_t groupId = 255;
-  uint8_t target = 255;
   int8_t repeat = -1;
   somfy_commands command = somfy_commands::My;
   if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
@@ -745,7 +744,6 @@ void Web::handleBackup(WebServer &server, bool attach) {
 void Web::handleSetPositions(WebServer &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-  HTTPMethod method = apiServer.method();
   uint8_t shadeId = (server.hasArg("shadeId")) ? atoi(server.arg("shadeId").c_str()) : 255;
   int8_t pos = (server.hasArg("position")) ? atoi(server.arg("position").c_str()) : -1;
   int8_t tiltPos = (server.hasArg("tiltPosition")) ? atoi(server.arg("tiltPosition").c_str()) : -1;
@@ -794,7 +792,6 @@ void Web::handleSetPositions(WebServer &server) {
 void Web::handleSetSensor(WebServer &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-  HTTPMethod method = apiServer.method();
   uint8_t shadeId = (server.hasArg("shadeId")) ? atoi(server.arg("shadeId").c_str()) : 255;
   uint8_t groupId = (server.hasArg("groupId")) ? atoi(server.arg("groupId").c_str()) : 255;
   int8_t sunny = (server.hasArg("sunny")) ? toBoolean(server.arg("sunny").c_str(), false) ? 1 : 0 : -1;
@@ -2020,14 +2017,14 @@ void Web::begin() {
       if (method == HTTP_POST || method == HTTP_PUT) {
         settings.Security.fromJSON(obj);
         settings.Security.save();
-        DynamicJsonDocument sdoc(512);
-        JsonObject sobj = sdoc.to<JsonObject>();
         char token[65];
         webServer.createAPIToken(server.client().remoteIP(), token);
         obj["apiKey"] = token;
+        DynamicJsonDocument sdoc(1024);
+        JsonObject sobj = sdoc.to<JsonObject>();
+        settings.Security.toJSON(sobj);
         serializeJson(sdoc, g_content);
         server.send(200, _encoding_json, g_content);
-        //server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Successfully saved radio\"}");
       }
       else {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
