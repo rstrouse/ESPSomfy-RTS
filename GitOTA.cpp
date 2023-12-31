@@ -316,11 +316,11 @@ int GitUpdater::checkInternet() {
       int httpCode = https.sendRequest("HEAD");
       if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
         err = 0;
-        Serial.printf("Check Internet Success: %dms\n", millis() - t);
+        Serial.printf("Check Internet Success: %ldms\n", millis() - t);
       }
       else {
         err = httpCode;
-        Serial.printf("Check Internet Error: %d: %dms\n", err, millis() - t);
+        Serial.printf("Check Internet Error: %d: %ldms\n", err, millis() - t);
       }
       https.end();
     }
@@ -391,8 +391,7 @@ int8_t GitUpdater::downloadFile() {
   if(client) {
     client->setInsecure();
     HTTPClient https;
-    uint8_t ndx = 0;
-    char url[128];
+    char url[196];
     sprintf(url, "%s%s", this->baseUrl, this->currentFile);
     Serial.println(url);
     if(https.begin(*client, url)) {
@@ -455,7 +454,7 @@ int8_t GitUpdater::downloadFile() {
               }
             }
             free(buff);
-            if(len < total) {
+            if(len > total) {
               Serial.println("Error downloading file!!!");
               return -42;
               
