@@ -7,7 +7,7 @@ on:
 env:
   ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json"
   ARDUINO_CLI_VERSION: "0.x"
-  ARDUINO_ESP32_VERSION: "2.0.10"
+  ARDUINO_ESP32_VERSION: "2.0.14"
   ARDUINO_JSON_VERSION: "6.21.3"
   ESPTOOL_VERSION: "4.6"
   LITTLEFS_VERSION: "v2.5.1"
@@ -69,8 +69,6 @@ jobs:
           asset_name: SomfyController.littlefs.bin
           asset_path: SomfyController.littlefs.bin
           overwrite: true
-          asset_content_type: application/octet-stream
-
 
   arduino:
     permissions: write-all
@@ -85,7 +83,8 @@ jobs:
           - board: esp32
             addr_bootloader: 0x1000
             chip: ESP32
-            fqbn: esp32:esp32:esp32wrover
+            fqbn: esp32:esp32:esp32wrover:FlashMode=qio,FlashFreq=80,DebugLevel=none
+            # esp32:esp32:esp32wrover:PartitionScheme=default,FlashMode=qio,FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none 
             name: ESP32
             obname: SomfyController.onboard.esp32.bin
             fwname: SomfyController.ino.esp32.bin
@@ -180,7 +179,6 @@ jobs:
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: ${{ matrix.fwname }}
           asset_path: build/SomfyController.ino.bin
-          asset_content_type: application/octet-stream
 
       - name: ${{ matrix.name }} Compress Onboard Image
         run: |

@@ -1,5 +1,5 @@
-var hst = '192.168.1.208';
-//var hst = '192.168.1.152';
+//var hst = '192.168.1.208';
+var hst = '192.168.1.152';
 
 var errors = [
     { code: -10, desc: "Pin setting in use for Transceiver.  Output pins cannot be re-used." },

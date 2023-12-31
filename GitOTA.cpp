@@ -406,6 +406,7 @@ int8_t GitUpdater::downloadFile() {
         if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
           WiFiClient *stream = https.getStreamPtr();
           if(!Update.begin(len, this->partition)) {
+            Serial.println("Update Error detected!!!!!");
             Update.printError(Serial);
             https.end();
             return -(Update.getError() + UPDATE_ERR_OFFSET);
@@ -452,13 +453,13 @@ int8_t GitUpdater::downloadFile() {
                 }
               }
             }
-            
             Serial.printf("Update %s complete\n", this->currentFile);
             
             free(buff);
           }
           else {
             // TODO: memory allocation error.
+            Serial.println("Unable to allocate memory for update!!!");
           }
         }
         else {
