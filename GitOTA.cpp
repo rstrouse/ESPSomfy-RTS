@@ -444,6 +444,7 @@ int8_t GitUpdater::downloadFile() {
                 delay(1);
                 if(total >= len) {
                   if(!Update.end()) {
+                    Serial.println("Error downloading update...");
                     Update.printError(Serial);
                   }
                   else {
@@ -453,9 +454,15 @@ int8_t GitUpdater::downloadFile() {
                 }
               }
             }
-            Serial.printf("Update %s complete\n", this->currentFile);
-            
             free(buff);
+            if(len < total) {
+              Serial.println("Error downloading file");
+              return -42;
+              
+            }
+            else
+              Serial.printf("Update %s complete\n", this->currentFile);
+            
           }
           else {
             // TODO: memory allocation error.
