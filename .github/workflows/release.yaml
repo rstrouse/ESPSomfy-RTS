@@ -160,16 +160,16 @@ jobs:
 
       - name: Build ${{ matrix.name }}
         run: |
-          mkdir -p build
-          arduino-cli compile --clean --output-dir build --fqbn ${{ matrix.fqbn }} --warnings default ./SomfyController
+          mkdir -p build${{ matrix.name }}
+          arduino-cli compile --clean --output-dir build${{ matrix.name }} --fqbn ${{ matrix.fqbn }} --warnings default ./SomfyController
 
       - name: ${{ matrix.name }} Image
         run: |
           python -m esptool --chip ${{ matrix.chip }} \
             merge_bin -o ${{ matrix.obname }} \
-            ${{ matrix.addr_bootloader }} build/SomfyController.ino.bootloader.bin \
-            0x8000 build/SomfyController.ino.partitions.bin \
-            0x10000 build/SomfyController.ino.bin \
+            ${{ matrix.addr_bootloader }} build${{ matrix.name }}/SomfyController.ino.bootloader.bin \
+            0x8000 build${{ matrix.name }}/SomfyController.ino.partitions.bin \
+            0x10000 build${{ matrix.name }}/SomfyController.ino.bin \
             0x290000 SomfyController.littlefs.bin
 
       - name: Upload Firmware ${{ matrix.name }}
@@ -178,7 +178,7 @@ jobs:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_name: ${{ matrix.fwname }}
-          asset_path: build/SomfyController.ino.bin
+          asset_path: build${{ matrix.name }}/SomfyController.ino.bin
 
       - name: ${{ matrix.name }} Compress Onboard Image
         run: |
