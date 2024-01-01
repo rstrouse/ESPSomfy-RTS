@@ -11,6 +11,7 @@
 #include "Somfy.h"
 #include "MQTT.h"
 #include "GitOTA.h"
+#include "Network.h"
 
 extern ConfigSettings settings;
 extern SSDPClass SSDP;
@@ -19,6 +20,7 @@ extern SomfyShadeController somfy;
 extern Web webServer;
 extern MQTTClass mqtt;
 extern GitUpdater git;
+extern Network net;
 
 #define WEB_MAX_RESPONSE 16384
 static char g_content[WEB_MAX_RESPONSE];
@@ -697,6 +699,10 @@ void Web::handleDiscovery(WebServer &server) {
     obj["hostname"] = settings.hostname;
     obj["authType"] = static_cast<uint8_t>(settings.Security.type);
     obj["permissions"] = settings.Security.permissions;
+    obj["chipModel"] = settings.chipModel;
+    if(net.connType == conn_types::ethernet) obj["connType"] = "Ethernet";
+    else if(net.connType == conn_types::wifi) obj["connType"] = "Wifi";
+    else obj["connType"] = "Unknown";
     JsonArray arrShades = obj.createNestedArray("shades");
     somfy.toJSONShades(arrShades);
     JsonArray arrGroups = obj.createNestedArray("groups");
