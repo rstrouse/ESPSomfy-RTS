@@ -203,6 +203,10 @@ void Web::handleLogin(WebServer &server) {
     return;
 }
 void Web::handleStreamFile(WebServer &server, const char *filename, const char *encoding) {
+  if(git.lockFS) {
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Filesystem update in progress\"}"));
+    return;
+  }
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   
@@ -1883,6 +1887,10 @@ void Web::begin() {
       }
     });
   server.on("/updateShadeConfig", HTTP_POST, []() {
+    if(git.lockFS) {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Filesystem update in progress\"}"));
+      return;
+    }
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
@@ -2438,7 +2446,12 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
   });
-  
+  server.on("/recoverFilesystem", [] () {
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    webServer.sendCORSHeaders(server);
+    git.recoverFilesystem();
+    server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Recovering filesystem from github please wait!!!\"}");
+  });
   server.begin();
   apiServer.begin();
 }

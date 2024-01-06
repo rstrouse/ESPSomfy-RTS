@@ -372,18 +372,36 @@ bool GitUpdater::beginUpdate(const char *version) {
     somfy.commit();
     strcpy(this->currentFile, "SomfyController.littlefs.bin");
     this->partition = U_SPIFFS;
+    this->lockFS = true;
     this->error = this->downloadFile();
+    this->lockFS = false;
     if(this->error == 0) {
       settings.fwVersion.parse(version);
       delay(100);
       Serial.println("Committing Configuration...");
       somfy.commit();
-      rebootDelay.reboot = true;
-      rebootDelay.rebootTime = millis() + 500;
     }
+    rebootDelay.reboot = true;
+    rebootDelay.rebootTime = millis() + 500;
   }
   this->status = GIT_UPDATE_COMPLETE;
   this->emitUpdateCheck();
+  return true;
+}
+bool GitUpdater::recoverFilesystem() {
+  sprintf(this->baseUrl, "https://github.com/rstrouse/ESPSomfy-RTS/releases/download/%s/", settings.fwVersion.name);
+  strcpy(this->currentFile, "SomfyController.littlefs.bin");
+  this->partition = U_SPIFFS;
+  this->lockFS = true;
+  this->error = this->downloadFile();
+  this->lockFS = false;
+  if(this->error == 0) {
+    delay(100);
+    Serial.println("Committing Configuration...");
+    somfy.commit();
+  }
+  rebootDelay.reboot = true;
+  rebootDelay.rebootTime = millis() + 500;
   return true;
 }
 bool GitUpdater::endUpdate() { return true; }
@@ -457,7 +475,7 @@ int8_t GitUpdater::downloadFile() {
               }
               else {
                 timeouts++;
-                if(timeouts >= 300) {
+                if(timeouts >= 500) {
                   Update.abort();
                   https.end();
                   free(buff);

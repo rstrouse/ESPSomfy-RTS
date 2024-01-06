@@ -37,6 +37,7 @@ class GitRepo {
 };
 class GitUpdater {
   public:
+    bool lockFS = false;
     uint8_t status = 0;
     uint32_t lastCheck = 0;
     bool updateAvailable = false;
@@ -55,6 +56,7 @@ class GitUpdater {
     void setCurrentRelease(GitRepo &repo);
     void loop();
     void toJSON(JsonObject &obj);
+    bool recoverFilesystem();
     int checkInternet();
     void emitUpdateCheck(uint8_t num=255);
     void emitDownloadProgress(size_t total, size_t loaded, const char *evt = "updateProgress");
