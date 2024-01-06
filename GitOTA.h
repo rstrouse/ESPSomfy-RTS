@@ -13,6 +13,7 @@
 #define GIT_UPDATE_COMPLETE 4
 #define GIT_UPDATE_CANCELLING 5
 #define GIT_UPDATE_CANCELLED 6
+
 class GitRelease {
   public:
     uint64_t id = 0;

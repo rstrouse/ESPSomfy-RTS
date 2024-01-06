@@ -44,6 +44,10 @@ void GitRelease::setAssetProperty(const char *key, const char *val) {
       if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
       strcat(this->hwVersions, "s3");
     }
+    else if(strstr(val, "ino.esp32s2.bin")) {
+      if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
+      strcat(this->hwVersions, "s2");
+    }
     else if(strstr(val, "ino.esp32c3.bin")) {
       if(strlen(this->hwVersions)) strcat(this->hwVersions, ",");
       strcat(this->hwVersions, "c3");
@@ -391,6 +395,7 @@ bool GitUpdater::beginUpdate(const char *version) {
 bool GitUpdater::recoverFilesystem() {
   sprintf(this->baseUrl, "https://github.com/rstrouse/ESPSomfy-RTS/releases/download/%s/", settings.fwVersion.name);
   strcpy(this->currentFile, "SomfyController.littlefs.bin");
+  this->status = GIT_UPDATING;
   this->partition = U_SPIFFS;
   this->lockFS = true;
   this->error = this->downloadFile();
@@ -400,6 +405,7 @@ bool GitUpdater::recoverFilesystem() {
     Serial.println("Committing Configuration...");
     somfy.commit();
   }
+  this->status = GIT_UPDATE_COMPLETE;
   rebootDelay.reboot = true;
   rebootDelay.rebootTime = millis() + 500;
   return true;

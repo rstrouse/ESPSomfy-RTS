@@ -2449,8 +2449,14 @@ void Web::begin() {
   server.on("/recoverFilesystem", [] () {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     webServer.sendCORSHeaders(server);
-    git.recoverFilesystem();
-    server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Recovering filesystem from github please wait!!!\"}");
+    if(git.status == GIT_UPDATING)
+      server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Filesystem is updating.  Please wait!!!\"}");
+    else if(git.status != GIT_STATUS_READY)
+      server.send(200, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Cannot recover file system at this time.\"}");
+    else {
+      git.recoverFilesystem();
+      server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Recovering filesystem from github please wait!!!\"}");
+    }
   });
   server.begin();
   apiServer.begin();
