@@ -5,6 +5,7 @@
 #include "ConfigSettings.h"
 #include "Somfy.h"
 #include "Network.h"
+#include "Utils.h"
 
 WiFiClient tcpClient;
 PubSubClient mqttClient(tcpClient);
@@ -15,6 +16,7 @@ static char g_content[MQTT_MAX_RESPONSE];
 extern ConfigSettings settings;
 extern SomfyShadeController somfy;
 extern Network net;
+extern rebootDelay_t rebootDelay;
 
 
 bool MQTTClass::begin() {
@@ -32,7 +34,7 @@ void MQTTClass::reset() {
   this->connect();
 }
 bool MQTTClass::loop() {
-  if(settings.MQTT.enabled && !this->suspended && !mqttClient.connected())
+  if(settings.MQTT.enabled && !rebootDelay.reboot && !this->suspended && !mqttClient.connected())
     this->connect();
   if(settings.MQTT.enabled) mqttClient.loop();
   return true;

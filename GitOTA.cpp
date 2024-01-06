@@ -231,7 +231,7 @@ bool GitRepo::toJSON(JsonObject &obj) {
 
 void GitUpdater::loop() {
   if(this->status == GIT_STATUS_READY) {
-    if(this->lastCheck + 14400000 < millis()) { // 4 hours
+    if(this->lastCheck + 14400000 < millis() && !rebootDelay.reboot) { // 4 hours
       this->checkForUpdate();
     }
   }
