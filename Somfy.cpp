@@ -1469,6 +1469,7 @@ void SomfyGroup::publishState() {
   if(mqtt.connected()) {
     this->publish("direction", this->direction, true);
     this->publish("lastRollingCode", this->lastRollingCode, true);
+    this->publish("flipCommands", this->flipCommands, true);
     const uint8_t sunFlag = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::SunFlag));
     const uint8_t isSunny = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Sunny));
     const uint8_t isWindy = !!(this->flags & static_cast<uint8_t>(somfy_flags_t::Windy));
@@ -1524,6 +1525,7 @@ void SomfyGroup::unpublish(uint8_t id) {
     SomfyGroup::unpublish(id, "lastRollingCode");
     SomfyGroup::unpublish(id, "flags");
     SomfyGroup::unpublish(id, "SunSensor");
+    SomfyGroup::unpublish(id, "flipCommands");
   }
 }
 void SomfyGroup::unpublish(uint8_t id, const char *topic) {
@@ -3002,6 +3004,8 @@ bool SomfyGroup::fromJSON(JsonObject &obj) {
   if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
   if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
   if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
+  if(obj.containsKey("flipCommands")) this->flipCommands = obj["flipCommands"].as<bool>();
+  
   //if(obj.containsKey("sunSensor")) this->hasSunSensor() = obj["sunSensor"];  This is calculated
   if(obj.containsKey("repeats")) this->repeats = obj["repeats"];
   if(obj.containsKey("linkedShades")) {
@@ -3024,6 +3028,7 @@ bool SomfyGroup::toJSON(JsonObject &obj) {
   obj["bitLength"] = this->bitLength;
   obj["proto"] = static_cast<uint8_t>(this->proto);
   obj["sunSensor"] = this->hasSunSensor();
+  obj["flipCommands"] = this->flipCommands;
   obj["flags"] = this->flags;
   obj["repeats"] = this->repeats;
   obj["sortOrder"] = this->sortOrder;

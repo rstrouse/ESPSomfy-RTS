@@ -19,7 +19,8 @@ var errors = [
     { code: -32, desc: "Git Update: Aborted." },
     { code: -40, desc: "Git Download: Http Error." },
     { code: -41, desc: "Git Download: Buffer Allocation Error." },
-    { code: -42, desc: "Git Download: Download Connection Error." }
+    { code: -42, desc: "Git Download: Download Connection Error." },
+    { code: -43, desc: 'Git Download: Timeout Error.' }
 ]
 document.oncontextmenu = (event) => {
     if (event.target && event.target.tagName.toLowerCase() === 'input' && (event.target.type.toLowerCase() === 'text' || event.target.type.toLowerCase() === 'password'))
@@ -1255,7 +1256,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.3.0';
+    appVersion = 'v2.3.1';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -2830,9 +2831,9 @@ class Somfy {
                 document.getElementById('spanShadeId').innerText = '*';
                 document.getElementById('divLinkedRemoteList').innerHTML = '';
                 document.getElementById('btnSetRollingCode').style.display = 'none';
-                document.getElementById('selShadeBitLength').value = 56;
-                document.getElementById('cbFlipCommands').value = false;
-                document.getElementById('cbFlipPosition').value = false;
+                //document.getElementById('selShadeBitLength').value = 56;
+                //document.getElementById('cbFlipCommands').value = false;
+                //document.getElementById('cbFlipPosition').value = false;
                 if (err) {
                     ui.serviceError(err);
                 }
@@ -2842,6 +2843,7 @@ class Somfy {
                     shade.name = '';
                     shade.downTime = shade.upTime = 10000;
                     shade.tiltTime = 7000;
+                    shade.bitLength = 56;
                     shade.flipCommands = shade.flipPosition = false;
                     ui.toElement(elShade, shade);
                     this.showEditShade(true);
@@ -2910,6 +2912,7 @@ class Somfy {
                 else {
                     console.log(group);
                     group.name = '';
+                    group.flipCommands = false;
                     ui.toElement(document.getElementById('somfyGroup'), group);
                     this.showEditGroup(true);
                 }
@@ -3976,6 +3979,16 @@ class Firmware {
                     div.innerHTML = `Preparing firmware update`;
                     break;
                 case 3: // Updating -- this will be set by the update progress.
+                    break;
+                case 4:
+                    div.style.color = 'red';
+                    let e = errors.find(x => x.code === rel.error) || { code: err.code, desc: 'Unspecified error' };
+                    let inst = document.getElementById('divGitInstall');
+                    if (inst) {
+                        inst.remove();
+                        ui.errorMessage(e.desc);
+                    }
+                    div.innerHTML = e.desc;
                     break;
                 case 5:
                     div.style.color = 'red';

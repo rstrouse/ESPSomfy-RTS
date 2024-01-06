@@ -375,6 +375,7 @@ bool GitUpdater::beginUpdate(const char *version) {
     this->error = this->downloadFile();
     if(this->error == 0) {
       settings.fwVersion.parse(version);
+      delay(100);
       Serial.println("Committing Configuration...");
       somfy.commit();
       rebootDelay.reboot = true;
@@ -415,6 +416,7 @@ int8_t GitUpdater::downloadFile() {
           uint8_t *buff = (uint8_t *)malloc(MAX_BUFF_SIZE);
           if(buff) {
             this->emitDownloadProgress(len, total);
+            int timeouts = 0;
             while(https.connected() && (len > 0 || len == -1) && total < len) {
               size_t size = stream->available();
               if(size) {
@@ -452,6 +454,19 @@ int8_t GitUpdater::downloadFile() {
                   }
                   https.end();
                 }
+              }
+              else {
+                timeouts++;
+                if(timeouts >= 300) {
+                  Update.abort();
+                  https.end();
+                  free(buff);
+                  Serial.println("Stream timeout!!!");
+                  return -43;
+                }
+                sockEmit.loop();
+                webServer.loop();
+                delay(100);
               }
             }
             free(buff);

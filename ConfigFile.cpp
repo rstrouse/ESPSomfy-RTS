@@ -7,10 +7,10 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 17
+#define SHADE_HDR_VER 18
 #define SHADE_HDR_SIZE 56
 #define SHADE_REC_SIZE 272
-#define GROUP_REC_SIZE 184
+#define GROUP_REC_SIZE 190
 #define TRANS_REC_SIZE 74
 
 extern ConfigSettings settings;
@@ -597,6 +597,7 @@ bool ShadeConfigFile::readGroupRecord(SomfyGroup *group) {
   
   if(group->getGroupId() == 255) group->clear();
   else group->compressLinkedShadeIds();
+  if(this->header.version >= 18) group->flipCommands = this->readBool(false);
   pref.end();
   if(this->file.position() != startPos + this->header.groupRecordSize) {
     Serial.println("Reading to end of group record");
@@ -738,7 +739,8 @@ bool ShadeConfigFile::writeGroupRecord(SomfyGroup *group) {
     this->writeUInt8(group->linkedShades[j]);
   }
   this->writeUInt8(group->repeats);
-  this->writeUInt8(group->sortOrder, CFG_REC_END);
+  this->writeUInt8(group->sortOrder);
+  this->writeBool(group->flipCommands, CFG_REC_END);
   return true;
 }
 bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
