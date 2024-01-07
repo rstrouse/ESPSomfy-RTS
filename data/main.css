@@ -556,6 +556,7 @@ div.wait-overlay > .lds-roller {
     font-size:1.5em;
     color:white;
 }
+.room-name,
 .group-name,
 .shade-name {
     text-align:left;
@@ -566,6 +567,14 @@ div.wait-overlay > .lds-roller {
     text-overflow: ellipsis;
     overflow:hidden;
     vertical-align:middle;
+}
+.cfg-room {
+    font-size:12px;
+    color:darkorange;
+}
+.somfyShade[data-roomid="0"] .cfg-room,
+.somfyGroup[data-roomid="0"] .cfg-room {
+    display:none;
 }
 .group-address,
 .shade-address {
@@ -617,6 +626,8 @@ div.wait-overlay > .lds-roller {
     position:relative;
     display:flex;
     vertical-align:middle;
+    align-items:center;
+    flex-direction:row;
 }
     .somfyShadeCtl .shade-icon {
         display: inline-block;
@@ -641,9 +652,12 @@ div.wait-overlay > .lds-roller {
     vertical-align:middle;
     width:100%;
 }   
+    .somfyGroupCtl .groupctl-shades {
+        font-size:12px;
+    }
     .somfyGroupCtl .groupctl-name,
     .somfyShadeCtl .shadectl-name {
-        font-size: 1.5em;
+        font-size: 1.37em;
         color: silver;
         display: block;
         vertical-align: middle;
@@ -654,10 +668,23 @@ div.wait-overlay > .lds-roller {
     .somfyShadeCtl label {
         color:silver;
     }
+    .somfyShadeCtl .shadectl-room,
+    .somfyGroupCtl .groupctl-room {
+        font-size:12px;
+        margin-bottom:-3px;
+        display:block;
+        color:darkorange;
+    }
+    .somfyGroupCtl[data-roomid="0"] .groupctl-room,
+    .somfyShadeCtl[data-roomid="0"] .shadectl-room {
+        display:none;
+    }
     .somfyGroupCtl .groupctl-mypos,
     .somfyShadeCtl .shadectl-mypos {
         white-space: nowrap;
         font-size: 12px;
+        display:block;
+        margin-top:-3px;
     }
 .vr-button > div,
 .somfyGroupCtl .groupctl-buttons,

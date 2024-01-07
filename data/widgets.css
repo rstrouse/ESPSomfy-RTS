@@ -46,6 +46,7 @@
     left: 0px;
     color: white;
 }
+.edit-roomlist,
 .edit-grouplist,
 .edit-motorlist {
     overflow-y: auto;
@@ -81,6 +82,7 @@
 .wizard[data-stepid="6"] .wizard-step:not([data-stepid="6"]) { display: none; }
 .wizard[data-stepid="7"] .wizard-step:not([data-stepid="7"]) { display: none; }
 
+.somfyRoom,
 .somfyGroup,
 .somfyShade {
     text-align: center;
@@ -91,13 +93,15 @@
 }
     .linked-shade > div,
     .linked-shade > span,
+    .somfyRoom > div,
+    .somfyRoom > span,
     .somfyGroup > div,
     .somfyGroup > span,
     .somfyShade > div,
     .somfyShade > span {
         display: table-cell;
-        padding-left:4px;
-        padding-right:4px;
+        padding-left: 4px;
+        padding-right: 4px;
     }
 .linked-shade {
     width: 100%;
@@ -185,6 +189,7 @@
 .somfyShadeCtl .shadectl-mypos span.my-pos {
     margin-right:14px;
 }
+
 #somfyShade #divGPIOControl {
     display: none;
 }
@@ -233,20 +238,68 @@
 #somfyShade[data-proto="8"][data-shadetype="9"] #divGPIOUp {
     display: none;
 }
+.room-draggable,
 .group-draggable,
 .shade-draggable {
     height: 32px;
     border-top: solid 2px transparent;
     cursor: grab;
 }
-.group-draggable.dragging *,
-.group-draggable.over *,
-.shade-draggable.dragging *,
-.shade-draggable.over * {
-    pointer-events: none;
-}
+    .room-draggable.dragging *,
+    .room-draggable.over *,
+    .group-draggable.dragging *,
+    .group-draggable.over *,
+    .shade-draggable.dragging *,
+    .shade-draggable.over * {
+        pointer-events: none;
+    }
+.room-draggable.over,
 .group-draggable.over,
 .shade-draggable.over {
     border-top: solid 2px var(--shade-color, '#00bcd4');
 }
-
+.room-selector {
+    display: flex;
+    flex-flow: column;
+    font-size: 30px;
+    margin-top: -10px;
+    color: var(--shade-color, gray);
+    font-weight:bold;
+    text-shadow:1px 1px 1px silver;
+    justify-content:center;
+    flex-wrap:nowrap;
+    flex-direction:row;
+    align-items:center;
+    
+}
+    .room-selector > i {
+        font-size: 20px;
+        cursor: pointer;
+    }
+    .room-selector > span {
+        margin-left: .15em;
+        cursor: pointer;
+    }
+.room-selector-list {
+    position: absolute;
+    min-width: 50%;
+    font-size: 1.37rem;
+    border: solid 1px gray;
+    box-shadow: 4px 4px 4px gray;
+    border-radius: 3px;
+    padding-left: 1rem;
+    padding-right:1rem;
+    background:white;
+    z-index:1000;
+    display:none;
+    cursor:pointer;
+    top:3px;
+}
+    .room-selector-list .room-row {
+        cursor: pointer;
+        color: gray;
+        text-shadow:none;
+    }
+        .room-selector-list .room-row:hover {
+            color: var(--shade-color, gray);
+        }

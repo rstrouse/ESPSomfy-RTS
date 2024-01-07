@@ -562,6 +562,12 @@ void SomfyShadeController::writeBackup() {
   file.backup(this);
   file.end();
 }
+SomfyRoom * SomfyShadeController::getRoomById(uint8_t roomId) {
+  for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
+    if(this->rooms[i].roomId == roomId) return &this->rooms[i];
+  }
+  return nullptr;
+}
 SomfyShade * SomfyShadeController::getShadeById(uint8_t shadeId) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() == shadeId) return &this->shades[i];
@@ -620,6 +626,10 @@ void SomfyShade::clear() {
   this->stepSize = 100;
   this->repeats = 1;
   this->sortOrder = 255;
+}
+void SomfyRoom::clear() {
+  this->roomId = 0;
+  strcpy(this->name, "");
 }
 void SomfyGroup::clear() {
   this->setGroupId(255);
@@ -1307,6 +1317,28 @@ void SomfyShade::load() {
     }
     pref.end();
 }
+void SomfyRoom::publish() {
+  if(mqtt.connected()) {
+    char topic[64];
+    sprintf(topic, "rooms/%d/roomId", this->roomId);
+    mqtt.publish(topic, this->roomId, true);
+    sprintf(topic, "rooms/%d/name", this->roomId);
+    mqtt.publish(topic, this->name, true);
+    sprintf(topic, "rooms/%d/sortOrder", this->roomId);
+    mqtt.publish(topic, this->sortOrder, true);
+  }
+}
+void SomfyRoom::unpublish() {
+  if(mqtt.connected()) {
+    char topic[64];
+    sprintf(topic, "rooms/%d/roomId", this->roomId);
+    mqtt.unpublish(topic);
+    sprintf(topic, "rooms/%d/name", this->roomId);
+    mqtt.unpublish(topic);
+    sprintf(topic, "rooms/%d/sortOrder", this->roomId);
+    mqtt.unpublish(topic);
+  }
+}
 void SomfyShade::publishState() {
   if(mqtt.connected()) {
     this->publish("position", this->transformPosition(this->currentPos), true);
@@ -1777,6 +1809,21 @@ void SomfyShade::emitCommand(uint8_t num, somfy_commands cmd, const char *source
     this->publish("cmdAddress", sourceAddress);
     this->publish("cmd", translateSomfyCommand(cmd).c_str());
   }
+}
+void SomfyRoom::emitState(const char *evt) { this->emitState(255, evt); }
+void SomfyRoom::emitState(uint8_t num, const char *evt) {
+  ClientSocketEvent e(evt);
+  char buf[55];
+  uint8_t flags = 0;
+  snprintf(buf, sizeof(buf), "{\"roomId\":%d,", this->roomId);
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), "\"name\":\"%s\",", this->name);
+  e.appendMessage(buf);
+  snprintf(buf, sizeof(buf), "\"sortOrder\":%d}", this->sortOrder);
+  e.appendMessage(buf);
+  if(num >= 255) sockEmit.sendToClients(&e);
+  else sockEmit.sendToClient(num, &e);
+  this->publish();
 }
 void SomfyGroup::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyGroup::emitState(uint8_t num, const char *evt) {
@@ -2753,6 +2800,7 @@ bool SomfyShade::save() {
   this->publish();
   return true;
 }
+bool SomfyRoom::save() { somfy.commit(); return true; }
 bool SomfyGroup::save() { somfy.commit(); return true; }
 bool SomfyShade::usesPin(uint8_t pin) {
   if(this->proto != radio_proto::GP_Remote && this->proto != radio_proto::GP_Relay) return false;
@@ -2846,6 +2894,7 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
   int8_t err = this->validateJSON(obj);
   if(err == 0) {
     if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
+    if(obj.containsKey("roomId")) this->roomId = obj["roomId"];
     if(obj.containsKey("upTime")) this->upTime = obj["upTime"];
     if(obj.containsKey("downTime")) this->downTime = obj["downTime"];
     if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
@@ -2939,6 +2988,7 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
 }
 bool SomfyShade::toJSONRef(JsonObject &obj) {
   obj["shadeId"] = this->getShadeId();
+  obj["roomId"] = this->roomId;
   obj["name"] = this->name;
   obj["remoteAddress"] = this->m_remoteAddress;
   obj["paired"] = this->paired;
@@ -2958,6 +3008,7 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   //Serial.print("  ");
   //Serial.println(this->name);
   obj["shadeId"] = this->getShadeId();
+  obj["roomId"] = this->roomId;
   obj["name"] = this->name;
   obj["remoteAddress"] = this->m_remoteAddress;
   obj["upTime"] = this->upTime;
@@ -3003,8 +3054,21 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   }
   return true;
 }
+bool SomfyRoom::fromJSON(JsonObject &obj) {
+  if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
+  if(obj.containsKey("sortOrder")) this->sortOrder = obj["sortOrder"];
+  return true;
+}
+bool SomfyRoom::toJSON(JsonObject &obj) {
+  obj["roomId"] = this->roomId;
+  obj["name"] = this->name;
+  obj["sortOrder"] = this->sortOrder;
+  return true;
+}
+
 bool SomfyGroup::fromJSON(JsonObject &obj) {
   if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
+  if(obj.containsKey("roomId")) this->roomId = obj["roomId"];
   if(obj.containsKey("remoteAddress")) this->setRemoteAddress(obj["remoteAddress"]);
   if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
   if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
@@ -3026,6 +3090,7 @@ bool SomfyGroup::fromJSON(JsonObject &obj) {
 bool SomfyGroup::toJSON(JsonObject &obj) {
   this->updateFlags();
   obj["groupId"] = this->getGroupId();
+  obj["roomId"] = this->roomId;
   obj["name"] = this->name;
   obj["remoteAddress"] = this->m_remoteAddress;
   obj["lastRollingCode"] = this->lastRollingCode;
@@ -3146,7 +3211,6 @@ int8_t SomfyShadeController::getMaxGroupOrder() {
   }
   return order;
 }
-
 uint8_t SomfyShadeController::getNextGroupId() {
   // There is no shortcut for this since the deletion of
   // a group in the middle makes all of this very difficult.
@@ -3166,6 +3230,43 @@ uint8_t SomfyShadeController::getNextGroupId() {
     }
   }
   return 255;
+}
+uint8_t SomfyShadeController::getNextRoomId() {
+  // There is no shortcut for this since the deletion of
+  // a room in the middle makes all of this very difficult.
+  for(uint8_t i = 1; i < SOMFY_MAX_ROOMS - 1; i++) {
+    bool id_exists = false;
+    for(uint8_t j = 0; j < SOMFY_MAX_ROOMS; j++) {
+      SomfyRoom *room = &this->rooms[j];
+      if(room->roomId == i) {
+        id_exists = true;
+        break;
+      }
+    }
+    if(!id_exists) {
+      Serial.print("Got next room Id:");
+      Serial.print(i);
+      return i;
+    }
+  }
+  return 0;
+}
+int8_t SomfyShadeController::getMaxRoomOrder() {
+  int8_t order = -1;
+  for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
+    SomfyRoom *room = &this->rooms[i];
+    if(room->roomId == 0) continue;
+    if(order < room->sortOrder) order = room->sortOrder;
+  }
+  return order;
+}
+
+uint8_t SomfyShadeController::roomCount() {
+  uint8_t count = 0;
+  for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
+    if(this->rooms[i].roomId != 0) count++;
+  }
+  return count;
 }
 uint8_t SomfyShadeController::shadeCount() {
   uint8_t count = 0;
@@ -3268,6 +3369,28 @@ SomfyShade *SomfyShadeController::addShade() {
   }
   return shade;
 }
+SomfyRoom *SomfyShadeController::addRoom(JsonObject &obj) {
+  SomfyRoom *room = this->addRoom();
+  if(room) {
+    room->fromJSON(obj);
+    room->save();
+    room->emitState("roomAdded");
+  }
+  return room;
+}
+SomfyRoom *SomfyShadeController::addRoom() {
+  uint8_t roomId = this->getNextRoomId();
+  // So the next room id will be the first one we run into with an id of 0 so
+  if(roomId == 0) return nullptr;
+  SomfyRoom *room = &this->rooms[roomId - 1];
+  if(room) {
+    room->roomId = roomId;
+    room->sortOrder = this->getMaxRoomOrder() + 1;
+    this->isDirty = true;
+  }
+  return room;
+}
+
 SomfyGroup *SomfyShadeController::addGroup(JsonObject &obj) {
   SomfyGroup *group = this->addGroup();
   if(group) {
@@ -3463,6 +3586,30 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
   this->commit();
   return true;
 }
+bool SomfyShadeController::deleteRoom(uint8_t roomId) {
+  for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
+    if(this->rooms[i].roomId == roomId) {
+      rooms[i].unpublish();
+      for(uint8_t j = 0; j < SOMFY_MAX_SHADES; j++) {
+        if(shades[j].roomId == roomId) {
+          shades[j].roomId = 0;
+          shades[j].emitState();
+        }
+      }
+      for(uint8_t j = 0; j < SOMFY_MAX_GROUPS; j++) {
+        if(groups[j].roomId == roomId) {
+          groups[j].roomId = 0;
+          groups[j].emitState();
+        }
+      }
+      rooms[i].emitState("roomRemoved");
+      this->rooms[i].clear();
+    }
+  }
+  this->commit();
+  return true;
+}
+
 bool SomfyShadeController::deleteGroup(uint8_t groupId) {
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
     if(this->groups[i].getGroupId() == groupId) {
@@ -3502,6 +3649,7 @@ uint16_t SomfyRemote::setRollingCode(uint16_t code) {
   return code;
 }
 bool SomfyShadeController::toJSON(DynamicJsonDocument &doc) {
+  doc["maxRooms"] = SOMFY_MAX_ROOMS;
   doc["maxShades"] = SOMFY_MAX_SHADES;
   doc["maxGroups"] = SOMFY_MAX_GROUPS;
   doc["maxGroupedShades"] = SOMFY_MAX_GROUPED_SHADES;
@@ -3509,22 +3657,12 @@ bool SomfyShadeController::toJSON(DynamicJsonDocument &doc) {
   doc["startingAddress"] = this->startingAddress;
   JsonObject objRadio = doc.createNestedObject("transceiver");
   this->transceiver.toJSON(objRadio);
+  JsonArray arrRooms = doc.createNestedArray("rooms");
+  this->toJSONRooms(arrRooms);
   JsonArray arrShades = doc.createNestedArray("shades");
-  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
-    SomfyShade *shade = &this->shades[i];
-    if(shade->getShadeId() != 255) {
-      JsonObject oshade = arrShades.createNestedObject();
-      shade->toJSON(oshade);
-    }
-  }
+  this->toJSONShades(arrShades);
   JsonArray arrGroups = doc.createNestedArray("groups");
-  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
-    SomfyGroup *group = &this->groups[i];
-    if(group->getGroupId() != 255) {
-      JsonObject ogroup = arrGroups.createNestedObject();
-      group->toJSON(ogroup);
-    }
-  }
+  this->toJSONGroups(arrGroups);
   return true;
 }
 bool SomfyShadeController::toJSON(JsonObject &obj) {
@@ -3539,6 +3677,17 @@ bool SomfyShadeController::toJSON(JsonObject &obj) {
   this->toJSONGroups(arrGroups);
   return true;
 }
+bool SomfyShadeController::toJSONRooms(JsonArray &arr) {
+  for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
+    SomfyRoom &room = this->rooms[i];
+    if(room.roomId != 0) {
+      JsonObject oroom = arr.createNestedObject();
+      room.toJSON(oroom);
+    }
+  }
+  return true;
+}
+
 bool SomfyShadeController::toJSONShades(JsonArray &arr) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade &shade = this->shades[i];

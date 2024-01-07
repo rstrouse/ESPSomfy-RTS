@@ -6,6 +6,7 @@
 #define SOMFY_MAX_GROUPS 16
 #define SOMFY_MAX_LINKED_REMOTES 7
 #define SOMFY_MAX_GROUPED_SHADES 32
+#define SOMFY_MAX_ROOMS 16
 
 #define SECS_TO_MILLIS(x) ((x) * 1000)
 #define MINS_TO_MILLIS(x) SECS_TO_MILLIS((x) * 60)
@@ -180,6 +181,21 @@ struct somfy_frame_t {
     void copy(somfy_frame_t &f);
 };
 
+class SomfyRoom {
+  public:
+    uint8_t roomId = 0;
+    char name[21] = "";
+    int8_t sortOrder = 0;
+    void clear();
+    bool save();
+    bool fromJSON(JsonObject &obj);
+    bool toJSON(JsonObject &obj);
+    void emitState(const char *evt = "roomState");
+    void emitState(uint8_t num, const char *evt = "roomState");
+    void publish();
+    void unpublish();
+};
+
 class SomfyRemote {
   // These sizes for the data have been
   // confirmed.  The address is actually 24bits
@@ -246,6 +262,7 @@ class SomfyShade : public SomfyRemote {
     bool settingTiltPos = false;
     uint32_t awaitMy = 0;
   public:
+    uint8_t roomId = 0;
     int8_t sortOrder = 0;
     bool flipPosition = false;
     shade_types shadeType = shade_types::roller;
@@ -339,6 +356,7 @@ class SomfyGroup : public SomfyRemote {
   protected:
     uint8_t groupId = 255;
   public:
+    uint8_t roomId = 0;
     int8_t sortOrder = 0;
     group_types groupType = group_types::channel;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
@@ -481,32 +499,41 @@ class SomfyShadeController {
     bool useNVS();
     bool isDirty = false;
     uint32_t startingAddress;
+    uint8_t getNextRoomId();
     uint8_t getNextShadeId();
     uint8_t getNextGroupId();
+    int8_t getMaxRoomOrder();
     int8_t getMaxShadeOrder();
     int8_t getMaxGroupOrder();
     uint32_t getNextRemoteAddress(uint8_t shadeId);
     SomfyShadeController();
     Transceiver transceiver;
+    SomfyRoom *addRoom();
+    SomfyRoom *addRoom(JsonObject &obj);
     SomfyShade *addShade();
     SomfyShade *addShade(JsonObject &obj);
     SomfyGroup *addGroup();
     SomfyGroup *addGroup(JsonObject &obj);
+    bool deleteRoom(uint8_t roomId);
     bool deleteShade(uint8_t shadeId);
     bool deleteGroup(uint8_t groupId);
     bool begin();
     void loop();
     void end();
+    SomfyRoom rooms[SOMFY_MAX_ROOMS];
     SomfyShade shades[SOMFY_MAX_SHADES];
     SomfyGroup groups[SOMFY_MAX_GROUPS];
     bool toJSON(DynamicJsonDocument &doc);
     bool toJSON(JsonObject &obj);
+    bool toJSONRooms(JsonArray &arr);
     bool toJSONShades(JsonArray &arr);
     bool toJSONGroups(JsonArray &arr);
+    uint8_t roomCount();
     uint8_t shadeCount();
     uint8_t groupCount();
     void updateGroupFlags();
     SomfyShade * getShadeById(uint8_t shadeId);
+    SomfyRoom * getRoomById(uint8_t roomId);
     SomfyGroup * getGroupById(uint8_t groupId);
     SomfyShade * findShadeByRemoteAddress(uint32_t address);
     SomfyGroup * findGroupByRemoteAddress(uint32_t address);

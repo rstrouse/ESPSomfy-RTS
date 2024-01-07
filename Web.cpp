@@ -248,6 +248,19 @@ void Web::handleLoginContext(WebServer &server) {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
 }
+void Web::handleGetRooms(WebServer &server) {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    HTTPMethod method = server.method();
+    if (method == HTTP_POST || method == HTTP_GET) {
+      DynamicJsonDocument doc(16384);
+      JsonArray arr = doc.to<JsonArray>();
+      somfy.toJSONRooms(arr);
+      serializeJson(doc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else server.send(404, _encoding_text, _response_404);
+}
 void Web::handleGetShades(WebServer &server) {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -558,6 +571,75 @@ void Web::handleTiltCommand(WebServer &server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
+void Web::handleRoom(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  if (method == HTTP_GET) {
+    if (server.hasArg("roomId")) {
+      int roomId = atoi(server.arg("roomId").c_str());
+      SomfyRoom* room = somfy.getRoomById(roomId);
+      if (room) {
+        DynamicJsonDocument doc(512);
+        JsonObject obj = doc.to<JsonObject>();
+        room->toJSON(obj);
+        serializeJson(doc, g_content);
+        server.send(200, _encoding_json, g_content);
+      }
+      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Room Id not found.\"}"));
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid room id.\"}"));
+    }
+  }
+  else if (method == HTTP_PUT || method == HTTP_POST) {
+    // We are updating an existing room.
+    if (server.hasArg("plain")) {
+      Serial.println("Updating a room");
+      DynamicJsonDocument doc(512);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+          break;
+        case DeserializationError::NoMemory:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+          break;
+        default:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+          break;
+        }
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("roomId")) {
+          SomfyRoom* room = somfy.getRoomById(obj["roomId"]);
+          if (room) {
+            uint8_t err = room->fromJSON(obj);
+            if(err == 0) {
+              room->save();
+              DynamicJsonDocument sdoc(2048);
+              JsonObject sobj = sdoc.to<JsonObject>();
+              room->toJSON(sobj);
+              serializeJson(sdoc, g_content);
+              server.send(200, _encoding_json, g_content);
+            }
+            else {
+              snprintf(g_content, sizeof(g_content), "{\"status\":\"DATA\",\"desc\":\"Data Error.\", \"code\":%d}", err);
+              server.send(500, _encoding_json, g_content);
+            }
+          }
+          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Room Id not found.\"}"));
+        }
+        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No room id was supplied.\"}"));
+      }
+    }
+    else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No room object supplied.\"}"));
+  }
+  else
+    server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
 void Web::handleShade(WebServer &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -707,6 +789,8 @@ void Web::handleDiscovery(WebServer &server) {
     if(net.connType == conn_types::ethernet) obj["connType"] = "Ethernet";
     else if(net.connType == conn_types::wifi) obj["connType"] = "Wifi";
     else obj["connType"] = "Unknown";
+    JsonArray arrRooms = obj.createNestedArray("rooms");
+    somfy.toJSONRooms(arrRooms);
     JsonArray arrShades = obj.createNestedArray("shades");
     somfy.toJSONShades(arrShades);
     JsonArray arrGroups = obj.createNestedArray("groups");
@@ -951,6 +1035,7 @@ void Web::begin() {
   apiServer.collectHeaders(keys, 1);  
   apiServer.enableCORS(true);
   apiServer.on("/discovery", []() { webServer.handleDiscovery(apiServer); });
+  apiServer.on("/rooms", []() {webServer.handleGetRooms(apiServer); });
   apiServer.on("/shades", []() { webServer.handleGetShades(apiServer); });
   apiServer.on("/groups", []() { webServer.handleGetGroups(apiServer); });
   apiServer.on("/login", []() { webServer.handleLogin(apiServer); });
@@ -960,6 +1045,7 @@ void Web::begin() {
   apiServer.on("/groupCommand", []() { webServer.handleGroupCommand(apiServer); });
   apiServer.on("/tiltCommand", []() { webServer.handleTiltCommand(apiServer); });
   apiServer.on("/repeatCommand", []() { webServer.handleRepeatCommand(apiServer); });
+  apiServer.on("/room", HTTP_GET, [] () { webServer.handleRoom(apiServer); });
   apiServer.on("/shade", HTTP_GET, [] () { webServer.handleShade(apiServer); });
   apiServer.on("/group", HTTP_GET, [] () { webServer.handleGroup(apiServer); });
   apiServer.on("/setPositions", []() { webServer.handleSetPositions(apiServer); });
@@ -1070,10 +1156,22 @@ void Web::begin() {
   server.on("/icon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icon.png", "image/png"); });
   server.onNotFound([]() { webServer.handleNotFound(server); });
   server.on("/controller", []() { webServer.handleController(server); });
+  server.on("/rooms", []() { webServer.handleGetRooms(server); });
   server.on("/shades", []() { webServer.handleGetShades(server); });
   server.on("/groups", []() { webServer.handleGetGroups(server); });
+  server.on("/room", []() { webServer.handleRoom(server); });
   server.on("/shade", []() { webServer.handleShade(server); });
   server.on("/group", []() { webServer.handleGroup(server); });
+  server.on("/getNextRoom", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    StaticJsonDocument<256> doc;
+    uint8_t roomId = somfy.getNextRoomId();
+    JsonObject obj = doc.to<JsonObject>();
+    obj["roomId"] = roomId;
+    serializeJson(doc, g_content);
+    server.send(200, _encoding_json, g_content);
+  });
   server.on("/getNextShade", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -1100,6 +1198,61 @@ void Web::begin() {
     obj["proto"] = static_cast<uint8_t>(somfy.transceiver.config.proto);
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
+    });
+  server.on("/addRoom", []() {
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    HTTPMethod method = server.method();
+    SomfyRoom * room = nullptr;
+    if (method == HTTP_POST || method == HTTP_PUT) {
+      Serial.println("Adding a room");
+      DynamicJsonDocument doc(512);
+      DeserializationError err = deserializeJson(doc, server.arg("plain"));
+      if (err) {
+        switch (err.code()) {
+        case DeserializationError::InvalidInput:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+          break;
+        case DeserializationError::NoMemory:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+          break;
+        default:
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+          break;
+        }
+      }
+      else {
+        JsonObject obj = doc.as<JsonObject>();
+        Serial.println("Counting rooms");
+        if (somfy.roomCount() > SOMFY_MAX_ROOMS) {
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Maximum number of rooms exceeded.\"}"));
+        }
+        else {
+          Serial.println("Adding room");
+          room = somfy.addRoom(obj);
+          if (room) {
+            DynamicJsonDocument sdoc(512);
+            JsonObject sobj = sdoc.to<JsonObject>();
+            room->toJSON(sobj);
+            serializeJson(sdoc, g_content);
+            server.send(200, _encoding_json, g_content);
+          }
+          else {
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error adding room.\"}"));
+          }
+        }
+      }
+    }
+    if (room) {
+      DynamicJsonDocument doc(256);
+      JsonObject obj = doc.to<JsonObject>();
+      room->toJSON(obj);
+      serializeJson(doc, g_content);
+      Serial.println(g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else {
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error saving Somfy Room.\"}"));
+    }
     });
   server.on("/addShade", []() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -1252,6 +1405,51 @@ void Web::begin() {
     }
     
     });
+  server.on("/saveRoom", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    HTTPMethod method = server.method();
+    if (method == HTTP_PUT || method == HTTP_POST) {
+      // We are updating an existing room.
+      if (server.hasArg("plain")) {
+        Serial.println("Updating a room");
+        DynamicJsonDocument doc(512);
+        DeserializationError err = deserializeJson(doc, server.arg("plain"));
+        if (err) {
+          switch (err.code()) {
+          case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+          case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+          default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+          }
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("roomId")) {
+            SomfyRoom* room = somfy.getRoomById(obj["roomId"]);
+            if (room) {
+              room->fromJSON(obj);
+              room->save();
+              DynamicJsonDocument sdoc(512);
+              JsonObject sobj = sdoc.to<JsonObject>();
+              room->toJSON(sobj);
+              serializeJson(sdoc, g_content);
+              server.send(200, _encoding_json, g_content);
+            }
+            else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Room Id not found.\"}"));
+          }
+          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No room id was supplied.\"}"));
+        }
+      }
+      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No room object supplied.\"}"));
+    }
+  });
+
   server.on("/saveShade", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -1756,6 +1954,47 @@ void Web::begin() {
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No unlinking object supplied.\"}"));
     }
   });
+  server.on("/deleteRoom", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    HTTPMethod method = server.method();
+    uint8_t roomId = 0;
+    if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
+      if (server.hasArg("roomId")) {
+        roomId = atoi(server.arg("roomId").c_str());
+      }
+      else if (server.hasArg("plain")) {
+        Serial.println("Deleting a Room");
+        DynamicJsonDocument doc(256);
+        DeserializationError err = deserializeJson(doc, server.arg("plain"));
+        if (err) {
+          switch (err.code()) {
+          case DeserializationError::InvalidInput:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+            break;
+          case DeserializationError::NoMemory:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+            break;
+          default:
+            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+            break;
+          }
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("roomId")) roomId = obj["roomId"];
+          else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No room id was supplied.\"}"));
+        }
+      }
+      else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No room object supplied.\"}"));
+    }
+    SomfyRoom* room = somfy.getRoomById(roomId);
+    if (!room) server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Room with the specified id not found.\"}"));
+    else {
+      somfy.deleteRoom(roomId);
+      server.send(200, _encoding_json, F("{\"status\":\"SUCCESS\",\"desc\":\"Room deleted.\"}"));
+    }
+    });
   server.on("/deleteShade", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -2362,6 +2601,40 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     });
+  server.on("/roomSortOrder", []() {
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    DynamicJsonDocument doc(512);
+    Serial.print("Plain: ");
+    Serial.print(server.method());
+    Serial.println(server.arg("plain"));
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (err) {
+      Serial.print("Error parsing JSON ");
+      Serial.println(err.c_str());
+      String msg = err.c_str();
+      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+    }
+    else {
+      JsonArray arr = doc.as<JsonArray>();
+      HTTPMethod method = server.method();
+      if (method == HTTP_POST || method == HTTP_PUT) {
+        // Parse out all the inputs.
+        uint8_t order = 0;
+        for(JsonVariant v : arr) {
+          uint8_t roomId = v.as<uint8_t>();
+          if (roomId != 0) {
+            SomfyRoom *room = somfy.getRoomById(roomId);
+            if(room) room->sortOrder = order++;
+          }
+        }
+        server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Successfully set room order\"}");
+      }
+      else {
+        server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
+      }
+    }
+  });
+    
   server.on("/shadeSortOrder", []() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);

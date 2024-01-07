@@ -1,5 +1,6 @@
 //var hst = '192.168.1.208';
 var hst = '192.168.1.152';
+var _rooms = [{ roomId: 0, name: 'Home' }];
 
 var errors = [
     { code: -10, desc: "Pin setting in use for Transceiver.  Output pins cannot be re-used." },
@@ -505,6 +506,12 @@ async function initSockets() {
                             break;
                         case 'shadeCommand':
                             console.log(msg);
+                            break;
+                        case 'roomRemoved':
+                            somfy.procRoomRemoved(msg);
+                            break;
+                        case 'roomAdded':
+                            somfy.procRoomAdded(msg);
                             break;
                         case 'shadeRemoved':
                             break;
@@ -1935,6 +1942,7 @@ class Somfy {
             }
             else {
                 console.log(somfy);
+                document.getElementById('spanMaxRooms').innerText = somfy.maxRooms || 0;
                 document.getElementById('spanMaxShades').innerText = somfy.maxShades;
                 document.getElementById('spanMaxGroups').innerText = somfy.maxGroups;
                 ui.toElement(document.getElementById('divTransceiverSettings'), somfy);
@@ -1945,6 +1953,7 @@ class Somfy {
                     document.getElementById('divRadioError').style.display = '';
                 }
                 // Create the shades list.
+                this.setRoomsList(somfy.rooms);
                 this.setShadesList(somfy.shades);
                 this.setGroupsList(somfy.groups);
             }
@@ -2096,13 +2105,109 @@ class Somfy {
     }
     btnDown = null;
     btnTimer = null;
-    // Sort the array first to allow the user to drag and drop where they want the shade.
-
+    procRoomAdded(room) {
+        let r = _rooms.find(x => x.roomId === room.roomId);
+        if (typeof r === 'undefined' || !r) {
+            _rooms.push(room);
+            _rooms.sort((a, b) => { return a.sortOrder - b.sortOrder });
+            this.setRoomsList(_rooms);
+        }
+    }
+    procRoomRemoved(room) {
+        if (room.roomId === 0) return;
+        let r = _rooms.find(x => x.roomId === room.roomId);
+        if (typeof r !== 'undefined' && r.roomId === room.roomId) {
+            _rooms = _rooms.filter(x => x.roomId === room.roomId);
+            _rooms.sort((a, b) => { return a.sortOrder - b.sortOrder });
+            this.setRoomsList(_rooms);
+            let rs = document.getElementById('divRoomSelector');
+            let ss = document.getElementById('divShadeControls');
+            let gs = document.getElementById('divGroupControls');
+            let ctls = ss.querySelectorAll('.somfyShadeCtl');
+            for (let i = 0; i < ctls.length; i++) {
+                let x = ctls[i];
+                if (parseInt(x.getAttribute('data-roomid'), 10) === room.roomId)
+                    x.setAttribute('data-roomid', '0');
+            }
+            ctls = gs.querySelectorAll('.somfyGroupCtl');
+            for (let i = 0; i < ctls.length; i++) {
+                let x = ctls[i];
+                if (parseInt(x.getAttribute('data-roomid'), 10) === room.roomId)
+                    x.setAttribute('data-roomid', '0');
+            }
+            if (parseInt(rs.getAttribute('data-roomid'), 10) === room.roomId) this.selectRoom(0);
+        }
+    }
+    selectRoom(roomId) {
+        let room = _rooms.find(x => x.roomId === roomId) || { roomId: 0, name: '' };
+        let rs = document.getElementById('divRoomSelector');
+        rs.setAttribute('data-roomid', roomId);
+        rs.querySelector('span').innerHTML = room.name;
+        document.getElementById('divRoomSelector-list').style.display = 'none';
+        let ss = document.getElementById('divShadeControls');
+        ss.setAttribute('data-roomid', roomId);
+        let ctls = ss.querySelectorAll('.somfyShadeCtl');
+        for (let i = 0; i < ctls.length; i++) {
+            let x = ctls[i];
+            if (roomId !== 0 && parseInt(x.getAttribute('data-roomid'), 10) !== roomId)
+                x.style.display = 'none';
+            else
+                x.style.display = '';
+        }
+        let gs = document.getElementById('divGroupControls');
+        ctls = gs.querySelectorAll('.somfyGroupCtl');
+        for (let i = 0; i < ctls.length; i++) {
+            let x = ctls[i];
+            if (roomId !== 0 && parseInt(x.getAttribute('data-roomid'), 10) !== roomId)
+                x.style.display = 'none';
+            else
+                x.style.display = '';
+        }
+    }
+    setRoomsList(rooms) {
+        let divCfg = '';
+        let divCtl = `<div class='room-row' data-roomid="${0}" onclick="somfy.selectRoom(0);event.stopPropagation();">Home</div>`;
+        let divOpts = '<option value="0">Home</option>';
+        _rooms = [{ roomId: 0, name: 'Home' }];
+        rooms.sort((a, b) => { return a.sortOrder - b.sortOrder });
+        for (let i = 0; i < rooms.length; i++) {
+            let room = rooms[i];
+            divCfg += `<div class="somfyRoom room-draggable" draggable="true" data-roomid="${room.roomId}">`;
+            divCfg += `<div class="button-outline" onclick="somfy.openEditRoom(${room.roomId});"><i class="icss-edit"></i></div>`;
+            divCfg += `<span class="room-name">${room.name}</span>`;
+            divCfg += `<div class="button-outline" onclick="somfy.deleteRoom(${room.roomId});"><i class="icss-trash"></i></div>`;
+            divCfg += '</div>';
+            divOpts += `<option value="${room.roomId}">${room.name}</option>`;
+            _rooms.push(room);
+            divCtl += `<div class='room-row' data-roomid="${room.roomId}" onclick="somfy.selectRoom(${room.roomId});event.stopPropagation();">${room.name}</div>`;
+        }
+        if (rooms.length === 0) document.getElementById('divRoomSelector').style.display = 'none';
+        else document.getElementById('divRoomSelector').style.display = '';
+        document.getElementById('divRoomSelector-list').innerHTML = divCtl;
+        document.getElementById('divRoomList').innerHTML = divCfg;
+        document.getElementById('selShadeRoom').innerHTML = divOpts;
+        document.getElementById('selGroupRoom').innerHTML = divOpts;
+        //roomControls.innerHTML = divCtl;
+        this.setListDraggable(document.getElementById('divRoomList'), '.room-draggable', (list) => {
+            // Get the shade order
+            let items = list.querySelectorAll('.room-draggable');
+            let order = [];
+            for (let i = 0; i < items.length; i++) {
+                order.push(parseInt(items[i].getAttribute('data-roomid'), 10));
+                // Reorder the shades on the main page.
+            }
+            putJSONSync('/roomSortOrder', order, (err) => {
+                if (err) ui.serviceError(err);
+                else this.updateRoomsList();
+            });
+        });
+    }
     setShadesList(shades) {
         let divCfg = '';
         let divCtl = '';
         shades.sort((a, b) => { return a.sortOrder - b.sortOrder });
         console.log(shades);
+        let roomId = parseInt(document.getElementById('divRoomSelector').getAttribute('data-roomid'), 10)
 
         let vrList = document.getElementById('selVRMotor');
         // First get the optiongroup for the shades.
@@ -2123,17 +2228,23 @@ class Somfy {
         }
         for (let i = 0; i < shades.length; i++) {
             let shade = shades[i];
+            let room = _rooms.find(x => x.roomId === shade.roomId) || { roomId: 0, name: '' };
             let st = this.shadeTypes.find(x => x.type === shade.shadeType) || { type: shade.shadeType, ico: 'icss-window-shade' };
 
-            divCfg += `<div class="somfyShade shade-draggable" draggable="true" data-mypos="${shade.myPos}" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType} data-flipposition="${shade.flipPosition ? 'true' : 'false'}">`;
+            divCfg += `<div class="somfyShade shade-draggable" draggable="true" data-roomid="${shade.roomId}" data-mypos="${shade.myPos}" data-shadeid="${shade.shadeId}" data-remoteaddress="${shade.remoteAddress}" data-tilt="${shade.tiltType}" data-shadetype="${shade.shadeType} data-flipposition="${shade.flipPosition ? 'true' : 'false'}">`;
             divCfg += `<div class="button-outline" onclick="somfy.openEditShade(${shade.shadeId});"><i class="icss-edit"></i></div>`;
             //divCfg += `<i class="shade-icon" data-position="${shade.position || 0}%"></i>`;
-            divCfg += `<span class="shade-name">${shade.name}</span>`;
+            //divCfg += `<span class="shade-name">${shade.name}</span>`;
+            divCfg += '<div class="shade-name">';
+            divCfg += `<div class="cfg-room">${room.name}</div>`;
+            divCfg += `<div class="">${shade.name}</div>`;
+            divCfg += '</div>'
+
             divCfg += `<span class="shade-address">${shade.remoteAddress}</span>`;
             divCfg += `<div class="button-outline" onclick="somfy.deleteShade(${shade.shadeId});"><i class="icss-trash"></i></div>`;
             divCfg += '</div>';
 
-            divCtl += `<div class="somfyShadeCtl" data-shadeId="${shade.shadeId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}" data-mytiltpos="${shade.myTiltPos}" data-shadetype="${shade.shadeType}" data-tilt="${shade.tiltType}" data-flipposition="${shade.flipPosition ? 'true': 'false'}"`;
+            divCtl += `<div class="somfyShadeCtl" style="${roomId === 0 || roomId === room.roomId ? '' : 'display:none'}" data-shadeId="${shade.shadeId}" data-roomid="${shade.roomId}" data-direction="${shade.direction}" data-remoteaddress="${shade.remoteAddress}" data-position="${shade.position}" data-target="${shade.target}" data-mypos="${shade.myPos}" data-mytiltpos="${shade.myTiltPos}" data-shadetype="${shade.shadeType}" data-tilt="${shade.tiltType}" data-flipposition="${shade.flipPosition ? 'true' : 'false'}"`;
             divCtl += ` data-windy="${(shade.flags & 0x10) === 0x10 ? 'true' : 'false'}" data-sunny=${(shade.flags & 0x20) === 0x20 ? 'true' : 'false'}`;
             if (shade.tiltType !== 0) {
                 divCtl += ` data-tiltposition="${shade.tiltPosition}" data-tiltdirection="${shade.tiltDirection}" data-tilttarget="${shade.tiltTarget}"`;
@@ -2146,7 +2257,7 @@ class Somfy {
             divCtl += shade.tiltType !== 0 ? `<i class="icss-window-tilt" data-shadeid="${shade.shadeId}" data-tiltposition="${shade.tiltPosition}"></i></div>` : '</div>';
             divCtl += `<div class="indicator indicator-wind"><i class="icss-warning"></i></div><div class="indicator indicator-sun"><i class="icss-sun"></i></div>`;
             divCtl += `<div class="shade-name">`;
-
+            divCtl += `<span class="shadectl-room">${room.name}</span>`;
             divCtl += `<span class="shadectl-name">${shade.name}</span>`;
             divCtl += `<span class="shadectl-mypos"><label class="my-pos"></label><span class="my-pos">${shade.myPos === -1 ? '---' : shade.myPos + '%'}</span><label class="my-pos-tilt"></label><span class="my-pos-tilt">${shade.myTiltPos === -1 ? '---' : shade.myTiltPos + '%'}</span >`;
             divCtl += '</div>';
@@ -2426,6 +2537,7 @@ class Somfy {
                 optGroup.innerHTML = '';
             }
         }
+        let roomId = parseInt(document.getElementById('divRoomSelector').getAttribute('data-roomid'), 10)
 
         if (typeof groups !== 'undefined') {
             groups.sort((a, b) => { return a.sortOrder - b.sortOrder });
@@ -2433,16 +2545,22 @@ class Somfy {
 
             for (let i = 0; i < groups.length; i++) {
                 let group = groups[i];
-                divCfg += `<div class="somfyGroup group-draggable" draggable="true" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
+                let room = _rooms.find(x => x.roomId === group.roomId) || { roomId: 0, name: '' };
+
+                divCfg += `<div class="somfyGroup group-draggable" draggable="true" data-roomid="${group.roomId}" data-groupid="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
                 divCfg += `<div class="button-outline" onclick="somfy.openEditGroup(${group.groupId});"><i class="icss-edit"></i></div>`;
                 //divCfg += `<i class="Group-icon" data-position="${Group.position || 0}%"></i>`;
-                divCfg += `<span class="group-name">${group.name}</span>`;
+                divCfg += '<div class="group-name">';
+                divCfg += `<div class="cfg-room">${room.name}</div>`;
+                divCfg += `<div class="">${group.name}</div>`;
+                divCfg += '</div>'
                 divCfg += `<span class="group-address">${group.remoteAddress}</span>`;
                 divCfg += `<div class="button-outline" onclick="somfy.deleteGroup(${group.groupId});"><i class="icss-trash"></i></div>`;
                 divCfg += '</div>';
 
-                divCtl += `<div class="somfyGroupCtl" data-groupId="${group.groupId}" data-remoteaddress="${group.remoteAddress}">`;
+                divCtl += `<div class="somfyGroupCtl" style="${roomId === 0 || roomId === room.roomId ? '' : 'display:none'}" data-groupId="${group.groupId}" data-roomid="${group.roomId}" data-remoteaddress="${group.remoteAddress}">`;
                 divCtl += `<div class="group-name">`;
+                divCtl += `<span class="groupctl-room">${room.name}</span>`;
                 divCtl += `<span class="groupctl-name">${group.name}</span>`;
                 divCtl += `<div class="groupctl-shades">`;
                 if (typeof group.linkedShades !== 'undefined') {
@@ -2821,6 +2939,37 @@ class Somfy {
     onShadeProtoChanged(el) {
         document.getElementById('somfyShade').setAttribute('data-proto', el.value);
     }
+    openEditRoom(roomId) {
+        
+        if (typeof roomId === 'undefined') {
+            document.getElementById('btnSaveRoom').innerText = 'Add Room';
+            getJSONSync('/getNextRoom', (err, room) => {
+                document.getElementById('spanRoomId').innerText = '*';
+                if (err) ui.serviceError(err);
+                else {
+                    console.log(room);
+                    let elRoom = document.getElementById('somfyRoom');
+                    room.name = '';
+                    ui.toElement(elRoom, room);
+                    this.showEditRoom(true);
+                }
+            });
+        }
+        else {
+            document.getElementById('btnSaveRoom').innerText = 'Save Room';
+            getJSONSync(`/room?roomId=${roomId}`, (err, room) => {
+                if (err) ui.serviceError(err);
+                else {
+                    console.log(room);
+                    document.getElementById('spanRoomId').innerText = roomId;
+                    ui.toElement(document.getElementById('somfyRoom'), room);
+                    this.showEditRoom(true);
+                    document.getElementById('btnSaveRoom').style.display = 'inline-block';
+                }
+            });
+
+        }
+    }
     openEditShade(shadeId) {
         if (typeof shadeId === 'undefined') {
             getJSONSync('/getNextShade', (err, shade) => {
@@ -2839,7 +2988,7 @@ class Somfy {
                 }
                 else {
                     console.log(shade);
-                    let elShade = document.getElementById('somfyShade')
+                    let elShade = document.getElementById('somfyShade');
                     shade.name = '';
                     shade.downTime = shade.upTime = 10000;
                     shade.tiltTime = 7000;
@@ -2939,6 +3088,22 @@ class Somfy {
             });
         }
     }
+    showEditRoom(bShow) {
+        let el = document.getElementById('divLinking');
+        if (el) el.remove();
+        el = document.getElementById('divPairing');
+        if (el) el.remove();
+        el = document.getElementById('divRollingCode');
+        if (el) el.remove();
+        el = document.getElementById('somfyRoom');
+        if (el) el.style.display = bShow ? '' : 'none';
+        el = document.getElementById('divRoomListContainer');
+        if (el) el.style.display = bShow ? 'none' : '';
+        if (bShow) {
+            this.showEditGroup(false);
+            this.showEditShade(false);
+        }
+    }
     showEditShade(bShow) {
         let el = document.getElementById('divLinking');
         if (el) el.remove();
@@ -2950,6 +3115,10 @@ class Somfy {
         if (el) el.style.display = bShow ? '' : 'none';
         el = document.getElementById('divShadeListContainer');
         if (el) el.style.display = bShow ? 'none' : '';
+        if (bShow) {
+            this.showEditGroup(false);
+            this.showEditRoom(false);
+        }
     }
     showEditGroup(bShow) {
         let el = document.getElementById('divLinking');
@@ -2962,6 +3131,46 @@ class Somfy {
         if (el) el.style.display = bShow ? '' : 'none';
         el = document.getElementById('divGroupListContainer');
         if (el) el.style.display = bShow ? 'none' : '';
+        if (bShow) {
+            this.showEditRoom(false);
+            this.showEditShade(false);
+        }
+
+    }
+    saveRoom() {
+        let roomId = parseInt(document.getElementById('spanRoomId').innerText, 10);
+        let obj = ui.fromElement(document.getElementById('somfyRoom'));
+        let valid = true;
+        if (valid && (typeof obj.name !== 'string' || obj.name === '' || obj.name.length > 20)) {
+            ui.errorMessage(document.getElementById('divSomfySettings'), 'You must provide a name for the room between 1 and 20 characters.');
+            valid = false;
+        }
+        if (valid) {
+            if (isNaN(roomId) || roomId === 0) {
+                // We are adding.
+                putJSONSync('/addRoom', obj, (err, room) => {
+                    if (err) {
+                        ui.serviceError(err);
+                        console.log(err);
+                    }
+                    else {
+                        console.log(room);
+                        document.getElementById('spanRoomId').innerText = room.roomId;
+                        document.getElementById('btnSaveRoom').innerText = 'Save Room';
+                        document.getElementById('btnSaveRoom').style.display = 'inline-block';
+                        this.updateRoomsList();
+                    }
+                });
+            }
+            else {
+                obj.roomId = roomId;
+                putJSONSync('/saveRoom', obj, (err, room) => {
+                    if (err) ui.serviceError(err);
+                    else this.updateRoomsList();
+                    console.log(room);
+                });
+            }
+        }
     }
     saveShade() {
         let shadeId = parseInt(document.getElementById('spanShadeId').innerText, 10);
@@ -3084,6 +3293,18 @@ class Somfy {
             }
         }
     }
+    updateRoomsList() {
+        getJSONSync('/rooms', (err, shades) => {
+            if (err) {
+                console.log(err);
+                ui.serviceError(err);
+            }
+            else {
+                this.setRoomsList(shades);
+                
+            }
+        });
+    }
     updateShadeList() {
         getJSONSync('/shades', (err, shades) => {
             if (err) {
@@ -3109,6 +3330,30 @@ class Somfy {
                 this.setGroupsList(groups);
             }
         });
+    }
+    deleteRoom(roomId) {
+        let valid = true;
+        if (isNaN(roomId) || roomId >= 255 || roomId <= 0) {
+            ui.errorMessage('A valid room id was not supplied.');
+            valid = false;
+        }
+        if (valid) {
+            getJSONSync(`/room?roomId=${roomId}`, (err, room) => {
+                if (err) ui.serviceError(err);
+                else {
+                    let prompt = ui.promptMessage(`Are you sure you want to delete this room?`, () => {
+                        ui.clearErrors();
+                        putJSONSync('/deleteRoom', { roomId: roomId }, (err, room) => {
+                            prompt.remove();
+                            if (err) ui.serviceError(err);
+                            else
+                                this.updateRoomsList();
+                        });
+                    });
+                    prompt.querySelector('.sub-message').innerHTML = `<p>If this room was previously selected for motors or groups, they will be automatically assigned to the Home room.</p>`;
+                }
+            });
+        }
     }
     deleteShade(shadeId) {
         let valid = true;
@@ -3756,6 +4001,16 @@ class Somfy {
             positioner.querySelector(`.shade-tilt-target`).innerHTML = el.value;
             somfy.sendTiltCommand(shadeId, el.value);
         }
+    }
+    openSelectRoom() {
+        this.closeShadePositioners();
+        console.log('Opening rooms');
+        let list = document.getElementById('divRoomSelector-list');
+        list.style.display = 'block';
+        document.body.addEventListener('click', () => {
+            list.style.display = '';
+        }, { once: true });
+
     }
     openSetPosition(shadeId) {
         console.log('Opening Shade Positioner');

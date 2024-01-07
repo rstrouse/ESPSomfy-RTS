@@ -12,6 +12,7 @@ class Web {
     void handleStreamFile(WebServer &server, const char *filename, const char *encoding);
     void handleController(WebServer &server);
     void handleLoginContext(WebServer &server);
+    void handleGetRooms(WebServer &server);
     void handleGetShades(WebServer &server);
     void handleGetGroups(WebServer &server);
     void handleShadeCommand(WebServer &server);
@@ -20,6 +21,7 @@ class Web {
     void handleTiltCommand(WebServer &server);
     void handleDiscovery(WebServer &server);
     void handleNotFound(WebServer &server);
+    void handleRoom(WebServer &server);
     void handleShade(WebServer &server);
     void handleGroup(WebServer &server);
     void handleSetPositions(WebServer &server);
