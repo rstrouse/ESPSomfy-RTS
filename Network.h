@@ -29,6 +29,7 @@ class Network {
     void setConnected(conn_types connType);
     int getStrengthByMac(const char *mac);
     int getStrengthBySSID(const char *ssid);
+    void updateHostname();
     bool setup();
     void loop();
     void end();

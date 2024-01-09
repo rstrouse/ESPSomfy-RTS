@@ -54,7 +54,10 @@ void Network::loop() {
     this->emitSockets();
     if(!this->connected()) return;
   }
-  if(this->connected() && millis() - this->lastMDNS > 10000) {
+  if(this->connected() && millis() - this->lastMDNS > 60000) {
+    // We are doing this every 60 seconds because of the BS related to
+    // the MDNS library.  The original library required manual updates
+    // to the MDNS or it would lose its hostname after 2 minutes.
     if(this->lastMDNS != 0) MDNS.setInstanceName(settings.hostname);
     this->lastMDNS = millis();
   }
@@ -259,6 +262,23 @@ bool Network::connectWired() {
   }
   if(this->connectAttempts > 10) this->wifiFallback = true;
   return false;
+}
+void Network::updateHostname() {
+  if(settings.hostname[0] != '\0' && this->connected()) {
+    if(this->connType == conn_types::ethernet &&
+      strcmp(settings.hostname, ETH.getHostname()) != 0) {
+      Serial.printf("Updating host name to %s...\n", settings.hostname);
+      ETH.setHostname(settings.hostname);
+      MDNS.setInstanceName(settings.hostname);        
+      SSDP.setName(0, settings.hostname);
+     }
+     else if(strcmp(settings.hostname, WiFi.getHostname()) != 0) {
+      Serial.printf("Updating host name to %s...\n", settings.hostname);
+      WiFi.setHostname(settings.hostname);
+      MDNS.setInstanceName(settings.hostname);        
+      SSDP.setName(0, settings.hostname);
+     }
+  }
 }
 bool Network::connectWiFi() {
   if(settings.WIFI.ssid[0] != '\0') {

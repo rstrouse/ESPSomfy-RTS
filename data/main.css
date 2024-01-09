@@ -631,12 +631,9 @@ div.wait-overlay > .lds-roller {
 }
     .somfyShadeCtl .shade-icon {
         display: inline-block;
-        padding-top: 7px;
-        padding-bottom: 7px;
         padding-left: 0px;
         padding-right: 0px;
         vertical-align: middle;
-        margin-top: -5px;
         font-size: 48px;
         position:relative;
     }
@@ -654,6 +651,7 @@ div.wait-overlay > .lds-roller {
 }   
     .somfyGroupCtl .groupctl-shades {
         font-size:12px;
+        margin-top:-3px;
     }
     .somfyGroupCtl .groupctl-name,
     .somfyShadeCtl .shadectl-name {

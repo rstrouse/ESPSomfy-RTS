@@ -2402,6 +2402,7 @@ void Web::begin() {
         if (obj.containsKey("hostname") || obj.containsKey("ssdpBroadcast")) {
           settings.fromJSON(obj);
           settings.save();
+          net.updateHostname();
         }
         if (obj.containsKey("ntpServer") || obj.containsKey("ntpServer")) {
           settings.NTP.fromJSON(obj);
