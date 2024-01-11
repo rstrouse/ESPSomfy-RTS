@@ -83,7 +83,7 @@ class ShadeConfigFile : public ConfigFile {
     static bool restore(SomfyShadeController *somfy, const char *filename, restore_options_t &opts);
     bool begin(const char *filename, bool readOnly = false);
     bool begin(bool readOnly = false);
-    bool save(SomfyShadeController *sofmy);
+    bool save(SomfyShadeController *somfy);
     bool backup(SomfyShadeController *somfy);
     bool loadFile(SomfyShadeController *somfy, const char *filename = "/shades.cfg");
     bool restoreFile(SomfyShadeController *somfy, const char *filename, restore_options_t &opts);
