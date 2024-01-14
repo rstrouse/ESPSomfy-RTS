@@ -63,7 +63,7 @@ void Network::loop() {
   }
   if(settings.ssdpBroadcast) {
     if(!SSDP.isStarted) SSDP.begin();
-    SSDP.loop();
+    if(SSDP.isStarted) SSDP.loop();
   }
   else if(!settings.ssdpBroadcast && SSDP.isStarted) SSDP.end();
   mqtt.loop();
@@ -210,7 +210,7 @@ void Network::setConnected(conn_types connType) {
     MDNS.addServiceTxt("espsomfy_rts", "tcp", "version", String(settings.fwVersion.name));
   }
   if(settings.ssdpBroadcast) {
-    if(SSDP.begin()) Serial.println("SSDP Client Started..."); 
+    SSDP.begin();
   }
   else if(SSDP.isStarted) SSDP.end();
   this->emitSockets();

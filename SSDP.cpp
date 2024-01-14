@@ -176,6 +176,10 @@ bool SSDPClass::begin() {
     return false;
   }
   this->bootId = Timestamp::epoch();
+  if(this->bootId < 1000) {
+    this->isStarted = false;
+    return false;
+  }
   this->configId = (settings.fwVersion.major * 100) + (settings.fwVersion.minor * 10) + settings.fwVersion.build;
   _server.onPacket([](void * arg, AsyncUDPPacket& packet) { ((SSDPClass*)(arg))->_processRequest(packet); }, this);
   if(!_server.listenMulticast(IPAddress(SSDP_MULTICAST_ADDR), SSDP_PORT)) {
@@ -202,8 +206,10 @@ void SSDPClass::end() {
   #ifdef DEBUG_SSDP
   DEBUG_SSDP.printf(PSTR("SSDP end ...\n "));
   #endif
-  this->_sendByeBye();
-  this->_server.close();
+  if(this->_server.connected()) {
+    this->_sendByeBye();
+    this->_server.close();
+  }
   this->isStarted = false;
   // Clear out the last notified so if the user starts us up again it will notify
   // that we exist again.
@@ -447,36 +453,34 @@ void SSDPClass::_sendResponse(IPAddress addr, uint16_t port, const char *buff) {
   _server.writeTo((const uint8_t *)buff, strlen(buff), addr, port);
 }
 void SSDPClass::_sendNotify() {
-  //Serial.printf("sendNotify %d\n", this->m_cdeviceTypes);
-  //if(!this->_server.connected()) return;
   for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
     UPNPDeviceType *dev = &this->deviceTypes[i];
     if(i == 0 && (strlen(dev->deviceType) == 0 || !dev->isActive)) Serial.printf("The device type is empty: %s\n", dev->isActive ? "true" : "false");
     if(strlen(dev->deviceType) > 0 && dev->isActive) {
-      uint16_t elapsed = (millis() - dev->lastNotified);
-      if(!dev->lastNotified || (elapsed * 4) > (this->_interval * 1000)) {
-        #ifdef DEBUG_SSDP
-        DEBUG_SSDP.print(dev->deviceType);
-        DEBUG_SSDP.print(" Time since last notified: ");
-        DEBUG_SSDP.print(elapsed);
-        DEBUG_SSDP.print("msec ");
-        DEBUG_SSDP.print(this->_interval);
-        DEBUG_SSDP.println("msec");
-        #endif
-        this->_sendNotify(dev, i == 0);
-      }
-      /*
-      else {
+      unsigned long elapsed = (millis() - dev->lastNotified);
+      if(!dev->lastNotified || (elapsed * 5) > (this->_interval * 1000)) {
         #ifdef DEBUG_SSDP
         DEBUG_SSDP.print(dev->deviceType);
         DEBUG_SSDP.print(" Time since last notified: ");
         DEBUG_SSDP.print(elapsed/1000);
-        DEBUG_SSDP.print("msec ");
+        DEBUG_SSDP.print("sec ");
         DEBUG_SSDP.print(this->_interval);
-        DEBUG_SSDP.println("msec -- SKIPPING");
+        DEBUG_SSDP.println("sec");
         #endif
+        this->_sendNotify(dev, i == 0);
       }
-      */
+      else {
+        /*
+        #ifdef DEBUG_SSDP
+        DEBUG_SSDP.print(dev->deviceType);
+        DEBUG_SSDP.print(" Time since last notified: ");
+        DEBUG_SSDP.print(elapsed/1000);
+        DEBUG_SSDP.print("sec ");
+        DEBUG_SSDP.print(this->_interval);
+        DEBUG_SSDP.println("sec -- SKIPPING");
+        #endif
+        */
+      }
     }
   }
 }
@@ -528,7 +532,7 @@ void SSDPClass::_sendNotify(UPNPDeviceType *d, bool root) {
                        pbuff,
                        this->_interval,
                        d->getUSN(response_types_t::uuid),
-                       "NT", d->uuid,
+                       "NT", d->getUSN(response_types_t::uuid),
                        ip[0], ip[1], ip[2], ip[3], _port, d->schemaURL, this->bootId, this->configId);
    this->_sendNotify(buffer);
   // Send 1 for deviceType
