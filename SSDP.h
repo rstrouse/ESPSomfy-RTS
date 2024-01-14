@@ -7,14 +7,15 @@
 #define SSDP_UUID_SIZE              42
 #define SSDP_SCHEMA_URL_SIZE        64
 #define SSDP_DEVICE_TYPE_SIZE       64
-#define SSDP_FRIENDLY_NAME_SIZE     64
 #define SSDP_SERIAL_NUMBER_SIZE     37
 #define SSDP_PRESENTATION_URL_SIZE  64
 #define SSDP_MODEL_NAME_SIZE        64
 #define SSDP_MODEL_URL_SIZE         64
 #define SSDP_MODEL_VERSION_SIZE     32
 #define SSDP_MANUFACTURER_SIZE      64
+#define SSDP_USN_SIZE               128
 #define SSDP_MANUFACTURER_URL_SIZE  64
+#define SSDP_FRIENDLY_NAME_SIZE     64
 #define SSDP_INTERVAL_SECONDS       1800
 #define SSDP_MULTICAST_TTL          2
 #define SSDP_HTTP_PORT              80
@@ -53,7 +54,7 @@ struct ssdp_packet_t {
 };
 
 class UPNPDeviceType {
-  char m_usn[SSDP_MANUFACTURER_URL_SIZE];
+  char m_usn[SSDP_USN_SIZE];
   public:
     UPNPDeviceType();
     UPNPDeviceType(const char *deviceType);

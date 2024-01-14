@@ -2181,8 +2181,7 @@ class Somfy {
             _rooms.push(room);
             divCtl += `<div class='room-row' data-roomid="${room.roomId}" onclick="somfy.selectRoom(${room.roomId});event.stopPropagation();">${room.name}</div>`;
         }
-        if (rooms.length === 0) document.getElementById('divRoomSelector').style.display = 'none';
-        else document.getElementById('divRoomSelector').style.display = '';
+        document.getElementById('divRoomSelector').style.display = rooms.length === 0 ? 'none' : '';
         document.getElementById('divRoomSelector-list').innerHTML = divCtl;
         document.getElementById('divRoomList').innerHTML = divCfg;
         document.getElementById('selShadeRoom').innerHTML = divOpts;

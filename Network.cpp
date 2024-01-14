@@ -187,11 +187,17 @@ void Network::setConnected(conn_types connType) {
   //SSDP.setSerialNumber(0, "C2496952-5610-47E6-A968-2FC19737A0DB");
   //SSDP.setUUID(0, settings.uuid);
   SSDP.setModelName(0, "ESPSomfy RTS");
-  SSDP.setModelNumber(0, "SS v1");
+  if(strlen(settings.chipModel) == 0) SSDP.setModelNumber(0, "ESP32");
+  else {
+    char sModel[20] = "";
+    snprintf(sModel, sizeof(sModel), "ESP32-%S", settings.chipModel);
+    SSDP.setModelNumber(0, sModel);
+  }
   SSDP.setModelURL(0, "https://github.com/rstrouse/ESPSomfy-RTS");
   SSDP.setManufacturer(0, "rstrouse");
   SSDP.setManufacturerURL(0, "https://github.com/rstrouse");
   SSDP.setURL(0, "/");
+  SSDP.setActive(0, true);
   if(MDNS.begin(settings.hostname)) {
     Serial.printf("MDNS Responder Started: serverId=%s\n", settings.serverId);
     //MDNS.addService("http", "tcp", 80);

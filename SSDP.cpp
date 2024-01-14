@@ -10,12 +10,15 @@
 #define SSDP_URI_SIZE     2
 #define SSDP_BUFFER_SIZE  64
 #define SSDP_MULTICAST_ADDR 239, 255, 255, 250
+//#define DEBUG_SSDP Serial
+//#define DEBUG_SSDP_PACKET Serial
 extern ConfigSettings settings;
 
-static const char _ssdp_uuid_template[] PROGMEM = "C2496952-5610-47E6-A968-2FC1%02x%02x%02x%02x";
+static const char _ssdp_uuid_template[] PROGMEM = "C2496952-5610-47E6-A968-2FC1%02X%02X%02X%02X";
 static const char _ssdp_serial_number_template[] PROGMEM = "ESP32-%02x%02x%02x";
-static const char _ssdp_usn_root_template[] PROGMEM = "%s::upnp::rootdevice";
-static const char _ssdp_usn_uuid_template[] PROGMEM = "%s::%s";
+static const char _ssdp_usn_root_template[] PROGMEM = "uuid:%s::upnp:rootdevice";
+static const char _ssdp_usn_uuid_template[] PROGMEM = "uuid:%s";
+static const char _ssdp_usn_urn_template[] PROGMEM = "uuid:%s::%s";
 static const char _ssdp_response_template[] PROGMEM =
   "HTTP/1.1 200 OK\r\n"
   "EXT:\r\n";
@@ -26,7 +29,10 @@ static const char _ssdp_notify_template[] PROGMEM =
 static const char _ssdp_bye_template[] PROGMEM =
   "NOTIFY * HTTP/1.1\r\n"
   "HOST: 239.255.255.250:1900\r\n"
-  "NTS: ssdp:byebye\r\n";
+  "NTS: ssdp:byebye\r\n"
+  "NT: %s\r\n"
+  "USN: %s\r\n"
+  "\r\n";
 static const char _ssdp_packet_template[] PROGMEM =
   "%s" // _ssdp_response_template / _ssdp_notify_template
   "CACHE-CONTROL: max-age=%u\r\n" // _interval
@@ -46,7 +52,7 @@ static const char _ssdp_device_schema_template[] PROGMEM =
   "<modelURL>%s</modelURL>"
   "<manufacturer>%s</manufacturer>"
   "<manufacturerURL>%s</manufacturerURL>"
-  "<modelDescription>Somfy RTS Controller</modelDescription>"
+  "<modelDescription>ESPSomfy RTS Controller</modelDescription>"
   "<firmwareVersion>%s</firmwareVersion>"
   "<UDN>%s</UDN>"
   "<serviceList></serviceList>"
@@ -87,7 +93,7 @@ UPNPDeviceType::UPNPDeviceType(const char *deviceType) { this->setDeviceType(dev
 UPNPDeviceType::UPNPDeviceType(const char *deviceType, const char *uuid){ this->setDeviceType(deviceType); this->setUUID(uuid); }
 UPNPDeviceType::UPNPDeviceType(const char *deviceType, const char *uuid, const char*friendlyName) { this->setDeviceType(deviceType); this->setUUID(uuid); this->setName(friendlyName);}
 void UPNPDeviceType::setSchemaURL(const char *url) { strlcpy(schemaURL, url, sizeof(schemaURL)); }
-void UPNPDeviceType::setDeviceType(const char *dtype) { strlcpy(deviceType, dtype, sizeof(deviceType)); }
+void UPNPDeviceType::setDeviceType(const char *dtype) { strlcpy(this->deviceType, dtype, sizeof(deviceType)); }
 void UPNPDeviceType::setUUID(const char *id) { snprintf_P(uuid, sizeof(uuid), PSTR("uuid:%s"), id); }
 void UPNPDeviceType::setName(const char *name) { strlcpy(friendlyName, name, sizeof(friendlyName)); }
 void UPNPDeviceType::setURL(const char *url) { strlcpy(presentationURL, url, sizeof(presentationURL)); }
@@ -100,25 +106,28 @@ void UPNPDeviceType::setManufacturer(const char *name) { strlcpy(manufacturer, n
 void UPNPDeviceType::setManufacturerURL(const char *url) { strlcpy(manufacturerURL, url, sizeof(manufacturerURL)); }
 //char * UPNPDeviceType::getUSN() { return this->getUSN(this->deviceType); }
 char * UPNPDeviceType::getUSN(const char *st) { 
-  #ifdef DEBUG_SSDP
-  DEBUG_SSDP.print("GETUSN ST: ");
-  DEBUG_SSDP.println(st);
-  DEBUG_SSDP.print("GETUSN UUID: ");
-  DEBUG_SSDP.println(this->uuid);
-  DEBUG_SSDP.print("sizeof(this->m_usn)");
-  DEBUG_SSDP.println(sizeof(this->m_usn));
-  memset(this->m_usn, 0x00, sizeof(this->m_usn));
-  #endif
-  if(strncmp("upnp:root", st, strlen(st)) == 0) {
+  //#ifdef DEBUG_SSDP
+  //DEBUG_SSDP.print("GETUSN ST: ");
+  //DEBUG_SSDP.println(st);
+  //DEBUG_SSDP.print("GETUSN UUID: ");
+  //DEBUG_SSDP.println(this->uuid);
+  //DEBUG_SSDP.print("sizeof(this->m_usn)");
+  //DEBUG_SSDP.println(sizeof(this->m_usn));
+  //#endif
+  if(strncmp("upnp:rootdevice", st, strlen(st)) == 0) {
     snprintf_P(this->m_usn, sizeof(this->m_usn) - 1, _ssdp_usn_root_template, this->uuid); 
   }
+  else if(strncmp("uuid:", st, 5) == 0)
+    snprintf_P(this->m_usn, sizeof(this->m_usn) - 1, _ssdp_usn_uuid_template, this->uuid);
+  else if(strncmp("urn:", st, 4) == 0)
+    snprintf_P(this->m_usn, sizeof(this->m_usn) -1, _ssdp_usn_urn_template, this->uuid, this->deviceType);
   else {
-    snprintf_P(this->m_usn, sizeof(this->m_usn) - 1, _ssdp_usn_uuid_template, this->uuid, st); 
+    snprintf_P(this->m_usn, sizeof(this->m_usn) - 1, _ssdp_usn_uuid_template, this->uuid); 
   }
-  #ifdef DEBUG_SSDP
-  DEBUG_SSDP.print("RESUSN UUID: ");
-  DEBUG_SSDP.println(this->m_usn);
-  #endif
+  //#ifdef DEBUG_SSDP
+  //DEBUG_SSDP.print("RESUSN UUID: ");
+  //DEBUG_SSDP.println(this->m_usn);
+  //#endif
   return this->m_usn; 
 }
 void UPNPDeviceType::setChipId(uint32_t chipId) {
@@ -139,7 +148,7 @@ bool SSDPClass::begin() {
   for(int i = 0; i < SSDP_QUEUE_SIZE; i++) {
     this->sendQueue[i].waiting = false;
   }
-  this->end();
+  if(this->_server.connected()) this->end();
   //assert(NULL == _server);
   if(_server.connected()) {
     #ifdef DEBUG_SSDP
@@ -152,29 +161,37 @@ bool SSDPClass::begin() {
   if(!_server.listenMulticast(IPAddress(SSDP_MULTICAST_ADDR), SSDP_PORT)) {
     #ifdef DEBUG_SSDP
     IPAddress mcast(SSDP_MULTICAST_ADDR);
-    DEBUG_SSDP.println(PSTR("Error starting SSDP listener on:"));
+    DEBUG_SSDP.println(PSTR("Error starting SSDP listener on: "));
     DEBUG_SSDP.print(mcast);
     DEBUG_SSDP.print(":");
     DEBUG_SSDP.println(SSDP_PORT);
     #endif
     return false;
   }
+  for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
+    Serial.printf("SSDP: %s - %s\n", this->deviceTypes[i].deviceType, this->deviceTypes[i].isActive ? "true" : "false");
+  }
   this->isStarted = true;
   this->_sendByeBye();
   this->_sendNotify();
-  Serial.println("Connected to SSDP"); 
+  Serial.println("Connected to SSDP..."); 
   return true;
 }
 void SSDPClass::end() { 
   if(!this->_server || !this->_server.connected()) return; // server isn't connected nothing to do
   #ifdef DEBUG_SSDP
-  DEBUG_SSDP.printf(PSTR("SSDP end ... "));
+  DEBUG_SSDP.printf(PSTR("SSDP end ...\n "));
   #endif
   this->_sendByeBye();
-  //this->_stopTimer();
   this->_server.close();
   this->isStarted = false;
-  Serial.println("Disconnected from SSDP");
+  // Clear out the last notified so if the user starts us up again it will notify
+  // that we exist again.
+  for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
+    this->deviceTypes[i].lastNotified = 0;
+  }
+  
+  Serial.println("Disconnected from SSDP...");
 }
 UPNPDeviceType* SSDPClass::getDeviceType(uint8_t ndx) { if(ndx < this->m_cdeviceTypes) return &this->deviceTypes[ndx];  return nullptr; }
 UPNPDeviceType* SSDPClass::findDeviceByType(char *devType) { 
@@ -242,9 +259,6 @@ void SSDPClass::_parsePacket(ssdp_packet_t *pkt, AsyncUDPPacket &p) {
     buffer[0] = '\0';
     while(p.available() > 0) {
       char c = p.read();
-      //#ifdef DEBUG_SSDP_PACKET
-      //DEBUG_SSDP.print(c);
-      //#endif
       if(keys == KEY) {      
         if(c == ':') {
           _trim(buffer);
@@ -259,12 +273,8 @@ void SSDPClass::_parsePacket(ssdp_packet_t *pkt, AsyncUDPPacket &p) {
           else if(strcasecmp(buffer, "LOCATION") == 0) keys = LOCATION;
           else if(strcasecmp(buffer, "USN") == 0) keys = USN;
           else keys = HEAD;
-          //#ifdef DEBUG_SSDP_PACKET
-          //DEBUG_SSDP.printf("Found a key: %s ", buffer);
-          //#endif
           pos = 0;
           buffer[0] = '\0';
-          
         }
         else if(c == '\r' || c == '\n') {
           // If we find a key that ends before a : then we need to bugger out.
@@ -284,9 +294,6 @@ void SSDPClass::_parsePacket(ssdp_packet_t *pkt, AsyncUDPPacket &p) {
         // We are reading a value
         if(c == '\r' || c == '\n') {
           _trim(buffer);
-          #ifdef DEBUG_SSDP_PACKET
-            DEBUG_SSDP.println(buffer);
-          #endif            
           switch(keys) {
             case HOST:
               if(strcasecmp(buffer, "239.255.255.250:1900") == 0) pkt->type = MULTICAST;
@@ -324,9 +331,6 @@ void SSDPClass::_parsePacket(ssdp_packet_t *pkt, AsyncUDPPacket &p) {
   if(pkt->valid) {
     if(pkt->method == NONE) pkt->valid = false;
     if(pkt->method == SEARCH) {
-      #ifdef DEBUG_SSDP_PACKET
-      //this->_printPacket(pkt);
-      #endif
       if(strcmp(pkt->man, "ssdp:discover") != 0) pkt->valid = false;
       if(strlen(pkt->st) == 0) pkt->valid = false;
       else if(strcmp(pkt->st, "ssdp:all") != 0 && 
@@ -367,8 +371,6 @@ IPAddress SSDPClass::localIP()
 void SSDPClass::_sendResponse(IPAddress addr, uint16_t port, UPNPDeviceType *d, char *st, bool sendUUID) {
   char buffer[1460];
   IPAddress ip = this->localIP();
-  //IPAddress ip = WiFi.localIP();
-  
   char *pbuff = (char *)malloc(strlen_P(_ssdp_response_template)+1);
   if(!pbuff) {
     #ifdef DEBUG_SSDP
@@ -380,7 +382,6 @@ void SSDPClass::_sendResponse(IPAddress addr, uint16_t port, UPNPDeviceType *d, 
 
   #ifdef DEBUG_SSDP
   //3FFC40B8
-  DEBUG_SSDP.println("Before sprintf ");
   DEBUG_SSDP.print("CACHE-CONTROL: max-age=");
   DEBUG_SSDP.println(this->_interval);
   DEBUG_SSDP.print("SERVER:  Arduino/1.0 UPNP/1.1 ");
@@ -391,13 +392,13 @@ void SSDPClass::_sendResponse(IPAddress addr, uint16_t port, UPNPDeviceType *d, 
   DEBUG_SSDP.println(d->getUSN(st));
   DEBUG_SSDP.print("ST: ");
   DEBUG_SSDP.println((sendUUID) ? d->uuid : st);
-  DEBUG_SSDP.print("LOCATION: http://");
-  DEBUG_SSDP.print(ip[0]);
-  DEBUG_SSDP.print(ip[1]);
-  DEBUG_SSDP.print(ip[2]);
-  DEBUG_SSDP.print(ip[3]);
-  DEBUG_SSDP.print(":");
-  DEBUG_SSDP.print(this->_port);
+  DEBUG_SSDP.printf("LOCATION: http://%d.%d.%d.%d:%d/", ip[0], ip[1], ip[2], ip[3], this->_port);
+  //DEBUG_SSDP.print(ip[0]);
+  //DEBUG_SSDP.print(ip[1]);
+  //DEBUG_SSDP.print(ip[2]);
+  //DEBUG_SSDP.print(ip[3]);
+  //DEBUG_SSDP.print(":");
+  //DEBUG_SSDP.print(this->_port);
   DEBUG_SSDP.println(d->schemaURL);
   #endif
   // Don't use ip.toString as this fragments the heap like no tomorrow.
@@ -438,8 +439,11 @@ static const char _ssdp_packet_template[] PROGMEM =
   _server.writeTo((const uint8_t *)buffer, len, addr, port);
 }
 void SSDPClass::_sendNotify() {
+  //Serial.printf("sendNotify %d\n", this->m_cdeviceTypes);
+  //if(!this->_server.connected()) return;
   for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
     UPNPDeviceType *dev = &this->deviceTypes[i];
+    if(i == 0 && (strlen(dev->deviceType) == 0 || !dev->isActive)) Serial.printf("The device type is empty: %s\n", dev->isActive ? "true" : "false");
     if(strlen(dev->deviceType) > 0 && dev->isActive) {
       uint16_t elapsed = (millis() - dev->lastNotified);
       if(!dev->lastNotified || (elapsed * 4) > (this->_interval * 1000)) {
@@ -453,6 +457,7 @@ void SSDPClass::_sendNotify() {
         #endif
         this->_sendNotify(dev, i == 0);
       }
+      /*
       else {
         #ifdef DEBUG_SSDP
         DEBUG_SSDP.print(dev->deviceType);
@@ -463,15 +468,20 @@ void SSDPClass::_sendNotify() {
         DEBUG_SSDP.println("msec -- SKIPPING");
         #endif
       }
+      */
     }
   }
 }
 void SSDPClass::_sendNotify(const char *msg) {
     //_server->append(msg, strlen(msg));
     //_server->send(IPAddress(SSDP_MULTICAST_ADDR), SSDP_PORT);
+    #ifdef DEBUG_SSDP
+    DEBUG_SSDP.println("--------------- SEND NOTIFY PACKET ----------------");
+    DEBUG_SSDP.println(msg);
+    #endif
     _server.writeTo((uint8_t *)msg, strlen(msg), IPAddress(SSDP_MULTICAST_ADDR), SSDP_PORT);
 }
-void SSDPClass::_sendNotify(UPNPDeviceType *d) { this->_sendByeBye(d, strcmp(d->deviceType, this->deviceTypes[0].deviceType) == 0); }
+void SSDPClass::_sendNotify(UPNPDeviceType *d) { this->_sendNotify(d, strcmp(d->deviceType, this->deviceTypes[0].deviceType) == 0); }
 void SSDPClass::_sendNotify(UPNPDeviceType *d, bool root) {
   char buffer[1460];
   IPAddress ip = this->localIP();
@@ -492,15 +502,7 @@ void SSDPClass::_sendNotify(UPNPDeviceType *d, bool root) {
     #endif
     return;
   }
-  strcpy_P(pbuff, _ssdp_response_template);
-
-  #ifdef DEBUG_SSDP
-  //3FFC40B8
-  DEBUG_SSDP.print("Before Notify sprintf ");
-  DEBUG_SSDP.print((uintptr_t)d, HEX);
-  DEBUG_SSDP.println(" ");
-  #endif
-  
+  strcpy_P(pbuff, _ssdp_notify_template);
   if(root) {
     // Send 1 for root
     snprintf_P(buffer, sizeof(buffer),
@@ -513,39 +515,40 @@ void SSDPClass::_sendNotify(UPNPDeviceType *d, bool root) {
                          ip[0], ip[1], ip[2], ip[3], this->_port, d->schemaURL);
      this->_sendNotify(buffer);
   }
-  else {
-    // Send 1 for uuid
-    snprintf_P(buffer, sizeof(buffer),
-                         _ssdp_packet_template,
-                         pbuff,
-                         this->_interval,
-                         d->modelName,
-                         d->modelNumber,
-                         d->uuid,
-                         "NT", d->uuid,
-                         ip[0], ip[1], ip[2], ip[3], _port, d->schemaURL);
-     this->_sendNotify(buffer);
-    // Send 1 for deviceType
-    snprintf_P(buffer, sizeof(buffer),
-                         _ssdp_packet_template,
-                         pbuff,
-                         this->_interval,
-                         d->modelName,
-                         d->modelNumber,
-                         d->getUSN(d->deviceType),
-                         "NT", d->deviceType,
-                         ip[0], ip[1], ip[2], ip[3], _port, d->schemaURL);
-     this->_sendNotify(buffer);
-  }
+  // Send 1 for uuid
+  snprintf_P(buffer, sizeof(buffer),
+                       _ssdp_packet_template,
+                       pbuff,
+                       this->_interval,
+                       d->modelName,
+                       d->modelNumber,
+                       d->getUSN(d->uuid),
+                       "NT", d->uuid,
+                       ip[0], ip[1], ip[2], ip[3], _port, d->schemaURL);
+   this->_sendNotify(buffer);
+  // Send 1 for deviceType
+  snprintf_P(buffer, sizeof(buffer),
+                       _ssdp_packet_template,
+                       pbuff,
+                       this->_interval,
+                       d->modelName,
+                       d->modelNumber,
+                       d->getUSN(d->deviceType),
+                       "NT", d->deviceType,
+                       ip[0], ip[1], ip[2], ip[3], _port, d->schemaURL);
+  this->_sendNotify(buffer);
   d->lastNotified = millis();
 }
 void SSDPClass::setActive(uint8_t ndx, bool isActive) {
   UPNPDeviceType *d = &this->deviceTypes[ndx];
-  if(!isActive) this->_sendByeBye(d, ndx == 0);
+  if(!isActive) {
+    if(this->isStarted) this->_sendByeBye(d, ndx == 0);
+    d->isActive = false;
+  }
   else {
     d->isActive = true;
     d->lastNotified = 0;
-    this->_sendNotify(d, ndx == 0);
+    if(this->isStarted) this->_sendNotify(d, ndx == 0);
   }
 }
 void SSDPClass::_sendByeBye() {
@@ -554,11 +557,9 @@ void SSDPClass::_sendByeBye() {
     if(strlen(dev->deviceType) > 0) {
       #ifdef DEBUG_SSDP
       DEBUG_SSDP.print(dev->deviceType);
-      //DEBUG_SSDP.print(" Time since last notified: ");
-      //DEBUG_SSDP.print(elapsed);
-      //DEBUG_SSDP.print("msec ");
+      DEBUG_SSDP.print(" ");
       DEBUG_SSDP.print(this->_interval);
-      DEBUG_SSDP.println("msec");
+      DEBUG_SSDP.println("sec");
       #endif
       this->_sendByeBye(dev, i == 0);
     }
@@ -586,40 +587,22 @@ void SSDPClass::_sendByeBye(UPNPDeviceType *d, bool root) {
   if(root) {
     // Send 1 for root
     snprintf_P(buffer, sizeof(buffer)-1,
-                         _ssdp_packet_template,
-                         _ssdp_notify_template,
-                         this->_interval,
-                         d->modelName, d->modelNumber,
-                         d->getUSN("upnp:rootdevice"), // USN
-                         "NT", "upnp:rootdevice",
-                         ip[0], ip[1], ip[2], ip[3], this->_port, d->schemaURL);
+                         _ssdp_bye_template,
+                         "upnp:rootdevice", d->getUSN("upnp:rootdevice"));
      this->_sendNotify(buffer);
   }
-  else {
-    // Send 1 for uuid
-    snprintf_P(buffer, sizeof(buffer)-1,
-                         _ssdp_packet_template,
-                         _ssdp_notify_template,
-                         this->_interval,
-                         d->modelName,
-                         d->modelNumber,
-                         d->uuid,
-                         "NT", d->uuid,
-                         ip[0], ip[1], ip[2], ip[3], this->_port, d->schemaURL);
-     this->_sendNotify(buffer);
-    // Send 1 for deviceType
-    snprintf_P(buffer, sizeof(buffer)-1,
-                         _ssdp_packet_template,
-                         _ssdp_notify_template,
-                         this->_interval,
-                         d->modelName,
-                         d->modelNumber,
-                         d->getUSN(d->deviceType),
-                         "NT", d->deviceType,
-                         ip[0], ip[1], ip[2], ip[3], this->_port, d->schemaURL);
-     this->_sendNotify(buffer);
-  }
-  d->isActive = false;
+  // Send 1 for uuid
+  snprintf_P(buffer, sizeof(buffer)-1,
+                       _ssdp_bye_template,
+                       d->getUSN(d->uuid),
+                       d->getUSN(d->uuid));
+   this->_sendNotify(buffer);
+  // Send 1 for deviceType
+  snprintf_P(buffer, sizeof(buffer)-1,
+                       _ssdp_bye_template,
+                       d->deviceType,
+                       d->getUSN(d->deviceType));
+   this->_sendNotify(buffer);
 }
 void SSDPClass::_addToSendQueue(IPAddress addr, uint16_t port, UPNPDeviceType *d, char *st, uint8_t sec, bool sendUUID) {
   /*
@@ -638,7 +621,7 @@ void SSDPClass::_addToSendQueue(IPAddress addr, uint16_t port, UPNPDeviceType *d
       ssdp_response_t *q = &this->sendQueue[i];
       if(q->address == addr && q->port == port && q->sendUUID == sendUUID) {
         #ifdef DEBUG_SSDP
-        DEBUG_SSDP.printf("There is already a response to this query in slot #u\n", i);
+        DEBUG_SSDP.printf("There is already a response to this query in slot %u\n", i);
         #endif
         return;
       }
@@ -655,7 +638,7 @@ void SSDPClass::_addToSendQueue(IPAddress addr, uint16_t port, UPNPDeviceType *d
         q->dev = d;
         q->sendTime = millis() + (random(0, sec - 1) * 1000L);
         q->address = addr;
-        q->port = _port;
+        q->port = port;
         q->sendUUID = sendUUID;
         strlcpy(q->st, st, sizeof(ssdp_response_t::st)-1);
         q->waiting = true;
@@ -710,6 +693,7 @@ void SSDPClass::_printPacket(ssdp_packet_t *pkt) {
 }
 void SSDPClass::_processRequest(AsyncUDPPacket &p) {
   // This pending BS should probably be for unicast request only but we will play along for now.
+  if(!this->_server.connected()) return;
   if(p.length() == 0) {
     //this->_sendQueuedResponses();
     return;
@@ -719,16 +703,20 @@ void SSDPClass::_processRequest(AsyncUDPPacket &p) {
   if(pkt.valid && pkt.method == SEARCH) {
     // Check to see if we have anything to respond to from this packet.
     if(strcmp("ssdp:all", pkt.st) == 0) {
+      #ifdef DEBUG_SSDP
+      DEBUG_SSDP.println("---------------   ALL   ---------------------");
+      this->_printPacket(&pkt);
+      #endif
       for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
         if(strlen(this->deviceTypes[i].deviceType) > 0)
-          this->_addToSendQueue(p.remoteIP(), p.remotePort(), &this->deviceTypes[i], this->deviceTypes[i].deviceType, pkt.mx, false);
+          this->_addToSendQueue(p.remoteIP(), p.remotePort(), &this->deviceTypes[i], pkt.st, pkt.mx, false);
       }
     }
     else if(strcmp("upnp:rootdevice", pkt.st) == 0) {
       UPNPDeviceType *dev = &this->deviceTypes[0];
       #ifdef DEBUG_SSDP
-      this->_printPacket(&pkt);
       DEBUG_SSDP.println("---------------   ROOT   ---------------------");
+      this->_printPacket(&pkt);
       #endif
       if(pkt.type == MULTICAST) 
         this->_addToSendQueue(IPAddress(SSDP_MULTICAST_ADDR), SSDP_PORT, dev, pkt.st, pkt.mx, false);
@@ -761,6 +749,8 @@ void SSDPClass::_processRequest(AsyncUDPPacket &p) {
 }
 void SSDPClass::loop() {
   this->_sendQueuedResponses();
+  // We need to send the notify if required.
+  this->_sendNotify();
 }
 void SSDPClass::schema(Print &client) {
   IPAddress ip = this->localIP();
@@ -812,7 +802,7 @@ void SSDPClass::schema(Print &client) {
   }
   client.print(F("</deviceList></device></root>\r\n"));
   #ifdef DEBUG_SSDP
-  DEBUG_SSDP.println("Sending Device.xml");
+  DEBUG_SSDP.println("Sending upnp.xml");
   #endif
 }
 /*
@@ -836,7 +826,7 @@ void SSDPClass::setSchemaURL(uint8_t ndx, const char *url) {  this->deviceTypes[
 void SSDPClass::setUUID(uint8_t ndx, const char *uuid) { this->deviceTypes[ndx].setUUID(uuid); }
 void SSDPClass::setUUID(uint8_t ndx, const char *prefix, uint32_t id) { 
     char svcuuid[50];
-    sprintf(svcuuid, "%s%02x%02x%02x",
+    sprintf(svcuuid, "%s%02X%02X%02X",
       prefix,
       (uint16_t)((id >> 16) & 0xff),
       (uint16_t)((id >> 8) & 0xff),
