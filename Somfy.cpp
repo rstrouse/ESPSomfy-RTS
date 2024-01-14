@@ -2702,6 +2702,7 @@ void SomfyShade::moveToTiltTarget(float target) {
   else if(target > this->currentTiltPos)
     cmd = somfy_commands::Down;
   if(target >= 0.0f && target <= 100.0f) {
+    // Only send a command if the lift is not moving.
     if(this->currentPos == this->target || this->tiltType == tilt_types::tiltmotor) {
       if(cmd != somfy_commands::My) {
         Serial.print("Moving Tilt to ");
@@ -2712,12 +2713,12 @@ void SomfyShade::moveToTiltTarget(float target) {
         Serial.println(translateSomfyCommand(cmd));
         SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
       }
-      else
-        SomfyRemote::sendCommand(cmd, this->repeats);
+      // If the blind is currently moving then the command to stop it
+      // will occur on its own when the tilt target is set.
     }
     this->p_tiltTarget(target);
   }
-  this->settingTiltPos = true;
+  if(cmd != somfy_commands::My) this->settingTiltPos = true;
 }
 void SomfyShade::moveToTarget(float pos, float tilt) {
   somfy_commands cmd = somfy_commands::My;

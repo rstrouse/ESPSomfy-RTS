@@ -30,6 +30,11 @@ typedef enum {
   SEARCH,
   NOTIFY
 } ssdp_method_t;
+typedef enum {
+  root,
+  uuid,
+  deviceType
+} response_types_t;
 
 #define SSDP_FIELD_LEN             128
 #define SSDP_LOCATION_LEN          256
@@ -90,6 +95,7 @@ class UPNPDeviceType {
     void setManufacturerURL(const char *url);
     //char *getUSN();
     char *getUSN(const char *st);
+    char *getUSN(response_types_t responseType);
     void setChipId(uint32_t chipId);
 };
 struct ssdp_response_t {
@@ -100,6 +106,7 @@ struct ssdp_response_t {
   bool sendUUID;
   unsigned long sendTime;
   char st[SSDP_DEVICE_TYPE_SIZE];
+  response_types_t responseType;
 };
 class SSDPClass {
   uint8_t m_cdeviceTypes = SSDP_CHILD_DEVICES + 1;
@@ -119,7 +126,8 @@ class SSDPClass {
     void _sendByeBye(UPNPDeviceType *d, bool root);
     void _sendByeBye(const char *);
     void _sendQueuedResponses();
-    void _sendResponse(IPAddress addr, uint16_t port, UPNPDeviceType *d, char *st, bool sendUUID);
+    void _sendResponse(IPAddress addr, uint16_t port, UPNPDeviceType *d, const char *st, response_types_t responseType);
+    void _sendResponse(IPAddress addr, uint16_t port, const char *msg);
     AsyncUDP _server;
     hw_timer_t* _timer = nullptr;
     uint16_t _port = SSDP_HTTP_PORT;
@@ -129,7 +137,7 @@ class SSDPClass {
     void _parsePacket(ssdp_packet_t *pkt, AsyncUDPPacket &p);
     void _printPacket(ssdp_packet_t *pkt);
     bool _startsWith(const char* pre, const char* str);
-    void _addToSendQueue(IPAddress addr, uint16_t port, UPNPDeviceType *d, char *st, uint8_t sec, bool sendUUID);
+    void _addToSendQueue(IPAddress addr, uint16_t port, UPNPDeviceType *d, const char *st, response_types_t responseType, uint8_t sec);
    
   public:
     SSDPClass();
@@ -139,6 +147,8 @@ class SSDPClass {
     void loop();
     void end();
     bool isStarted = false;
+    unsigned long bootId = 0;
+    int configId = 0;
     IPAddress localIP();
     UPNPDeviceType* getDeviceTypes(uint8_t ndx);
     UPNPDeviceType* getDeviceType(uint8_t ndx);
