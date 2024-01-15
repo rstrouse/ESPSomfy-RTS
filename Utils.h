@@ -63,6 +63,7 @@ class Timestamp {
     static time_t mkUTCTime(struct tm *dt);
     static int calcTZOffset(time_t *dt);
     static time_t now();
+    static unsigned long epoch();
 };
 // Sort an array
 template<typename AnyType> void sortArray(AnyType array[], size_t sizeOfArray);

@@ -6,6 +6,13 @@
 /*********************************************************************
  * Timestamp class members
  ********************************************************************/
+unsigned long Timestamp::epoch() {
+  struct tm tmNow;
+  time_t now;
+  if(!getLocalTime(&tmNow)) return 0;
+  time(&now);
+  return now;
+}
 time_t Timestamp::now() {
   struct tm tmNow;
   getLocalTime(&tmNow);

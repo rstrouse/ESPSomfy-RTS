@@ -1260,7 +1260,7 @@ void Web::begin() {
     SomfyShade* shade = nullptr;
     if (method == HTTP_POST || method == HTTP_PUT) {
       Serial.println("Adding a shade");
-      DynamicJsonDocument doc(512);
+      DynamicJsonDocument doc(1024);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
         switch (err.code()) {
@@ -1285,7 +1285,7 @@ void Web::begin() {
           Serial.println("Adding shade");
           shade = somfy.addShade(obj);
           if (shade) {
-            DynamicJsonDocument sdoc(512);
+            DynamicJsonDocument sdoc(1024);
             JsonObject sobj = sdoc.to<JsonObject>();
             shade->toJSON(sobj);
             serializeJson(sdoc, g_content);
@@ -1299,7 +1299,7 @@ void Web::begin() {
     }
     if (shade) {
       //Serial.println("Serializing shade");
-      DynamicJsonDocument doc(256);
+      DynamicJsonDocument doc(1024);
       JsonObject obj = doc.to<JsonObject>();
       shade->toJSON(obj);
       serializeJson(doc, g_content);
