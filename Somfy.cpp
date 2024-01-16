@@ -1484,7 +1484,17 @@ void SomfyShade::publishDisco() {
   }
   
   obj["enabled_by_default"] = true;
-  mqtt.publishDisco(topic, obj);  
+  mqtt.publishDisco(topic, obj, true);  
+}
+void SomfyShade::unpublishDisco() {
+  if(!mqtt.connected() || !settings.MQTT.pubDisco) return;
+  char topic[128] = "";
+  if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::drycontact2) {
+    snprintf(topic, sizeof(topic), "%s/cover/%d/config", settings.MQTT.discoTopic, this->shadeId);
+  }
+  else
+    snprintf(topic, sizeof(topic), "%s/switch/%d/config", settings.MQTT.discoTopic, this->shadeId);
+  mqtt.unpublish(topic);
 }
 void SomfyShade::publish() {
   if(mqtt.connected()) {
@@ -1549,6 +1559,13 @@ void SomfyShade::unpublish(uint8_t id) {
     SomfyShade::unpublish(id, "tiltTarget");
     SomfyShade::unpublish(id, "windy");
     SomfyShade::unpublish(id, "sunny");
+    if(settings.MQTT.pubDisco) {
+      char topic[128] = "";
+      snprintf(topic, sizeof(topic), "%s/cover/%d/config", settings.MQTT.discoTopic, id);
+      mqtt.unpublish(topic);
+      snprintf(topic, sizeof(topic), "%s/switch/%d/config", settings.MQTT.discoTopic, id);
+      mqtt.unpublish(topic);
+    }
   }
 }
 void SomfyGroup::unpublish(uint8_t id) {
