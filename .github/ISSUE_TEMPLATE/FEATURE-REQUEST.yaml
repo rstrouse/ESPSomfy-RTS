@@ -1,0 +1,14 @@
+name: "🆕 Feature request"
+description: Create a new feature request.
+labels: [
+  "feature request"
+]
+body:
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Describe you new feature you'd like"
+      description: Please enter an explicit description of your new feature
+    validations:
+      required: true

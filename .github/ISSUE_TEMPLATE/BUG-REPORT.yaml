@@ -1,0 +1,73 @@
+name: "🐛 Bug Report"
+description: Create a new ticket for a bug.
+labels: [
+  "bug"
+]
+body:
+  - type: dropdown
+    id: browsers
+    attributes:
+      label: "Hardware"
+      description: |
+        > What type of hardware is ESPSomfy RTS installed on?
+        > Information available at System > Firmware > Hardware : XXX
+      multiple: true
+      options:
+        - ESP32
+        - ESP32-S3
+        - ESP32-S2
+        - ESP32-C3
+        - ESP32 WT32-ETH01
+        - Olimex ESP32-PoE/EVB
+        - LilyGO T-Internet POE
+        - wESP POE
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: Firmware version
+      placeholder: v2.3.0
+      description: |
+        > Information available at System > Firmware > Firmware : v X.x.x
+
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: Application version
+      placeholder: v2.3.0
+      description: |
+        > Information available at System > Firmware > Application : v X.x.x
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "What happened? What did you expect to happen?"
+      description: Please enter an explicit description of your issue
+      placeholder: Short and explicit description of your incident...
+    validations:
+      required: true
+  - type: textarea
+    id: reprod
+    attributes:
+      label: "How to reproduce it (setp by step)"
+      description: Please enter an explicit description of your issue
+      value: |
+        1. Go to...
+        2. Click on...
+        ...
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs"
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: bash
+    validations:
+      required: false
