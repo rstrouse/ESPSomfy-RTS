@@ -446,6 +446,7 @@ void SomfyShadeController::updateGroupFlags() {
     }
   }
 }
+#ifdef USE_NVS
 bool SomfyShadeController::loadLegacy() {
   Serial.println("Loading Legacy shades using NVS");
   pref.begin("Shades", true);
@@ -485,18 +486,22 @@ bool SomfyShadeController::loadLegacy() {
   }
   Serial.println();
   #endif
+  #ifdef USE_NVS
   if(!this->useNVS()) {
     pref.begin("Shades");
     pref.putBytes("shadeIds", this->m_shadeIds, sizeof(this->m_shadeIds));
     pref.end();
   }
+  #endif
   this->commit();
   return true;
 }
+#endif
 bool SomfyShadeController::begin() {
   // Load up all the configuration data.
   //ShadeConfigFile::getAppVersion(this->appVersion);
   Serial.printf("App Version:%u.%u.%u\n", settings.appVersion.major, settings.appVersion.minor, settings.appVersion.build);
+  #ifdef USE_NVS
   if(!this->useNVS()) {  // At 1.4 we started using the configuration file.  If the file doesn't exist then booh.
     // We need to remove all the extraeneous data from NVS for the shades.  From here on out we
     // will rely on the shade configuration.
@@ -523,13 +528,16 @@ bool SomfyShadeController::begin() {
       pref.end();
     }
   }
-  else if(ShadeConfigFile::exists()) {
+  #endif
+  if(ShadeConfigFile::exists()) {
     Serial.println("shades.cfg exists so we are using that");
     ShadeConfigFile::load(this);
   }
   else {
     Serial.println("Starting clean");
+    #ifdef USE_NVS
     this->loadLegacy();
+    #endif
   }
   this->transceiver.begin();
 
@@ -538,7 +546,7 @@ bool SomfyShadeController::begin() {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade *shade = &this->shades[i];
     if(shade->getShadeId() != 255 && shade->bitLength == 0) {
-      Serial.printf("Setting bit length to %d\n", this->transceiver.config.type);
+      //Serial.printf("Setting bit length to %d\n", this->transceiver.config.type);
       shade->bitLength = this->transceiver.config.type;
       saveFlag = true;
     }
@@ -650,6 +658,7 @@ bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
     if(this->linkedRemotes[i].getRemoteAddress() == 0) {
       this->linkedRemotes[i].setRemoteAddress(address);
       this->linkedRemotes[i].setRollingCode(rollingCode);
+      #ifdef USE_NVS
       if(somfy.useNVS()) {
         uint32_t linkedAddresses[SOMFY_MAX_LINKED_REMOTES];
         memset(linkedAddresses, 0x00, sizeof(linkedAddresses));
@@ -664,6 +673,7 @@ bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
         pref.putBytes("linkedAddr", linkedAddresses, sizeof(uint32_t) * SOMFY_MAX_LINKED_REMOTES);
         pref.end();
       }
+      #endif
       this->commit();
       return true;
     }
@@ -689,6 +699,7 @@ bool SomfyGroup::linkShade(uint8_t shadeId) {
 void SomfyShade::commit() { somfy.commit(); }
 void SomfyShade::commitShadePosition() {
   somfy.isDirty = true;
+  #ifdef USE_NVS
   char shadeKey[15];
   if(somfy.useNVS()) {
     snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
@@ -698,9 +709,11 @@ void SomfyShade::commitShadePosition() {
     pref.putFloat("currentPos", this->currentPos);
     pref.end();
   }
+  #endif
 }
 void SomfyShade::commitMyPosition() {
   somfy.isDirty = true;
+  #ifdef USE_NVS
   if(somfy.useNVS()) {
     char shadeKey[15];
     snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
@@ -711,9 +724,11 @@ void SomfyShade::commitMyPosition() {
     pref.putUShort("myPos", this->myPos);
     pref.end();
   }
+  #endif
 }
 void SomfyShade::commitTiltPosition() {
   somfy.isDirty = true;
+  #ifdef USE_NVS
   if(somfy.useNVS()) {
     char shadeKey[15];
     snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->shadeId);
@@ -723,11 +738,13 @@ void SomfyShade::commitTiltPosition() {
     pref.putFloat("currentTiltPos", this->currentTiltPos);
     pref.end();
   }
+  #endif
 }
 bool SomfyShade::unlinkRemote(uint32_t address) {
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
     if(this->linkedRemotes[i].getRemoteAddress() == address) {
       this->linkedRemotes[i].setRemoteAddress(0);
+      #ifdef USE_NVS
       if(somfy.useNVS()) {
         char shadeKey[15];
         snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->getShadeId());
@@ -742,6 +759,7 @@ bool SomfyShade::unlinkRemote(uint32_t address) {
         pref.putBytes("linkedAddr", linkedAddresses, sizeof(uint32_t) * SOMFY_MAX_LINKED_REMOTES);
         pref.end();
       }
+      #endif
       this->commit();
       return true;
     }
@@ -1257,6 +1275,7 @@ void SomfyShade::checkMovement() {
     this->emitState();
   }
 }
+#ifdef USE_NVS
 void SomfyShade::load() {
     char shadeKey[15];
     uint32_t linkedAddresses[SOMFY_MAX_LINKED_REMOTES];
@@ -1317,6 +1336,7 @@ void SomfyShade::load() {
     }
     pref.end();
 }
+#endif
 void SomfyRoom::publish() {
   if(mqtt.connected()) {
     char topic[64];
@@ -2787,6 +2807,7 @@ void SomfyShade::moveToTarget(float pos, float tilt) {
   }
 }
 bool SomfyShade::save() {
+  #ifdef USE_NVS
   if(somfy.useNVS()) {
     char shadeKey[15];
     snprintf(shadeKey, sizeof(shadeKey), "SomfyShade%u", this->getShadeId());
@@ -2814,6 +2835,7 @@ bool SomfyShade::save() {
     pref.putBytes("linkedAddr", linkedAddresses, sizeof(uint32_t) * SOMFY_MAX_LINKED_REMOTES);
     pref.end();
   }
+  #endif
   this->commit();
   this->publish();
   return true;
@@ -3338,6 +3360,7 @@ SomfyShade *SomfyShadeController::addShade() {
     shade->sortOrder = this->getMaxShadeOrder() + 1;
     Serial.printf("Sort order set to %d\n", shade->sortOrder);
     this->isDirty = true;
+    #ifdef USE_NVS
     if(this->useNVS()) {
       for(uint8_t i = 0; i < sizeof(this->m_shadeIds); i++) {
         this->m_shadeIds[i] = this->shades[i].getShadeId();
@@ -3384,6 +3407,7 @@ SomfyShade *SomfyShadeController::addShade() {
       }
       Serial.println();
     }
+    #endif
   }
   return shade;
 }
@@ -3587,6 +3611,7 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
       this->shades[i].clear();
     }
   }
+  #ifdef USE_NVS
   if(this->useNVS()) {
     for(uint8_t i = 0; i < sizeof(this->m_shadeIds) - 1; i++) {
       if(this->m_shadeIds[i] == shadeId) {
@@ -3601,6 +3626,7 @@ bool SomfyShadeController::deleteShade(uint8_t shadeId) {
     pref.putBytes("shadeIds", this->m_shadeIds, sizeof(this->m_shadeIds));
     pref.end();
   }
+  #endif
   this->commit();
   return true;
 }

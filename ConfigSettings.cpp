@@ -649,3 +649,11 @@ void EthernetSettings::print() {
   Serial.println("Ethernet Settings");
   Serial.printf("Board:%d PHYType:%d CLK:%d ADDR:%d PWR:%d MDC:%d MDIO:%d\n", this->boardType, this->phyType, this->CLKMode, this->phyAddress, this->PWRPin, this->MDCPin, this->MDIOPin);
 }
+void ConfigSettings::printAvailHeap() {
+  Serial.print("Max Heap: ");
+  Serial.println(ESP.getMaxAllocHeap());
+  Serial.print("Free Heap: ");
+  Serial.println(ESP.getFreeHeap());
+  Serial.print("Min Heap: ");
+  Serial.println(ESP.getMinFreeHeap());
+}

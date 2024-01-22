@@ -83,136 +83,142 @@ bool GitRelease::toJSON(JsonObject &obj) {
 #define ERR_CLIENT_OFFSET -50
 
 int16_t GitRepo::getReleases(uint8_t num) {
-  WiFiClientSecure *client = new WiFiClientSecure;
-  if(client) {
-    client->setInsecure();
-    HTTPClient https;
-    uint8_t ndx = 0;
-    uint8_t count = min((uint8_t)GIT_MAX_RELEASES, num);
-    char url[128];
-    memset(this->releases, 0x00, sizeof(GitRelease) * GIT_MAX_RELEASES);
-    sprintf(url, "https://api.github.com/repos/rstrouse/espsomfy-rts/releases?per_page=%d&page=1", count);
-    GitRelease *main = &this->releases[GIT_MAX_RELEASES];
-    main->releaseDate = Timestamp::now();
-    main->id = 1;
-    main->main = true;
-    strcpy(main->version.name, "main");
-    strcpy(main->name, "Main");
-    strcpy(main->hwVersions, "32,s3");
-    if(https.begin(*client, url)) {
-      int httpCode = https.GET();
-      Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
-      if(httpCode > 0) {
-        int len = https.getSize();
-        Serial.printf("[HTTPS] GET... code: %d - %d\n", httpCode, len);
-        if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-          WiFiClient *stream = https.getStreamPtr();
-          uint8_t buff[128] = {0};
-          char jsonElem[32] = "";
-          char jsonValue[128] = "";
-          int arrTok = 0;
-          int objTok = 0;
-          bool inQuote = false;
-          bool inElem = false;
-          bool inValue = false;
-          bool awaitValue = false;
-          bool inAss = false;
-          while(https.connected() && (len > 0 || len == -1) && ndx < count) {
-            size_t size = stream->available();
-            if(size) {
-              int c = stream->readBytes(buff, ((size > sizeof(buff)) ? sizeof(buff) : size));
-              //Serial.write(buff, c);
-              if(len > 0) len -= c;
-              // Now we should have some data.
-              for(uint8_t i = 0; i < c; i++) {
-                // Read the buffer a byte at a time until we have a key value pair.
-                char ch = static_cast<char>(buff[i]);
-                if(ch == '[') {
-                  arrTok++;
-                  if(arrTok == 2 && strcmp(jsonElem, "assets") == 0) {
-                    inElem = inValue = awaitValue = false;
-                    inAss = true;
-                    //Serial.printf("%s: %d\n", jsonElem, arrTok);
+  WiFiClientSecure sclient;
+  sclient.setInsecure();
+  uint8_t ndx = 0;
+  uint8_t count = min((uint8_t)GIT_MAX_RELEASES, num);
+  char url[128];
+  memset(this->releases, 0x00, sizeof(GitRelease) * GIT_MAX_RELEASES);
+  sprintf(url, "https://api.github.com/repos/rstrouse/espsomfy-rts/releases?per_page=%d&page=1", count);
+  GitRelease *main = &this->releases[GIT_MAX_RELEASES];
+  main->releaseDate = Timestamp::now();
+  main->id = 1;
+  main->main = true;
+  strcpy(main->version.name, "main");
+  strcpy(main->name, "Main");
+  strcpy(main->hwVersions, "32,s3");
+  HTTPClient *https = new HTTPClient();
+  https->setReuse(false);
+  if(https->begin(sclient, url)) {
+    int httpCode = https->GET();
+    Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+    if(httpCode > 0) {
+      int len = https->getSize();
+      Serial.printf("[HTTPS] GET... code: %d - %d\n", httpCode, len);
+      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+        WiFiClient *stream = https->getStreamPtr();
+        uint8_t buff[128] = {0};
+        char jsonElem[32] = "";
+        char jsonValue[128] = "";
+        int arrTok = 0;
+        int objTok = 0;
+        bool inQuote = false;
+        bool inElem = false;
+        bool inValue = false;
+        bool awaitValue = false;
+        bool inAss = false;
+        while(https->connected() && (len > 0 || len == -1) && ndx < count) {
+          size_t size = stream->available();
+          if(size) {
+            int c = stream->readBytes(buff, ((size > sizeof(buff)) ? sizeof(buff) : size));
+            //Serial.write(buff, c);
+            if(len > 0) len -= c;
+            // Now we should have some data.
+            for(uint8_t i = 0; i < c; i++) {
+              // Read the buffer a byte at a time until we have a key value pair.
+              char ch = static_cast<char>(buff[i]);
+              if(ch == '[') {
+                arrTok++;
+                if(arrTok == 2 && strcmp(jsonElem, "assets") == 0) {
+                  inElem = inValue = awaitValue = false;
+                  inAss = true;
+                  //Serial.printf("%s: %d\n", jsonElem, arrTok);
+                }
+                else if(arrTok < 2) inAss = false;
+              }
+              else if(ch == ']') {
+                arrTok--;
+                if(arrTok < 2) inAss = false;
+              }
+              else if(ch == '{') {
+                objTok++;
+                if(objTok != 1 && !inAss) inElem = inValue = awaitValue = false;
+              }
+              else if(ch == '}') {
+                objTok--;
+                if(objTok == 0) ndx++;
+              }
+              else if(objTok == 1 || inAss) {
+                // We only want data from the root object.
+                //if(inAss) Serial.print(ch);
+                if(ch == '\"') {
+                  inQuote = !inQuote;
+                  if(inElem) {
+                    inElem = false;
+                    awaitValue = true;
                   }
-                  else if(arrTok < 2) inAss = false;
-                }
-                else if(ch == ']') {
-                  arrTok--;
-                  if(arrTok < 2) inAss = false;
-                }
-                else if(ch == '{') {
-                  objTok++;
-                  if(objTok != 1 && !inAss) inElem = inValue = awaitValue = false;
-                }
-                else if(ch == '}') {
-                  objTok--;
-                  if(objTok == 0) ndx++;
-                }
-                else if(objTok == 1 || inAss) {
-                  // We only want data from the root object.
-                  //if(inAss) Serial.print(ch);
-                  if(ch == '\"') {
-                    inQuote = !inQuote;
-                    if(inElem) {
-                      inElem = false;
-                      awaitValue = true;
-                    }
-                    else if(inValue) {
-                      inValue = false;
-                      inElem = false;
-                      awaitValue = false;
-                      if(inAss)
-                        this->releases[ndx].setAssetProperty(jsonElem, jsonValue);
-                      else
-                        this->releases[ndx].setReleaseProperty(jsonElem, jsonValue);
-                      memset(jsonElem, 0x00, sizeof(jsonElem));
-                      memset(jsonValue, 0x00, sizeof(jsonValue));
-                    }
-                    else if(awaitValue) inValue = true;
-                    else {
-                      inElem = true;
-                      awaitValue = false;
-                    }
-                  }
-                  else if(awaitValue) {
-                    if(ch != ' ' && ch != ':') {
-                      strncat(jsonValue, &ch, 1);
-                      awaitValue = false;
-                      inValue = true;
-                    }
-                  }
-                  else if((!inQuote && ch == ',') || ch == '\r' || ch == '\n') {
-                    inElem = inValue = awaitValue = false;
-                    if(strlen(jsonElem) > 0) {
-                      if(inAss)
-                        this->releases[ndx].setAssetProperty(jsonElem, jsonValue);
-                      else
-                        this->releases[ndx].setReleaseProperty(jsonElem, jsonValue);
-                    }
+                  else if(inValue) {
+                    inValue = false;
+                    inElem = false;
+                    awaitValue = false;
+                    if(inAss)
+                      this->releases[ndx].setAssetProperty(jsonElem, jsonValue);
+                    else
+                      this->releases[ndx].setReleaseProperty(jsonElem, jsonValue);
                     memset(jsonElem, 0x00, sizeof(jsonElem));
                     memset(jsonValue, 0x00, sizeof(jsonValue));
                   }
+                  else if(awaitValue) inValue = true;
                   else {
-                    if(inElem) {
-                      if(strlen(jsonElem) < sizeof(jsonElem) - 1) strncat(jsonElem, &ch, 1);
-                    }
-                    else if(inValue) {
-                      if(strlen(jsonValue) < sizeof(jsonValue) - 1) strncat(jsonValue, &ch, 1);
-                    }
+                    inElem = true;
+                    awaitValue = false;
+                  }
+                }
+                else if(awaitValue) {
+                  if(ch != ' ' && ch != ':') {
+                    strncat(jsonValue, &ch, 1);
+                    awaitValue = false;
+                    inValue = true;
+                  }
+                }
+                else if((!inQuote && ch == ',') || ch == '\r' || ch == '\n') {
+                  inElem = inValue = awaitValue = false;
+                  if(strlen(jsonElem) > 0) {
+                    if(inAss)
+                      this->releases[ndx].setAssetProperty(jsonElem, jsonValue);
+                    else
+                      this->releases[ndx].setReleaseProperty(jsonElem, jsonValue);
+                  }
+                  memset(jsonElem, 0x00, sizeof(jsonElem));
+                  memset(jsonValue, 0x00, sizeof(jsonValue));
+                }
+                else {
+                  if(inElem) {
+                    if(strlen(jsonElem) < sizeof(jsonElem) - 1) strncat(jsonElem, &ch, 1);
+                  }
+                  else if(inValue) {
+                    if(strlen(jsonValue) < sizeof(jsonValue) - 1) strncat(jsonValue, &ch, 1);
                   }
                 }
               }
-              delay(1);
             }
-            //else break;
+            delay(1);
           }
+          //else break;
         }
-        else return httpCode;
       }
-      https.end();  
+      else {
+        https->end();
+        sclient.stop();
+        delete https;
+        return httpCode;
+      }
     }
-    delete client;
+    https->end();  
+    delete https;
   }
+  sclient.stop();
+  settings.printAvailHeap();
   return 0;
 }
 bool GitRepo::toJSON(JsonObject &obj) {
@@ -257,6 +263,7 @@ void GitUpdater::checkForUpdate() {
   if(this->status != 0) return; // If we are already checking.
   Serial.println("Check github for updates...");
   this->status = GIT_STATUS_CHECK;
+  settings.printAvailHeap();  
   if(this->checkInternet() == 0) {
     GitRepo repo;
     this->lastCheck = millis();
@@ -310,26 +317,26 @@ void GitUpdater::emitUpdateCheck(uint8_t num) {
 int GitUpdater::checkInternet() {
   int err = 500;
   uint32_t t = millis();
-  WiFiClientSecure *client = new WiFiClientSecure;
-  if(client) {
-    client->setInsecure();
-    HTTPClient https;
-    if(https.begin(*client, "https://github.com/rstrouse/ESPSomfy-RTS")) {
-      https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-      https.setTimeout(5000);
-      int httpCode = https.sendRequest("HEAD");
-      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
-        err = 0;
-        Serial.printf("Check Internet Success: %ldms\n", millis() - t);
-      }
-      else {
-        err = httpCode;
-        Serial.printf("Check Internet Error: %d: %ldms\n", err, millis() - t);
-      }
-      https.end();
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient *https = new HTTPClient();
+  https->setReuse(false);
+  if(https->begin(client, "https://github.com/rstrouse/ESPSomfy-RTS")) {
+    https->setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    https->setTimeout(5000);
+    int httpCode = https->sendRequest("HEAD");
+    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
+      err = 0;
+      Serial.printf("Check Internet Success: %ldms\n", millis() - t);
     }
-    delete client;
+    else {
+      err = httpCode;
+      Serial.printf("Check Internet Error: %d: %ldms\n", err, millis() - t);
+    }
+    https->end();
   }
+  client.stop();
+  delete https;
   return err;
 }
 void GitUpdater::emitDownloadProgress(size_t total, size_t loaded, const char *evt) { this->emitDownloadProgress(255, total, loaded, evt); }
@@ -523,6 +530,7 @@ int8_t GitUpdater::downloadFile() {
       Serial.printf("End update %s\n", this->currentFile);
 
     }
+    client->stop();
     delete client;
   }
   return 0;

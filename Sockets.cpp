@@ -69,6 +69,8 @@ void SocketEmitter::begin() {
   sockServer.begin();
   sockServer.enableHeartbeat(20000, 10000, 3);
   sockServer.onEvent(this->wsEvent);
+  Serial.println("Socket Server Started...");
+  settings.printAvailHeap();
 }
 void SocketEmitter::loop() {
   sockServer.loop();  

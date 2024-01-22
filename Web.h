@@ -28,6 +28,8 @@ class Web {
     void handleSetSensor(WebServer &server);
     void handleDownloadFirmware(WebServer &server);
     void handleBackup(WebServer &server, bool attach = false);
+    void handleReboot(WebServer &server);
+    void handleDeserializationError(WebServer &server, DeserializationError &err);
     void begin();
     void loop();
     void end();

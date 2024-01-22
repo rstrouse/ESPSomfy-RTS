@@ -153,6 +153,7 @@ enum class conn_types : byte {
 };
 class ConfigSettings: BaseSettings {
   public:
+    static void printAvailHeap();
     char serverId[10] = "";
     char hostname[32] = "ESPSomfyRTS";
     char chipModel[10] = "ESP32";

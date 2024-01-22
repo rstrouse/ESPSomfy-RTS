@@ -214,6 +214,7 @@ void Network::setConnected(conn_types connType) {
   }
   else if(SSDP.isStarted) SSDP.end();
   this->emitSockets();
+  settings.printAvailHeap();
 }
 bool Network::connectWired() {
   if(this->connType == conn_types::ethernet) {

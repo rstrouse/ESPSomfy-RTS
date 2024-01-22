@@ -60,6 +60,19 @@ void Web::sendCacheHeaders(uint32_t seconds) {
 void Web::end() {
   //server.end();
 }
+void Web::handleDeserializationError(WebServer &server, DeserializationError &err) {
+    switch (err.code()) {
+    case DeserializationError::InvalidInput:
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
+      break;
+    case DeserializationError::NoMemory:
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
+      break;
+    default:
+      server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
+      break;
+    }
+}
 bool Web::isAuthenticated(WebServer &server, bool cfg) {
   Serial.println("Checking authentication");
   if(settings.Security.type == security_types::None) return true;
@@ -148,17 +161,7 @@ void Web::handleLogin(WebServer &server) {
       DynamicJsonDocument docin(512);
       DeserializationError err = deserializeJson(docin, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        this->handleDeserializationError(server, err);
         return;
       }
       else {
@@ -223,16 +226,17 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
   file.close();
 }
 void Web::handleController(WebServer &server) {
-    webServer.sendCORSHeaders(server);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = server.method();
-    if (method == HTTP_POST || method == HTTP_GET) {
-      DynamicJsonDocument doc(16384);
-      somfy.toJSON(doc);
-      serializeJson(doc, g_content);
-      server.send(200, _encoding_json, g_content);
-    }
-    else server.send(404, _encoding_text, _response_404);
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  settings.printAvailHeap();
+  if (method == HTTP_POST || method == HTTP_GET) {
+    DynamicJsonDocument doc(16384);
+    somfy.toJSON(doc);
+    serializeJson(doc, g_content);
+    server.send(200, _encoding_json, g_content);
+  }
+  else server.send(404, _encoding_text, _response_404);
 }
 void Web::handleLoginContext(WebServer &server) {
     webServer.sendCORSHeaders(server);
@@ -307,17 +311,7 @@ void Web::handleShadeCommand(WebServer& server) {
       DynamicJsonDocument doc(256);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-        case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-        default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-        }
+        this->handleDeserializationError(server, err);
         return;
       }
       else {
@@ -376,17 +370,7 @@ void Web::handleRepeatCommand(WebServer& server) {
       DynamicJsonDocument doc(256);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-        case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-        default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-        }
+        this->handleDeserializationError(server, err);
         return;
       }
       else {
@@ -459,17 +443,7 @@ void Web::handleGroupCommand(WebServer &server) {
       DynamicJsonDocument doc(256);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        this->handleDeserializationError(server, err);
         return;
       }
       else {
@@ -522,17 +496,7 @@ void Web::handleTiltCommand(WebServer &server) {
       DynamicJsonDocument doc(256);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        this->handleDeserializationError(server, err);
         return;
       }
       else {
@@ -599,17 +563,8 @@ void Web::handleRoom(WebServer &server) {
       DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        this->handleDeserializationError(server, err);
+        return;
       }
       else {
         JsonObject obj = doc.as<JsonObject>();
@@ -668,17 +623,8 @@ void Web::handleShade(WebServer &server) {
       DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        this->handleDeserializationError(server, err);
+        return;
       }
       else {
         JsonObject obj = doc.as<JsonObject>();
@@ -737,17 +683,8 @@ void Web::handleGroup(WebServer &server) {
       DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        this->handleDeserializationError(server, err);
+        return;
       }
       else {
         JsonObject obj = doc.as<JsonObject>();
@@ -845,17 +782,8 @@ void Web::handleSetPositions(WebServer &server) {
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      switch (err.code()) {
-      case DeserializationError::InvalidInput:
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-        break;
-      case DeserializationError::NoMemory:
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-        break;
-      default:
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-        break;
-      }
+      this->handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonObject obj = doc.as<JsonObject>();
@@ -895,17 +823,8 @@ void Web::handleSetSensor(WebServer &server) {
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      switch (err.code()) {
-      case DeserializationError::InvalidInput:
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-        break;
-      case DeserializationError::NoMemory:
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-        break;
-      default:
-        server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-        break;
-      }
+      this->handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonObject obj = doc.as<JsonObject>();
@@ -1026,6 +945,20 @@ void Web::handleNotFound(WebServer &server) {
     snprintf(g_content, sizeof(g_content), "404 Service Not Found: %s", server.uri().c_str());
     server.send(404, _encoding_text, g_content);
 }
+void Web::handleReboot(WebServer &server) {
+  webServer.sendCORSHeaders(server);
+  if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+  HTTPMethod method = server.method();
+  if (method == HTTP_POST || method == HTTP_PUT) {
+    Serial.println("Rebooting ESP...");
+    rebootDelay.reboot = true;
+    rebootDelay.rebootTime = millis() + 500;
+    server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Successfully started reboot\"}");
+  }
+  else {
+    server.send(201, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
+  }
+}
 void Web::begin() {
   Serial.println("Creating Web MicroServices...");
   server.enableCORS(true);
@@ -1052,6 +985,7 @@ void Web::begin() {
   apiServer.on("/setSensor", []() { webServer.handleSetSensor(apiServer); });
   apiServer.on("/downloadFirmware", []() { webServer.handleDownloadFirmware(apiServer); });
   apiServer.on("/backup", []() { webServer.handleBackup(apiServer); });
+  apiServer.on("/reboot", []() { webServer.handleReboot(apiServer); });
   
   // Web Interface
   server.on("/tiltCommand", []() { webServer.handleTiltCommand(server); });
@@ -1102,18 +1036,7 @@ void Web::begin() {
         StaticJsonDocument<256> doc;
         DeserializationError err = deserializeJson(doc, server.arg("data"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
-          Serial.println("An error occurred when deserializing the restore data");
+          webServer.handleDeserializationError(server, err);
           return;
         }
         else {
@@ -1208,17 +1131,8 @@ void Web::begin() {
       DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        webServer.handleDeserializationError(server, err);
+        return;
       }
       else {
         JsonObject obj = doc.as<JsonObject>();
@@ -1263,17 +1177,8 @@ void Web::begin() {
       DynamicJsonDocument doc(1024);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        webServer.handleDeserializationError(server, err);
+        return;
       }
       else {
         JsonObject obj = doc.as<JsonObject>();
@@ -1319,17 +1224,8 @@ void Web::begin() {
       DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
-        switch (err.code()) {
-        case DeserializationError::InvalidInput:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-          break;
-        case DeserializationError::NoMemory:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-          break;
-        default:
-          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-          break;
-        }
+        webServer.handleDeserializationError(server, err);
+        return;
       }
       else {
         JsonObject obj = doc.as<JsonObject>();
@@ -1416,17 +1312,8 @@ void Web::begin() {
         DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1461,17 +1348,8 @@ void Web::begin() {
         DynamicJsonDocument doc(1024);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1511,17 +1389,8 @@ void Web::begin() {
         DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1561,17 +1430,7 @@ void Web::begin() {
         DynamicJsonDocument doc(256);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
           return;
         }
         else {
@@ -1615,17 +1474,8 @@ void Web::begin() {
         StaticJsonDocument<129> doc;
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1661,17 +1511,8 @@ void Web::begin() {
       DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if(err) {
-        switch(err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-        }
+          webServer.handleDeserializationError(server, err);
+          return;
       }
       else {
         JsonObject obj = doc.as<JsonObject>();
@@ -1709,17 +1550,8 @@ void Web::begin() {
         DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1758,17 +1590,8 @@ void Web::begin() {
         DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1806,17 +1629,8 @@ void Web::begin() {
         DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1854,17 +1668,8 @@ void Web::begin() {
         DynamicJsonDocument doc(512);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -1968,17 +1773,8 @@ void Web::begin() {
         DynamicJsonDocument doc(256);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -2009,17 +1805,8 @@ void Web::begin() {
         DynamicJsonDocument doc(256);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -2053,17 +1840,8 @@ void Web::begin() {
         DynamicJsonDocument doc(256);
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
+          return;
         }
         else {
           JsonObject obj = doc.as<JsonObject>();
@@ -2239,20 +2017,7 @@ void Web::begin() {
     */
     server.send(statusCode, "application/json", g_content);
     });
-  server.on("/reboot", []() {
-    webServer.sendCORSHeaders(server);
-    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    HTTPMethod method = server.method();
-    if (method == HTTP_POST || method == HTTP_PUT) {
-      Serial.println("Rebooting ESP...");
-      rebootDelay.reboot = true;
-      rebootDelay.rebootTime = millis() + 500;
-      server.send(200, "application/json", "{\"status\":\"OK\",\"desc\":\"Successfully started reboot\"}");
-    }
-    else {
-      server.send(201, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
-    }
-    });
+  server.on("/reboot", []() { webServer.handleReboot(server);});
   server.on("/saveSecurity", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -2347,17 +2112,7 @@ void Web::begin() {
         StaticJsonDocument<128> doc;
         DeserializationError err = deserializeJson(doc, server.arg("plain"));
         if (err) {
-          switch (err.code()) {
-          case DeserializationError::InvalidInput:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
-            break;
-          case DeserializationError::NoMemory:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Out of memory parsing JSON\"}"));
-            break;
-          default:
-            server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"General JSON Deserialization failed\"}"));
-            break;
-          }
+          webServer.handleDeserializationError(server, err);
           return;
         }
         else {
@@ -2389,10 +2144,8 @@ void Web::begin() {
     Serial.println(server.arg("plain"));
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      Serial.print("Error parsing JSON ");
-      Serial.println(err.c_str());
-      String msg = err.c_str();
-      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+      webServer.handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonObject obj = doc.as<JsonObject>();
@@ -2471,10 +2224,8 @@ void Web::begin() {
     DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      Serial.print("Error parsing JSON ");
-      Serial.println(err.c_str());
-      String msg = err.c_str();
-      server.send(400, "text/html", "Error parsing JSON body<br>" + msg);
+      webServer.handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonObject obj = doc.as<JsonObject>();
@@ -2496,10 +2247,8 @@ void Web::begin() {
     DynamicJsonDocument doc(512);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      Serial.print("Error parsing JSON ");
-      Serial.println(err.c_str());
-      String msg = err.c_str();
-      server.send(400, "text/html", "Error parsing JSON body<br>" + msg);
+      webServer.handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonObject obj = doc.as<JsonObject>();
@@ -2567,10 +2316,8 @@ void Web::begin() {
     DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      Serial.print("Error parsing JSON ");
-      Serial.println(err.c_str());
-      String msg = err.c_str();
-      server.send(400, F("text/html"), "Error parsing JSON body<br>" + msg);
+      webServer.handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonObject obj = doc.as<JsonObject>();
@@ -2610,10 +2357,8 @@ void Web::begin() {
     Serial.println(server.arg("plain"));
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      Serial.print("Error parsing JSON ");
-      Serial.println(err.c_str());
-      String msg = err.c_str();
-      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+      webServer.handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonArray arr = doc.as<JsonArray>();
@@ -2644,10 +2389,8 @@ void Web::begin() {
     Serial.println(server.arg("plain"));
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      Serial.print("Error parsing JSON ");
-      Serial.println(err.c_str());
-      String msg = err.c_str();
-      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+      webServer.handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonArray arr = doc.as<JsonArray>();
@@ -2677,10 +2420,8 @@ void Web::begin() {
     Serial.println(server.arg("plain"));
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (err) {
-      Serial.print("Error parsing JSON ");
-      Serial.println(err.c_str());
-      String msg = err.c_str();
-      server.send(400, _encoding_html, "Error parsing JSON body<br>" + msg);
+      webServer.handleDeserializationError(server, err);
+      return;
     }
     else {
       JsonArray arr = doc.as<JsonArray>();

@@ -1,7 +1,6 @@
 #include <WebSocketsServer.h>
 #ifndef sockets_h
 #define sockets_h
-#include <ArduinoJson.h>
 
 #define SOCK_MAX_ROOMS 1
 #define ROOM_EMIT_FRAME 0

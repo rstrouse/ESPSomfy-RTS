@@ -10,8 +10,8 @@ body {
     font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
     font-size: 14px;
     background-color: #eeeeee;
-    margin-top: 77px;
     box-sizing: border-box;
+    margin-top: 77px;
 }
 
 
@@ -843,4 +843,13 @@ div.frame-pulses {
     white-space:nowrap;
     text-overflow:ellipsis;
     display:none;
+}
+@media only screen and (max-device-width: 480px) {
+    body {
+        margin-top: 0px;
+    }
+    .subtab-content {
+        padding-left:14px;
+        padding-right:14px;
+    }
 }

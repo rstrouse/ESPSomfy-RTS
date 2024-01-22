@@ -267,7 +267,9 @@ class SomfyShade : public SomfyRemote {
     bool flipPosition = false;
     shade_types shadeType = shade_types::roller;
     tilt_types tiltType = tilt_types::none;
+    #ifdef USE_NVS
     void load();
+    #endif
     somfy_tx_queue_t txQueue;
     float currentPos = 0.0f;
     float currentTiltPos = 0.0f;
@@ -546,7 +548,9 @@ class SomfyShadeController {
     void commit();
     void writeBackup();
     bool loadShadesFile(const char *filename);
+    #ifdef USE_NVS
     bool loadLegacy();
+    #endif
 };
 
 #endif
