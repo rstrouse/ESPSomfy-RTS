@@ -34,7 +34,7 @@ void setup() {
   delay(1000);
   net.setup();  
   somfy.begin();
-  git.checkForUpdate();
+  //git.checkForUpdate();
 }
 
 void loop() {
