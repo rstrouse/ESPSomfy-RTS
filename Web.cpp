@@ -22,7 +22,7 @@ extern MQTTClass mqtt;
 extern GitUpdater git;
 extern Network net;
 
-#define WEB_MAX_RESPONSE 32768
+#define WEB_MAX_RESPONSE 34768
 static char g_content[WEB_MAX_RESPONSE];
 
 
@@ -231,7 +231,7 @@ void Web::handleController(WebServer &server) {
   HTTPMethod method = server.method();
   settings.printAvailHeap();
   if (method == HTTP_POST || method == HTTP_GET) {
-    DynamicJsonDocument doc(WEB_MAX_RESPONSE);
+    DynamicJsonDocument doc(min((uint32_t)WEB_MAX_RESPONSE, ESP.getMaxAllocHeap() - 512));
     somfy.toJSON(doc);
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
@@ -713,7 +713,7 @@ void Web::handleDiscovery(WebServer &server) {
   HTTPMethod method = apiServer.method();
   if (method == HTTP_POST || method == HTTP_GET) {
     Serial.println("Discovery Requested");
-    DynamicJsonDocument doc(WEB_MAX_RESPONSE);
+    DynamicJsonDocument doc(min((uint32_t)WEB_MAX_RESPONSE, ESP.getMaxAllocHeap() - 512));
     JsonObject obj = doc.to<JsonObject>();
     obj["serverId"] = settings.serverId;
     obj["version"] = settings.fwVersion.name;

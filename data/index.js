@@ -1263,7 +1263,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.3.1';
+    appVersion = 'v2.3.2';
     reloadApp = false;
     init() {
         if (this.initialized) return;
