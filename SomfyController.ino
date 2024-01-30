@@ -38,8 +38,6 @@ void setup() {
 }
 
 void loop() {
-  if(!rebootDelay.reboot) git.loop();
-
   // put your main code here, to run repeatedly:
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
     Serial.print("Rebooting after ");
@@ -55,6 +53,7 @@ void loop() {
   if(millis() - timing > 100) Serial.printf("Timing Somfy: %ldms\n", millis() - timing);
   timing = millis();
   if(net.connected()) {
+    if(!rebootDelay.reboot) git.loop();
     webServer.loop();
     if(millis() - timing > 200) Serial.printf("Timing WebServer: %ldms\n", millis() - timing);
     timing = millis();

@@ -22,7 +22,8 @@ extern MQTTClass mqtt;
 extern GitUpdater git;
 extern Network net;
 
-#define WEB_MAX_RESPONSE 34768
+//#define WEB_MAX_RESPONSE 34768
+#define WEB_MAX_RESPONSE 8192
 static char g_content[WEB_MAX_RESPONSE];
 
 
@@ -225,16 +226,94 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
   server.streamFile(file, encoding);
   file.close();
 }
+void Web::chunkRoomsResponse(WebServer &server, const char * elem) {
+  uint8_t ndx = 0;
+  if(elem && strlen(elem) > 0) {
+    sprintf(g_content, "\"%s\"", elem);
+    server.sendContent(g_content);
+  }
+  for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
+    if(somfy.rooms[i].roomId != 0) {
+      DynamicJsonDocument doc(512);
+      JsonObject obj = doc.to<JsonObject>(); 
+      somfy.rooms[i].toJSON(obj);
+      strcpy(g_content, ndx++ != 0 ? "," : "[");
+      serializeJson(doc, &g_content[strlen(g_content)], sizeof(g_content) - strlen(g_content));
+      server.sendContent(g_content);
+    }
+  }
+  server.sendContent(ndx == 0 ? "[]" : "]");
+}
+void Web::chunkShadesResponse(WebServer &server, const char * elem) {
+  uint8_t ndx = 0;
+  if(elem && strlen(elem) > 0) {
+    sprintf(g_content, "\"%s\"", elem);
+    server.sendContent(g_content);
+  }
+  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
+    if(somfy.shades[i].getShadeId() != 255) {
+      DynamicJsonDocument doc(1024);
+      JsonObject obj = doc.to<JsonObject>(); 
+      somfy.shades[i].toJSON(obj);
+      strcpy(g_content, ndx++ != 0 ? "," : "[");
+      serializeJson(doc, &g_content[strlen(g_content)], sizeof(g_content) - strlen(g_content));
+      server.sendContent(g_content);
+    }
+  }
+  server.sendContent(ndx == 0 ? "[]" : "]");
+}
+void Web::chunkGroupsResponse(WebServer &server, const char * elem) {
+  uint8_t ndx = 0;
+  if(elem && strlen(elem) > 0) {
+    sprintf(g_content, "\"%s\"", elem);
+    server.sendContent(g_content);
+  }
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    if(somfy.groups[i].getGroupId() != 255) {
+      DynamicJsonDocument doc(1024);
+      JsonObject obj = doc.to<JsonObject>(); 
+      somfy.groups[i].toJSON(obj);
+      strcpy(g_content, ndx++ != 0 ? "," : "[");
+      serializeJson(doc, &g_content[strlen(g_content)], sizeof(g_content) - strlen(g_content));
+      server.sendContent(g_content);
+    }
+  }
+  server.sendContent(ndx == 0 ? "[]" : "]");
+}
 void Web::handleController(WebServer &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
   settings.printAvailHeap();
   if (method == HTTP_POST || method == HTTP_GET) {
-    DynamicJsonDocument doc(min((uint32_t)WEB_MAX_RESPONSE, ESP.getMaxAllocHeap() - 512));
-    somfy.toJSON(doc);
-    serializeJson(doc, g_content);
-    server.send(200, _encoding_json, g_content);
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    // Alright lets chunk our response.
+    snprintf(g_content, sizeof(g_content), "{\"maxRooms\":%d,\"maxShades\":%d,\"maxGroups\":%d,\"maxGroupedShades\":%d,\"maxLinkedRemotes\":%d,\"startingAddress\":%d,\"transceiver\":",
+      SOMFY_MAX_ROOMS, SOMFY_MAX_SHADES, SOMFY_MAX_GROUPS, SOMFY_MAX_GROUPED_SHADES, SOMFY_MAX_LINKED_REMOTES, somfy.startingAddress);
+    server.send_P(200, _encoding_json, g_content);
+    {
+      DynamicJsonDocument doc(1024);
+      JsonObject trans = doc.to<JsonObject>();
+      somfy.transceiver.toJSON(trans);
+      serializeJson(doc, g_content);
+      server.sendContent(g_content);
+    }
+    {
+      DynamicJsonDocument doc(512);
+      JsonObject fw = doc.to<JsonObject>();
+      git.toJSON(fw);
+      server.sendContent(",\"version\":");
+      serializeJson(doc, g_content);
+      server.sendContent(g_content);
+    }
+    server.sendContent(",\"rooms\":");
+    this->chunkRoomsResponse(server);
+    server.sendContent(",\"shades\":");
+    this->chunkShadesResponse(server);
+    server.sendContent(",\"groups\":");
+    this->chunkGroupsResponse(server);
+    server.sendContent("}");
+    server.sendContent("", 0);
   }
   else server.send(404, _encoding_text, _response_404);
 }
@@ -257,11 +336,10 @@ void Web::handleGetRooms(WebServer &server) {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_GET) {
-      DynamicJsonDocument doc(16384);
-      JsonArray arr = doc.to<JsonArray>();
-      somfy.toJSONRooms(arr);
-      serializeJson(doc, g_content);
-      server.send(200, _encoding_json, g_content);
+      server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+      server.send_P(200, _encoding_json, " ");
+      this->chunkRoomsResponse(server);
+      server.sendContent("", 0);
     }
     else server.send(404, _encoding_text, _response_404);
 }
@@ -270,11 +348,10 @@ void Web::handleGetShades(WebServer &server) {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_GET) {
-      DynamicJsonDocument doc(16384);
-      JsonArray arr = doc.to<JsonArray>();
-      somfy.toJSONShades(arr);
-      serializeJson(doc, g_content);
-      server.send(200, _encoding_json, g_content);
+      server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+      server.send_P(200, _encoding_json, " ");
+      this->chunkShadesResponse(server);
+      server.sendContent("", 0);
     }
     else server.send(404, _encoding_text, _response_404);
 }
@@ -283,11 +360,10 @@ void Web::handleGetGroups(WebServer &server) {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     if (method == HTTP_POST || method == HTTP_GET) {
-      DynamicJsonDocument doc(16384);
-      JsonArray arr = doc.to<JsonArray>();
-      somfy.toJSONGroups(arr);
-      serializeJson(doc, g_content);
-      server.send(200, _encoding_json, g_content);
+      server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+      server.send_P(200, _encoding_json, " ");
+      this->chunkGroupsResponse(server);
+      server.sendContent("", 0);
     }
     else server.send(404, _encoding_text, _response_404);
 }
@@ -713,27 +789,22 @@ void Web::handleDiscovery(WebServer &server) {
   HTTPMethod method = apiServer.method();
   if (method == HTTP_POST || method == HTTP_GET) {
     Serial.println("Discovery Requested");
-    DynamicJsonDocument doc(min((uint32_t)WEB_MAX_RESPONSE, ESP.getMaxAllocHeap() - 512));
-    JsonObject obj = doc.to<JsonObject>();
-    obj["serverId"] = settings.serverId;
-    obj["version"] = settings.fwVersion.name;
-    obj["latest"] = git.latest.name;
-    obj["model"] = "ESPSomfyRTS";
-    obj["hostname"] = settings.hostname;
-    obj["authType"] = static_cast<uint8_t>(settings.Security.type);
-    obj["permissions"] = settings.Security.permissions;
-    obj["chipModel"] = settings.chipModel;
-    if(net.connType == conn_types::ethernet) obj["connType"] = "Ethernet";
-    else if(net.connType == conn_types::wifi) obj["connType"] = "Wifi";
-    else obj["connType"] = "Unknown";
-    JsonArray arrRooms = obj.createNestedArray("rooms");
-    somfy.toJSONRooms(arrRooms);
-    JsonArray arrShades = obj.createNestedArray("shades");
-    somfy.toJSONShades(arrShades);
-    JsonArray arrGroups = obj.createNestedArray("groups");
-    somfy.toJSONGroups(arrGroups);
-    serializeJson(doc, g_content);
-    server.send(200, _encoding_json, g_content);
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    // Alright lets chunk our response.
+    char connType[10] = "Unknown";
+    if(net.connType == conn_types::ethernet) strcpy(connType, "Ethernet");
+    else if(net.connType == conn_types::wifi) strcpy(connType, "Wifi");
+    snprintf(g_content, sizeof(g_content), "{\"serverId\":\"%s\",\"version\":\"%s\",\"latest\":\"%s\",\"model\":\"%s\",\"hostname\":\"%s\",\"authType\":%d,\"permissions\":%d,\"chipModel\":\"%s\",\"connType:\":\"%s\"",
+      settings.serverId, settings.fwVersion.name, git.latest.name, "ESPSomfyRTS", settings.hostname, static_cast<uint8_t>(settings.Security.type), settings.Security.permissions, settings.chipModel, connType);
+    server.send_P(200, _encoding_json, g_content);
+    server.sendContent(",\"rooms\":");
+    this->chunkRoomsResponse(server);
+    server.sendContent(",\"shades\":");
+    this->chunkShadesResponse(server);
+    server.sendContent(",\"groups\":");
+    this->chunkGroupsResponse(server);
+    server.sendContent("}");
+    server.sendContent("", 0);
   }
   else
     server.send(500, _encoding_text, "Invalid http method");
@@ -768,6 +839,7 @@ void Web::handleBackup(WebServer &server, bool attach) {
   if (!file) {
     Serial.println("Error opening shades.cfg");
     server.send(500, _encoding_text, "shades.cfg");
+    return;
   }
   server.streamFile(file, _encoding_text);
   file.close();
@@ -1988,34 +2060,22 @@ void Web::begin() {
     Serial.print("Scanned ");
     Serial.print(n);
     Serial.println(" networks");
-    DynamicJsonDocument doc(16384);
-    JsonObject obj = doc.to<JsonObject>();
-    JsonObject connected = obj.createNestedObject("connected");
-    connected["name"] = settings.WIFI.ssid;
-    connected["passphrase"] = settings.WIFI.passphrase;
-    connected["strength"] = WiFi.RSSI();
-    connected["channel"] = WiFi.channel();
-    JsonArray arr = obj.createNestedArray("accessPoints");
+    // Ok we need to chunk this response as well.
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    // Alright lets chunk our response to this because we cannot allocate all that memory.
+    snprintf(g_content, sizeof(g_content), "{\"connected\":{\"name\":\"%s\",\"passphrase\":\"%s\",\"strength\":%d,\"channel\":%d},\"accessPoints\":[",
+      settings.WIFI.ssid, settings.WIFI.passphrase, WiFi.RSSI(), WiFi.channel());
+    server.send_P(200, _encoding_json, g_content);
+    bool bFirst = true;
     for(int i = 0; i < n; ++i) {
       if(WiFi.SSID(i).length() == 0 || WiFi.RSSI(i) < -95) continue; // Ignore hidden and weak networks that we cannot connect to anyway.
-      JsonObject a = arr.createNestedObject();
-      a["name"] = WiFi.SSID(i);
-      a["channel"] = WiFi.channel(i);
-      a["encryption"] = settings.WIFI.mapEncryptionType(WiFi.encryptionType(i));
-      a["strength"] = WiFi.RSSI(i);
-      a["macAddress"] = WiFi.BSSIDstr(i);
+      snprintf(g_content, sizeof(g_content), "%s{\"name\":\"%s\",\"channel\":%d,\"encryption\":\"%s\",\"strength\":%d,\"macAddress\":\"%s\"}",
+      bFirst ? "" : ",", WiFi.SSID(i).c_str(), WiFi.channel(i), settings.WIFI.mapEncryptionType(WiFi.encryptionType(i)).c_str(), WiFi.RSSI(i), WiFi.BSSIDstr(i).c_str());
+      server.sendContent(g_content);
+      bFirst = false;
     }
-    serializeJson(doc, g_content);
-    /*
-    String content = "{\"connected\": {\"name\":\"" + String(settings.WIFI.ssid) + "\",\"passphrase\":\"" + String(settings.WIFI.passphrase) + "\",\"strength\":" + WiFi.RSSI() + ",\"channel\":" + WiFi.channel() + "}, \"accessPoints\":[";
-    for (int i = 0; i < n; ++i) {
-      if (i != 0) content += ",";
-      content += "{\"name\":\"" + WiFi.SSID(i) + "\",\"channel\":" + WiFi.channel(i) + ",\"encryption\":\"" + settings.WIFI.mapEncryptionType(WiFi.encryptionType(i)) + "\",\"strength\":" + WiFi.RSSI(i) + ",\"macAddress\":\"" + WiFi.BSSIDstr(i) + "\"}";
-      delay(10);
-    }
-    content += "]}";
-    */
-    server.send(statusCode, "application/json", g_content);
+    server.sendContent("]}");
+    server.sendContent("", 0);
     });
   server.on("/reboot", []() { webServer.handleReboot(server);});
   server.on("/saveSecurity", []() {
@@ -2380,7 +2440,6 @@ void Web::begin() {
       }
     }
   });
-    
   server.on("/shadeSortOrder", []() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);

@@ -29,7 +29,6 @@ void GitRelease::setReleaseProperty(const char *key, const char *val) {
   else if(strcmp(key, "published_at") == 0) {
     //Serial.printf("Key:[%s] Value:[%s]\n", key, val);
     this->releaseDate = Timestamp::parseUTCTime(val);
-    //Serial.println(this->releaseDate);
   }
 }
 void GitRelease::setAssetProperty(const char *key, const char *val) {
@@ -85,6 +84,7 @@ bool GitRelease::toJSON(JsonObject &obj) {
 int16_t GitRepo::getReleases(uint8_t num) {
   WiFiClientSecure sclient;
   sclient.setInsecure();
+  sclient.setHandshakeTimeout(3);
   uint8_t ndx = 0;
   uint8_t count = min((uint8_t)GIT_MAX_RELEASES, num);
   char url[128];
@@ -241,8 +241,11 @@ bool GitRepo::toJSON(JsonObject &obj) {
 
 void GitUpdater::loop() {
   if(this->status == GIT_STATUS_READY) {
-    if(this->lastCheck == 0) this->lastCheck = millis();
-    else if(this->lastCheck + 14400000 < millis() && !rebootDelay.reboot) { // 4 hours
+    //if(this->lastCheck == 0) 
+      //this->lastCheck = millis();
+    //else 
+    if(settings.checkForUpdate && 
+      (this->lastCheck + 14400000 < millis() || this->lastCheck == 0) && !rebootDelay.reboot) { // 4 hours
       this->checkForUpdate();
     }
   }
@@ -265,9 +268,9 @@ void GitUpdater::checkForUpdate() {
   Serial.println("Check github for updates...");
   this->status = GIT_STATUS_CHECK;
   settings.printAvailHeap();  
+  this->lastCheck = millis();
   if(this->checkInternet() == 0) {
     GitRepo repo;
-    this->lastCheck = millis();
     this->updateAvailable = false;
     this->error = repo.getReleases(2);
     if(this->error == 0) { // Get 2 releases so we can filter our pre-releases
@@ -320,6 +323,7 @@ int GitUpdater::checkInternet() {
   uint32_t t = millis();
   WiFiClientSecure client;
   client.setInsecure();
+  client.setHandshakeTimeout(3);
   HTTPClient *https = new HTTPClient();
   https->setReuse(false);
   if(https->begin(client, "https://github.com/rstrouse/ESPSomfy-RTS")) {
@@ -328,11 +332,11 @@ int GitUpdater::checkInternet() {
     int httpCode = https->sendRequest("HEAD");
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
       err = 0;
-      Serial.printf("Check Internet Success: %ldms\n", millis() - t);
+      Serial.printf("Internet is Available: %ldms\n", millis() - t);
     }
     else {
       err = httpCode;
-      Serial.printf("Check Internet Error: %d: %ldms\n", err, millis() - t);
+      Serial.printf("Internet is Unavailable: %d: %ldms\n", err, millis() - t);
     }
     https->end();
   }

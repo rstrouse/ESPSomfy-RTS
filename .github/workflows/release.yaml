@@ -83,7 +83,7 @@ jobs:
           - board: esp32
             addr_bootloader: 0x1000
             chip: ESP32
-            fqbn: esp32:esp32:esp32:FlashMode=qio,FlashFreq=80,DebugLevel=none
+            fqbn: esp32:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,DebugLevel=none
             # esp32:esp32:esp32wrover:PartitionScheme=default,FlashMode=qio,FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none 
             name: ESP32
             obname: SomfyController.onboard.esp32.bin
@@ -105,7 +105,7 @@ jobs:
           - board: esp32s3
             addr_bootloader: 0x0
             chip: ESP32-S3
-            fqbn: esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc
+            fqbn: esp32:esp32:esp32s3:JTAGAdapter=default,USBMode=hwcdc,CDCOnBoot=cdc,DebugLevel=none,FlashMode=qio,PartitionScheme=default
             # esp32:esp32:esp32s3:JTAGAdapter=default,PSRAM=disabled,FlashMode=qio,FlashSize=4M,LoopCore=1,EventsCore=1,USBMode=hwcdc,CDCOnBoot=cdc,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,PartitionScheme=default,CPUFreq=240,UploadSpeed=921600,DebugLevel=none,EraseFlash=none
             name: ESP32S3
             fwname: SomfyController.ino.esp32s3.bin
@@ -161,7 +161,7 @@ jobs:
       - name: Build ${{ matrix.name }}
         run: |
           mkdir -p build${{ matrix.name }}
-          arduino-cli compile --clean --output-dir build${{ matrix.name }} --fqbn ${{ matrix.fqbn }} --warnings default ./SomfyController
+          arduino-cli compile --clean --output-dir build${{ matrix.name }} --fqbn ${{ matrix.fqbn }} --warnings none ./SomfyController
 
       - name: ${{ matrix.name }} Image
         run: |

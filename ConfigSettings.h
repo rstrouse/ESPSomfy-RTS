@@ -161,6 +161,7 @@ class ConfigSettings: BaseSettings {
     appver_t fwVersion;
     appver_t appVersion;
     bool ssdpBroadcast = true;
+    bool checkForUpdate = true;
     uint8_t status;
     IPSettings IP;
     WifiSettings WIFI;

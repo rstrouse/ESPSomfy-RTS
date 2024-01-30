@@ -39,5 +39,10 @@ class Web {
     bool createAPIPinToken(const IPAddress ipAddress, const char *pin, char *token);
     bool createAPIPasswordToken(const IPAddress ipAddress, const char *username, const char *password, char *token);
     bool isAuthenticated(WebServer &server, bool cfg = false);
+
+    void chunkRoomsResponse(WebServer &server, const char *elem = nullptr);
+    void chunkShadesResponse(WebServer &server, const char *elem = nullptr);
+    void chunkGroupsResponse(WebServer &server, const char *elem = nullptr);
 };
+
 #endif

@@ -273,7 +273,6 @@ function getJSON(url, cb) {
 function getJSONSync(url, cb) {
     let overlay = ui.waitMessage(document.getElementById('divContainer'));
     let xhr = new XMLHttpRequest();
-    console.log({ get: url });
     xhr.responseType = 'json';
     xhr.onload = () => {
         let status = xhr.status;
@@ -285,10 +284,12 @@ function getJSONSync(url, cb) {
             cb(xhr.response, null);
         }
         else {
+            console.log({ get: url, obj:xhr.response });
             cb(null, xhr.response);
         }
         if (typeof overlay !== 'undefined') overlay.remove();
     };
+    
     xhr.onerror = (evt) => {
         let err = {
             htmlError: xhr.status || 500,
@@ -1956,6 +1957,7 @@ class Somfy {
                 this.setRoomsList(somfy.rooms);
                 this.setShadesList(somfy.shades);
                 this.setGroupsList(somfy.groups);
+                if (typeof somfy.version !== 'undefined') firmware.procFwStatus(somfy.version);
             }
         });
     }
@@ -2755,7 +2757,7 @@ class Somfy {
         while (sel.firstChild) sel.removeChild(sel.firstChild);
         let cm = document.getElementById('divContainer').getAttribute('data-chipmodel');
         let pm = this.pinMaps.find(x => x.name === cm) || { name: '', maxPins: 39, inputs: [0, 1, 6, 7, 8, 9, 10, 11, 37, 38], outputs: [3, 6, 7, 8, 9, 10, 11, 34, 35, 36, 37, 38, 39] };
-        console.log({ cm: cm, pm: pm });
+        //console.log({ cm: cm, pm: pm });
         for (let i = 0; i <= pm.maxPins; i++) {
             if (type.includes('in') && pm.inputs.includes(i)) continue;
             if (type.includes('out') && pm.outputs.includes(i)) continue;
