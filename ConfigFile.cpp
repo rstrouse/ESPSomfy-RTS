@@ -7,7 +7,7 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 19
+#define SHADE_HDR_VER 20
 #define SHADE_HDR_SIZE 66
 #define SHADE_REC_SIZE 276
 #define GROUP_REC_SIZE 194
@@ -603,6 +603,7 @@ bool ShadeConfigFile::readTransRecord(transceiver_config_t &cfg) {
 }
 bool ShadeConfigFile::readSettingsRecord() {
   if(this->header.settingsRecordSize > 0) {
+    uint32_t startPos = this->file.position();
     Serial.println("Reading settings from file...");
     char ver[24];
     this->readVarString(ver, sizeof(ver));
@@ -610,6 +611,11 @@ bool ShadeConfigFile::readSettingsRecord() {
     this->readVarString(settings.NTP.ntpServer, sizeof(settings.NTP.ntpServer));
     this->readVarString(settings.NTP.posixZone, sizeof(settings.NTP.posixZone));
     settings.ssdpBroadcast = this->readBool(false);
+    if(this->header.version >= 20) settings.checkForUpdate = this->readBool(true);
+    if(this->file.position() != startPos + this->header.settingsRecordSize) {
+      Serial.println("Reading to end of settings record");
+      this->seekChar(CFG_REC_END);
+    }
   }
   return true;
 }
@@ -872,7 +878,8 @@ bool ShadeConfigFile::writeSettingsRecord() {
   this->writeVarString(settings.hostname);
   this->writeVarString(settings.NTP.ntpServer);
   this->writeVarString(settings.NTP.posixZone);
-  this->writeBool(settings.ssdpBroadcast, CFG_REC_END);
+  this->writeBool(settings.ssdpBroadcast);
+  this->writeBool(settings.checkForUpdate, CFG_REC_END);
   return true;
 }
 bool ShadeConfigFile::writeNetRecord() {

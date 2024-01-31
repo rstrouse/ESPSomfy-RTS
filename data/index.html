@@ -53,6 +53,10 @@
                             <input id="cbSsdpBroadcast" name="ssdpBroadcast" type="checkbox" data-bind="general.ssdpBroadcast" style="display:inline-block;" />
                             <label for="cbSsdpBroadcast" style="display:inline-block;cursor:pointer;">Broadcast uPnP over SSDP</label>
                         </div>
+                        <div class="field-group">
+                            <input id="cbCheckForUpdate" type="checkbox" data-bind="general.checkForUpdate" style="display:inline-block;" />
+                            <label for="cbCheckForUpdate" style="display:inline-block;cursor:pointer;">Auto Check for Updates</label>
+                        </div>
                         <div class="button-container">
                             <button id="btnSaveGeneral" type="button" onclick="general.setGeneral();">
                                 Save
@@ -123,7 +127,6 @@
                             <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;">Application:</span>
                             <span id="spanAppVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
                         </div>
-
                         <div class="button-container">
                             <button id="btnUpdateGithub" type="button" onclick="firmware.updateGithub();">
                                 <i class="icss-github-o" style="font-size:1.7em;margin-top:-14px;margin-bottom:-10px;margin-right:7px;"></i><span>Github Update</span>

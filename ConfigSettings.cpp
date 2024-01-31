@@ -188,6 +188,7 @@ bool ConfigSettings::load() {
   pref.begin("CFG");
   pref.getString("hostname", this->hostname, sizeof(this->hostname));
   this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
+  this->checkForUpdate = pref.getBool("checkForUpdate", true);
   this->connType = static_cast<conn_types>(pref.getChar("connType", 0x00));
   //Serial.printf("Preference GFG Free Entries: %d\n", pref.freeEntries());
   pref.end();
@@ -220,6 +221,7 @@ bool ConfigSettings::save() {
   pref.putString("hostname", this->hostname);
   pref.putBool("ssdpBroadcast", this->ssdpBroadcast);
   pref.putChar("connType", static_cast<uint8_t>(this->connType));
+  pref.putBool("checkForUpdate", this->checkForUpdate);
   pref.end();
   return true;
 }
@@ -228,6 +230,7 @@ bool ConfigSettings::toJSON(JsonObject &obj) {
   obj["hostname"] = this->hostname;
   obj["connType"] = static_cast<uint8_t>(this->connType);
   obj["chipModel"] = this->chipModel;
+  obj["checkForUpdate"] = this->checkForUpdate;
   return true;
 }
 bool ConfigSettings::requiresAuth() { return this->Security.type != security_types::None; }
@@ -235,6 +238,7 @@ bool ConfigSettings::fromJSON(JsonObject &obj) {
     if(obj.containsKey("ssdpBroadcast")) this->ssdpBroadcast = obj["ssdpBroadcast"];
     if(obj.containsKey("hostname")) this->parseValueString(obj, "hostname", this->hostname, sizeof(this->hostname));
     if(obj.containsKey("connType")) this->connType = static_cast<conn_types>(obj["connType"].as<uint8_t>());
+    if(obj.containsKey("checkForUpdate")) this->checkForUpdate = obj["checkForUpdate"];
     return true;
 }
 void ConfigSettings::print() {
@@ -251,7 +255,8 @@ uint16_t ConfigSettings::calcSettingsRecSize() {
     + strlen(this->hostname) + 3
     + strlen(this->NTP.ntpServer) + 3
     + strlen(this->NTP.posixZone) + 3
-    + 6; // ssdpbroadcast
+    + 6  // ssdpbroadcast
+    + 6; // updateCheck
 }
 uint16_t ConfigSettings::calcNetRecSize() {
   return 4 // connType

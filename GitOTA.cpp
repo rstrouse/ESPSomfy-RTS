@@ -245,7 +245,8 @@ void GitUpdater::loop() {
       //this->lastCheck = millis();
     //else 
     if(settings.checkForUpdate && 
-      (this->lastCheck + 14400000 < millis() || this->lastCheck == 0) && !rebootDelay.reboot) { // 4 hours
+      //(this->lastCheck + 14400000 < millis() || this->lastCheck == 0) && !rebootDelay.reboot) { // 4 hours
+      (this->lastCheck + 86400000 < millis() || this->lastCheck == 0) && !rebootDelay.reboot) { // 1 day
       this->checkForUpdate();
     }
   }
