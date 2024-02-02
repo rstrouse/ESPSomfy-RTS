@@ -1090,9 +1090,11 @@ void Web::begin() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument sdoc(512);
     JsonObject sobj = sdoc.to<JsonObject>();
-    git.status = GIT_UPDATE_CANCELLING;
-    git.toJSON(sobj);
-    git.cancelled = true;
+    if(!git.lockFS) {
+      git.status = GIT_UPDATE_CANCELLING;
+      git.toJSON(sobj);
+      git.cancelled = true;
+    }
     serializeJson(sdoc, g_content);
     server.send(200, _encoding_json, g_content);
   });

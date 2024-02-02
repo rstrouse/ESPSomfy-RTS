@@ -39,6 +39,7 @@ class GitRepo {
 class GitUpdater {
   public:
     bool lockFS = false;
+    bool canCancel = true;
     uint8_t status = 0;
     uint32_t lastCheck = 0;
     bool updateAvailable = false;

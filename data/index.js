@@ -4277,6 +4277,9 @@ class Firmware {
             // Update the status on the client that started the install.
             if (pct >= 100 && prog.part === 100) git.remove();
             else {
+                if (prog.part === 100) {
+                    document.getElementById('btnCancelUpdate').style.display = 'none';
+                }
                 let p = prog.part === 100 ? document.getElementById('progApplicationDownload') : document.getElementById('progFirmwareDownload');
                 if (p) {
                     p.style.setProperty('--progress', `${pct}%`);
@@ -4306,7 +4309,7 @@ class Firmware {
             else {
                 general.reloadApp = true;
                 // Change the display and allow the percentage to be shown when the socket emits the progress.
-                let html = `<div>Installing ${ver.name}</div><div style="font-size:.7em;margin-top:4px;">Please wait as the files are downloaded and installed.</div>`;
+                let html = `<div>Installing ${ver.name}</div><div style="font-size:.7em;margin-top:4px;">Please wait as the files are downloaded and installed.  Once the application update process starts you may no longer cancel the update as this will corrupt the downloaded files.</div>`;
                 html += `<div class="progress-bar" id="progFirmwareDownload" style="--progress:0%;margin-top:10px;text-align:center;"></div>`;
                 html += `<label for="progFirmwareDownload" style="font-size:10pt;">Firmware Install Progress</label>`;
                 html += `<div class="progress-bar" id="progApplicationDownload" style="--progress:0%;margin-top:10px;text-align:center;"></div>`;

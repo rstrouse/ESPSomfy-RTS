@@ -259,9 +259,11 @@ void GitUpdater::loop() {
   }
   else if(this->status == GIT_UPDATE_CANCELLING) {
     Serial.println("Cancelling update process..........");
-    this->status = GIT_UPDATE_CANCELLED;
-    this->emitUpdateCheck();
-    this->cancelled = true;
+    if(!this->lockFS) {
+      this->status = GIT_UPDATE_CANCELLED;
+      this->cancelled = true;
+      this->emitUpdateCheck();
+    }
   }
 }
 void GitUpdater::checkForUpdate() {
@@ -382,7 +384,7 @@ bool GitUpdater::beginUpdate(const char *version) {
   this->emitUpdateCheck();
   this->setFirmwareFile();
   this->partition = U_FLASH;
-  this->cancelled = false;
+  this->lockFS = this->cancelled = false;
   this->error = 0;
   this->error = this->downloadFile();
   if(this->error == 0 && !this->cancelled) {
@@ -457,7 +459,7 @@ int8_t GitUpdater::downloadFile() {
             while(https.connected() && (len > 0 || len == -1) && total < len) {
               size_t size = stream->available();
               if(size) {
-                if(this->cancelled) {
+                if(this->cancelled && !this->lockFS) {
                   Update.abort();
                   https.end();
                   free(buff);
