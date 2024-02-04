@@ -305,6 +305,7 @@ void GitUpdater::toJSON(JsonObject &obj) {
   obj["error"] = this->error;
   obj["cancelled"] = this->cancelled;
   obj["checkForUpdate"] = settings.checkForUpdate;
+  obj["inetAvailable"] = this->inetAvailable;
   JsonObject fw = obj.createNestedObject("fwVersion");
   settings.fwVersion.toJSON(fw);
   JsonObject app = obj.createNestedObject("appVersion");
@@ -337,10 +338,12 @@ int GitUpdater::checkInternet() {
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
       err = 0;
       Serial.printf("Internet is Available: %ldms\n", millis() - t);
+      this->inetAvailable = true;
     }
     else {
       err = httpCode;
       Serial.printf("Internet is Unavailable: %d: %ldms\n", err, millis() - t);
+      this->inetAvailable = false;
     }
     https->end();
   }

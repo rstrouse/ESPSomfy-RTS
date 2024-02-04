@@ -43,6 +43,7 @@ class GitUpdater {
     uint8_t status = 0;
     uint32_t lastCheck = 0;
     bool updateAvailable = false;
+    bool inetAvailable = false;
     appver_t latest;
     bool cancelled = false;
     int16_t error = 0;
