@@ -1264,7 +1264,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.3.2';
+    appVersion = 'v2.3.3';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -4224,9 +4224,9 @@ class Firmware {
     procFwStatus(rel) {
         console.log(rel);
         let div = document.getElementById('divFirmwareUpdate');
-        if (rel.updateAvailable && rel.status === 0) {
-            div.style.color = 'red';
-            div.innerHTML = `Firmware ${rel.latest.name} Available`;
+        if (rel.available && rel.status === 0 && rel.checkForUpdate !== false) {
+            div.style.color = 'black';
+            div.innerHTML = `<span>Firmware ${rel.fwVersion.name} Installed<span><span style="color:red"> ${rel.latest.name} Available</span>`;
         }
         else {
             switch (rel.status) {

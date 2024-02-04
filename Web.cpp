@@ -794,8 +794,8 @@ void Web::handleDiscovery(WebServer &server) {
     char connType[10] = "Unknown";
     if(net.connType == conn_types::ethernet) strcpy(connType, "Ethernet");
     else if(net.connType == conn_types::wifi) strcpy(connType, "Wifi");
-    snprintf(g_content, sizeof(g_content), "{\"serverId\":\"%s\",\"version\":\"%s\",\"latest\":\"%s\",\"model\":\"%s\",\"hostname\":\"%s\",\"authType\":%d,\"permissions\":%d,\"chipModel\":\"%s\",\"connType:\":\"%s\"",
-      settings.serverId, settings.fwVersion.name, git.latest.name, "ESPSomfyRTS", settings.hostname, static_cast<uint8_t>(settings.Security.type), settings.Security.permissions, settings.chipModel, connType);
+    snprintf(g_content, sizeof(g_content), "{\"serverId\":\"%s\",\"version\":\"%s\",\"latest\":\"%s\",\"model\":\"%s\",\"hostname\":\"%s\",\"authType\":%d,\"permissions\":%d,\"chipModel\":\"%s\",\"connType\":\"%s\",\"checkForUpdate\":%s",
+      settings.serverId, settings.fwVersion.name, git.latest.name, "ESPSomfyRTS", settings.hostname, static_cast<uint8_t>(settings.Security.type), settings.Security.permissions, settings.chipModel, connType, settings.checkForUpdate ? "true" : "false");
     server.send_P(200, _encoding_json, g_content);
     server.sendContent(",\"rooms\":");
     this->chunkRoomsResponse(server);
@@ -2215,8 +2215,10 @@ void Web::begin() {
       if (method == HTTP_POST || method == HTTP_PUT) {
         // Parse out all the inputs.
         if (obj.containsKey("hostname") || obj.containsKey("ssdpBroadcast") || obj.containsKey("checkForUpdate")) {
+          bool checkForUpdate = settings.checkForUpdate;
           settings.fromJSON(obj);
           settings.save();
+          if(settings.checkForUpdate != checkForUpdate) git.emitUpdateCheck();
           if(obj.containsKey("hostname")) net.updateHostname();
         }
         if (obj.containsKey("ntpServer") || obj.containsKey("ntpServer")) {

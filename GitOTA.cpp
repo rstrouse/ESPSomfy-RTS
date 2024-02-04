@@ -304,6 +304,7 @@ void GitUpdater::toJSON(JsonObject &obj) {
   obj["status"] = this->status;
   obj["error"] = this->error;
   obj["cancelled"] = this->cancelled;
+  obj["checkForUpdate"] = settings.checkForUpdate;
   JsonObject fw = obj.createNestedObject("fwVersion");
   settings.fwVersion.toJSON(fw);
   JsonObject app = obj.createNestedObject("appVersion");
