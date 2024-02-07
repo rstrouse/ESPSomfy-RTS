@@ -14,6 +14,8 @@
 
 struct config_header_t {
   uint8_t version = 1;
+  uint8_t repeaterRecords = 0;
+  uint8_t repeaterRecordSize = 0;
   uint8_t roomRecords = 0;
   uint16_t roomRecordSize = 0;
   uint16_t shadeRecordSize = 0;
@@ -65,12 +67,14 @@ class ConfigFile {
 };
 class ShadeConfigFile : public ConfigFile {
   protected:
+    bool writeRepeaterRecord(SomfyShadeController *s);
     bool writeRoomRecord(SomfyRoom *room);
     bool writeShadeRecord(SomfyShade *shade);
     bool writeGroupRecord(SomfyGroup *group);
     bool writeSettingsRecord();
     bool writeNetRecord();
     bool writeTransRecord(transceiver_config_t &cfg);
+    bool readRepeaterRecord(SomfyShadeController *s);
     bool readRoomRecord(SomfyRoom *room);
     bool readShadeRecord(SomfyShade *shade);
     bool readGroupRecord(SomfyGroup *group);

@@ -312,6 +312,14 @@ void Web::handleController(WebServer &server) {
     this->chunkShadesResponse(server);
     server.sendContent(",\"groups\":");
     this->chunkGroupsResponse(server);
+    server.sendContent(",\"repeaters\":");
+    {
+      DynamicJsonDocument doc(512);
+      JsonArray r = doc.to<JsonArray>();
+      somfy.toJSONRepeaters(r);
+      serializeJson(doc, g_content);
+      server.sendContent(g_content);
+    }
     server.sendContent("}");
     server.sendContent("", 0);
   }
@@ -330,6 +338,19 @@ void Web::handleLoginContext(WebServer &server) {
     obj["hostname"] = settings.hostname;
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
+}
+void Web::handleGetRepeaters(WebServer &server) {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    HTTPMethod method = server.method();
+    if (method == HTTP_POST || method == HTTP_GET) {
+      DynamicJsonDocument doc(512);
+      JsonArray r = doc.to<JsonArray>();
+      somfy.toJSONRepeaters(r);
+      serializeJson(doc, g_content);
+      server.send(200, _encoding_json, g_content);
+    }
+    else server.send(404, _encoding_text, _response_404);
 }
 void Web::handleGetRooms(WebServer &server) {
     webServer.sendCORSHeaders(server);
@@ -1654,6 +1675,77 @@ void Web::begin() {
       }
     }
     });
+  server.on("/linkRepeater", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    HTTPMethod method = server.method();
+    if (method == HTTP_PUT || method == HTTP_POST) {
+      // We are adding a linked repeater.
+      uint32_t address = 0;
+      if (server.hasArg("plain")) {
+        Serial.println("Linking a repeater");
+        DynamicJsonDocument doc(512);
+        DeserializationError err = deserializeJson(doc, server.arg("plain"));
+        if (err) {
+          webServer.handleDeserializationError(server, err);
+          return;
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("address")) address = obj["address"];
+          else if(obj.containsKey("remoteAddress")) address = obj["remoteAddress"];
+        }
+      }
+      else if(server.hasArg("address"))
+        address = atoi(server.arg("address").c_str());
+      if(address == 0)
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No repeater address was supplied.\"}"));
+      else {
+        somfy.linkRepeater(address);
+        DynamicJsonDocument doc(512);
+        JsonArray r = doc.to<JsonArray>();
+        somfy.toJSONRepeaters(r);
+        serializeJson(doc, g_content);
+        server.send(200, _encoding_json, g_content);
+      }
+    }
+  });
+  server.on("/unlinkRepeater", []() {
+    webServer.sendCORSHeaders(server);
+    if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    HTTPMethod method = server.method();
+    if (method == HTTP_PUT || method == HTTP_POST) {
+      // We are adding a linked repeater.
+      uint32_t address = 0;
+      if (server.hasArg("plain")) {
+        Serial.println("Unlinking a repeater");
+        DynamicJsonDocument doc(512);
+        DeserializationError err = deserializeJson(doc, server.arg("plain"));
+        if (err) {
+          webServer.handleDeserializationError(server, err);
+          return;
+        }
+        else {
+          JsonObject obj = doc.as<JsonObject>();
+          if (obj.containsKey("address")) address = obj["address"];
+          else if(obj.containsKey("remoteAddress")) address = obj["remoteAddress"];
+        }
+      }
+      else if(server.hasArg("address"))
+        address = atoi(server.arg("address").c_str());
+      if(address == 0)
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No repeater address was supplied.\"}"));
+      else {
+        somfy.unlinkRepeater(address);
+        DynamicJsonDocument doc(512);
+        JsonArray r = doc.to<JsonArray>();
+        somfy.toJSONRepeaters(r);
+        serializeJson(doc, g_content);
+        server.send(200, _encoding_json, g_content);
+      }
+    }
+  });
+  
   server.on("/unlinkRemote", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }

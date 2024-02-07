@@ -1264,7 +1264,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.3.3';
+    appVersion = 'v2.4.0';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1957,6 +1957,7 @@ class Somfy {
                 this.setRoomsList(somfy.rooms);
                 this.setShadesList(somfy.shades);
                 this.setGroupsList(somfy.groups);
+                this.setRepeaterList(somfy.repeaters);
                 if (typeof somfy.version !== 'undefined') firmware.procFwStatus(somfy.version);
             }
         });
@@ -2202,6 +2203,18 @@ class Somfy {
                 else this.updateRoomsList();
             });
         });
+    }
+    setRepeaterList(addresses) {
+        let divCfg = '';
+        if (typeof addresses !== 'undefined') {
+            for (let i = 0; i < addresses.length; i++) {
+                divCfg += `<div class="somfyRepeater" data-address="${addresses[i]}"><div class="repeater-name">${addresses[i]}</div>`;
+                divCfg += `<div class="button-outline" onclick="somfy.unlinkRepeater(${addresses[i]});"><i class="icss-trash"></i></div>`;
+                divCfg += '</div>';
+            }
+        }
+        document.getElementById('divRepeatList').innerHTML = divCfg;
+
     }
     setShadesList(shades) {
         let divCfg = '';
@@ -2832,6 +2845,16 @@ class Somfy {
                 this.setLinkedRemotesList(shade);
             });
         }
+        else {
+            lnk = document.getElementById('divLinkRepeater');
+            if (lnk) {
+                putJSONSync(`/linkRepeater`, {address:frame.address}, (err, repeaters) => {
+                    lnk.remove();
+                    if (err) ui.serviceError(err);
+                    else this.setRepeaterList(repeaters);
+                });
+            }
+        }
         let frames = document.getElementById('divFrames');
         let row = document.createElement('div');
         row.classList.add('frame-row');
@@ -3092,6 +3115,8 @@ class Somfy {
     showEditRoom(bShow) {
         let el = document.getElementById('divLinking');
         if (el) el.remove();
+        el = document.getElementById('divLinkRepeater');
+        if (el) el.remove();
         el = document.getElementById('divPairing');
         if (el) el.remove();
         el = document.getElementById('divRollingCode');
@@ -3108,6 +3133,8 @@ class Somfy {
     showEditShade(bShow) {
         let el = document.getElementById('divLinking');
         if (el) el.remove();
+        el = document.getElementById('divLinkRepeater');
+        if (el) el.remove();
         el = document.getElementById('divPairing');
         if (el) el.remove();
         el = document.getElementById('divRollingCode');
@@ -3123,6 +3150,8 @@ class Somfy {
     }
     showEditGroup(bShow) {
         let el = document.getElementById('divLinking');
+        if (el) el.remove();
+        el = document.getElementById('divLinkRepeater');
         if (el) el.remove();
         el = document.getElementById('divPairing');
         if (el) el.remove();
@@ -3330,6 +3359,15 @@ class Somfy {
                 // Create the groups list.
                 this.setGroupsList(groups);
             }
+        });
+    }
+    updateRepeatList() {
+        getJSONSync('/repeaters', (err, repeaters) => {
+            if (err) {
+                console.log(err);
+                ui.serviceError(err);
+            }
+            else this.setRepeaterList(repeaters);
         });
     }
     deleteRoom(roomId) {
@@ -3740,6 +3778,20 @@ class Somfy {
         document.getElementById('somfyShade').appendChild(div);
         return div;
     }
+    linkRepeatRemote() {
+        let div = document.createElement('div');
+        let html = `<div id="divLinkRepeater" class="instructions" data-type="link-repeatremote" style="border-radius:27px;">`;
+        html += '<div>Press any button on the remote to repeat its signals.</div>';
+        html += '<div class="sub-message">When assigned, ESPSomfy RTS will act as a repeater and repeat any frames for the identified remotes. Only repeat remotes when ESPSomfy RTS reliably hears the remote but the motor does not.  Repeating unnecessary radio signals will degrade radio performance.</div>'
+        html += '<div class="sub-message">Once a signal is detected from the remote this window will close and the remote signals will be repeated.</div>'
+        html += '<hr></hr>';
+        html += `<div><div class="button-container"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;" onclick="document.getElementById('divLinkRepeater').remove();">Cancel</button></div>`;
+        html += '</div>';
+        div.innerHTML = html;
+        document.getElementById('divConfigPnl').appendChild(div);
+        return div;
+    }
+
     linkGroupShade(groupId) {
         let div = document.createElement('div');
         let html = `<div id="divLinkGroup" class="inst-overlay wizard" data-type="link-shade" data-groupid="${groupId}" data-stepid="1">`;
@@ -3956,6 +4008,17 @@ class Somfy {
         });
         return div;
     }
+    unlinkRepeater(address) {
+        let prompt = ui.promptMessage('Are you sure you want to stop repeating frames from this address?', () => {
+            putJSONSync('/unlinkRepeater', { address: address }, (err, repeaters) => {
+                if (err) ui.serviceError(err);
+                else this.setRepeaterList(repeaters);
+                prompt.remove();
+            });
+
+        });
+    }
+
     unlinkRemote(shadeId, remoteAddress) {
         let prompt = ui.promptMessage('Are you sure you want to unlink this remote from the shade?', () => {
             let obj = {
@@ -4192,6 +4255,7 @@ class Firmware {
         html += `<div style="font-size:14px;">Restoring network settings from a different board than the original will ignore Ethernet chip settings. Security, MQTT and WiFi will also not be restored since backup files do not contain passwords.</div><hr/>`;
         html += '<div style="font-size:14px;margin-bottom:27px;text-align:left;margin-left:70px;">';
         html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreShades" type="checkbox" data-bind="shades" style="display:inline-block;" checked="true" /><label for="cbRestoreShades" style="display:inline-block;cursor:pointer;color:white;">Restore Shades and Groups</label></div>`;
+        html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreRepeaters" type="checkbox" data-bind="repeaters" style="display:inline-block;" /><label for="cbRestoreRepeaters" style="display:inline-block;cursor:pointer;color:white;">Restore Repeaters</label></div>`;
         html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreSystem" type="checkbox" data-bind="settings" style="display:inline-block;" /><label for="cbRestoreSystem" style="display:inline-block;cursor:pointer;color:white;">Restore System Settings</label></div>`;
         html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreNetwork" type="checkbox" data-bind="network" style="display:inline-block;" /><label for="cbRestoreNetwork" style="display:inline-block;cursor:pointer;color:white;">Restore Network Settings</label></div>`
         html += `<div class="field-group" style="vertical-align:middle;width:auto;"><input id="cbRestoreTransceiver" type="checkbox" data-bind="transceiver" style="display:inline-block;" /><label for="cbRestoreTransceiver" style="display:inline-block;cursor:pointer;color:white;">Restore Radio Settings</label></div>`;
@@ -4559,11 +4623,15 @@ class Firmware {
                     ui.errorMessage('You must select a valid backup file to proceed.');
                     return;
                 }
-                else if (!filename.endsWith('.backup') || filename.indexOf('ESPSomfyRTS') === -1) {
+                else if (field.files[0].size > 20480) {
+                    ui.errorMessage(el, `This file is ${field.files[0].size.fmt("#,##0")} bytes in length.  This file is too large to be a valid backup file.`);
+                    return;
+                }
+                else if (!filename.endsWith('.backup')) {
                     ui.errorMessage(el, 'This file is not a valid backup file');
                     return;
                 }
-                if (!data.shades && !data.settings && !data.network && !data.transceiver) {
+                if (!data.shades && !data.settings && !data.network && !data.transceiver && !data.repeaters) {
                     ui.errorMessage(el, 'No restore options have been selected');
                     return;
                 }

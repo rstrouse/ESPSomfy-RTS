@@ -29,6 +29,7 @@ uint8_t rxmode = 0;  // Indicates whether the radio is in receive mode.  Just to
 
 #define SETMY_REPEATS 35
 #define TILT_REPEATS 15
+#define TX_QUEUE_DELAY 100
 
 int sort_asc(const void *cmp1, const void *cmp2) {
   int a = *((uint8_t *)cmp1);
@@ -613,7 +614,7 @@ void SomfyShade::clear() {
   this->lastRollingCode = 0;
   this->shadeType = shade_types::roller;
   this->tiltType = tilt_types::none;
-  this->txQueue.clear();
+  //this->txQueue.clear();
   this->currentPos = 0.0f;
   this->currentTiltPos = 0.0f;
   this->direction = 0;
@@ -799,6 +800,17 @@ void SomfyGroup::compressLinkedShadeIds() {
       if(i != j) {
         this->linkedShades[j] = this->linkedShades[i];
         this->linkedShades[i] = 0;
+      }
+      j++;
+    }
+  }
+}
+void SomfyShadeController::compressRepeaters() {
+  for(uint8_t i = 0, j = 0; i < SOMFY_MAX_REPEATERS; i++) {
+    if(this->repeaters[i] != 0) {
+      if(i != j) {
+        this->repeaters[j] = this->repeaters[i];
+        this->repeaters[i] = 0;
       }
       j++;
     }
@@ -3164,8 +3176,9 @@ bool SomfyRemote::toJSON(JsonObject &obj) {
 void SomfyRemote::setRemoteAddress(uint32_t address) { this->m_remoteAddress = address; snprintf(this->m_remotePrefId, sizeof(this->m_remotePrefId), "_%lu", (unsigned long)this->m_remoteAddress); }
 uint32_t SomfyRemote::getRemoteAddress() { return this->m_remoteAddress; }
 void SomfyShadeController::processFrame(somfy_frame_t &frame, bool internal) {
-  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++)
+  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     if(this->shades[i].getShadeId() != 255) this->shades[i].processFrame(frame, internal);
+  }
 }
 void SomfyShadeController::processWaitingFrame() {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++)
@@ -3300,7 +3313,13 @@ int8_t SomfyShadeController::getMaxRoomOrder() {
   }
   return order;
 }
-
+uint8_t SomfyShadeController::repeaterCount() {
+  uint8_t count = 0;
+  for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
+    if(this->repeaters[i] != 0) count++;
+  }
+  return count;
+}
 uint8_t SomfyShadeController::roomCount() {
   uint8_t count = 0;
   for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
@@ -3410,6 +3429,30 @@ SomfyShade *SomfyShadeController::addShade() {
     #endif
   }
   return shade;
+}
+bool SomfyShadeController::unlinkRepeater(uint32_t address) {
+  for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
+    if(this->repeaters[i] == address) this->repeaters[i] = 0;
+  }
+  this->compressRepeaters();
+  this->isDirty = true;
+  return true;  
+}
+bool SomfyShadeController::linkRepeater(uint32_t address) {
+  bool bSet = false;
+  for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
+    if(!bSet && this->repeaters[i] == address) bSet = true;
+    else if(bSet && this->repeaters[i] == address) this->repeaters[i] = 0;
+  }
+  if(!bSet) {
+    for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
+      if(this->repeaters[i] == 0) {
+        this->repeaters[i] = address;
+        return true;
+      }
+    }
+  }
+  return true;
 }
 SomfyRoom *SomfyShadeController::addRoom(JsonObject &obj) {
   SomfyRoom *room = this->addRoom();
@@ -3721,6 +3764,13 @@ bool SomfyShadeController::toJSON(JsonObject &obj) {
   this->toJSONGroups(arrGroups);
   return true;
 }
+bool SomfyShadeController::toJSONRepeaters(JsonArray &arr) {
+  for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
+    if(somfy.repeaters[i] != 0) arr.add(somfy.repeaters[i]);
+  }
+  return true;
+}
+
 bool SomfyShadeController::toJSONRooms(JsonArray &arr) {
   for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
     SomfyRoom &room = this->rooms[i];
@@ -3791,6 +3841,7 @@ static const uint32_t tempo_if_gap = 30415;  // Gap between frames
 static int16_t  bitMin = SYMBOL * TOLERANCE_MIN;
 static somfy_rx_t somfy_rx;
 static somfy_rx_queue_t rx_queue;
+static somfy_tx_queue_t tx_queue;
 bool somfy_tx_queue_t::pop(somfy_tx_t *tx) {
   // Read the oldest index.
   for(int8_t i = MAX_TX_BUFFER - 1; i >= 0; i--) {
@@ -3798,39 +3849,44 @@ bool somfy_tx_queue_t::pop(somfy_tx_t *tx) {
       uint8_t ndx = this->index[i];
       memcpy(tx, &this->items[ndx], sizeof(somfy_tx_t));
       this->items[ndx].clear();
-      this->length--;
+      if(this->length > 0) this->length--;
       this->index[i] = 255;
       return true;
     }
   }
   return false;
 }
-bool somfy_tx_queue_t::push(uint32_t await, somfy_commands cmd, uint8_t repeats) {
+void somfy_tx_queue_t::push(somfy_rx_t *rx) { this->push(rx->cpt_synchro_hw, rx->payload, rx->bit_length); }
+void somfy_tx_queue_t::push(uint8_t hwsync, uint8_t *payload, uint8_t bit_length) {
   if(this->length >= MAX_TX_BUFFER) {
+    // We have overflowed the buffer simply empty the last item
+    // in this instance we will simply throw it away.
     uint8_t ndx = this->index[MAX_TX_BUFFER - 1];
+    if(ndx < MAX_TX_BUFFER) this->items[ndx].clear();
     this->index[MAX_TX_BUFFER - 1] = 255;
-    this->length = MAX_TX_BUFFER - 1;
-    if (ndx < MAX_TX_BUFFER)
-        this->items[ndx].clear();
+    this->length--;
   }
-  // Place the command in the first empty slot.  Empty slots are those
-  // with a millis of 0.  We will shift the indexes right so that this
-  // is indexed int slot 0.
+  uint8_t first = 0;
+  // Place this record in the first empty slot.  There will
+  // be one since we cleared a space above should there
+  // be an overflow.
   for(uint8_t i = 0; i < MAX_TX_BUFFER; i++) {
-    if(this->items[i].await == 0) {
-      this->items[i].await = await;
-      this->items[i].cmd = cmd;
-      this->items[i].repeats = repeats;
-      // Move the index so that it is the at position 0.  The oldest item will fall off.
-      for(uint8_t j = MAX_TX_BUFFER - 1; j > 0; j--) {
-        this->index[j] = this->index[j - 1];
-      }
-      this->length++;
-      this->index[0] = i;
-      return true;
+    if(this->items[i].bit_length == 0) {
+      first = i;
+      this->items[i].bit_length = bit_length;
+      this->items[i].hwsync = hwsync;
+      memcpy(&this->items[i].payload, payload, sizeof(this->items[i].payload));
+      break;
     }
   }
-  return false;
+  // Move the index so that it is the at position 0.  The oldest item will fall off.
+  for(uint8_t i = MAX_TX_BUFFER - 1; i > 0; i--) {
+    this->index[i] = this->index[i - 1];
+  }
+  this->length++;
+  // When popping from the queue we always pull from the end
+  this->index[0] = first;
+  this->delay_time = millis() + TX_QUEUE_DELAY; // We do not want to process this frame until a full frame beat has passed.
 }
 void somfy_rx_queue_t::init() { 
   Serial.println("Initializing RX Queue");
@@ -3847,13 +3903,14 @@ bool somfy_rx_queue_t::pop(somfy_rx_t *rx) {
       uint8_t ndx = this->index[i];
       memcpy(rx, &this->items[this->index[i]], sizeof(somfy_rx_t));
       this->items[ndx].clear();
-      this->length--;
+      if(this->length > 0) this->length--;
       this->index[i] = 255;
       return true;      
     }
   }
   return false;
 }
+
 void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
   if(!this->config.enabled) return;
   uint32_t pin = 1 << this->config.TXPin;
@@ -3926,7 +3983,7 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
     delayMicroseconds(13717);
     delayMicroseconds(13717);
   }
-  
+  Serial.println("Frame Sent...");
   /*
   if(bitLength == 80)
     delayMicroseconds(15055);
@@ -4026,7 +4083,7 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
     if (somfy_rx.status == receiving_data && somfy_rx.cpt_bits >= somfy_rx.bit_length) {
         // Since we are operating within the interrupt all data really needs to be static
         // for the handoff to the frame decoder.  For this reason we are buffering up to
-        // 3 total frames.  Althought it may not matter considering the lenght of a packet
+        // 3 total frames.  Althought it may not matter considering the length of a packet
         // will likely not push over the loop timing.  For now lets assume that there
         // may be some pressure on the loop for features.
         if(rx_queue.length >= MAX_RX_BUFFER) {
@@ -4127,14 +4184,13 @@ void Transceiver::emitFrequencyScan(uint8_t num) {
   if(num >= 255) sockEmit.sendToClients("frequencyScan", buf);
   else sockEmit.sendToClient(num, "frequencyScan", buf);
 }
-bool Transceiver::receive() {
+bool Transceiver::receive(somfy_rx_t *rx) {
     // Check to see if there is anything in the buffer
     if(rx_queue.length > 0) {
       //Serial.printf("Processing receive %d\n", rx_queue.length);
-      somfy_rx_t rx;
-      rx_queue.pop(&rx);
-      this->frame.decodeFrame(&rx);
-      this->emitFrame(&this->frame, &rx);
+      rx_queue.pop(rx);
+      this->frame.decodeFrame(rx);
+      this->emitFrame(&this->frame, rx);
       return this->frame.valid;
     }
     return false;
@@ -4555,21 +4611,54 @@ bool Transceiver::begin() {
     return true;
 }
 void Transceiver::loop() {
+  somfy_rx_t rx;
   if(rxmode == 3) {
-    if(rx_queue.length > 0) {
-      //Serial.printf("Processing receive %d\n", rx_queue.length);
-      somfy_rx_t rx;
-      rx_queue.pop(&rx);
-      this->frame.decodeFrame(&rx);
-      this->processFrequencyScan(this->frame.valid);
-    }
+    if(this->receive(&rx))
+      this->processFrequencyScan(true);
     else
       this->processFrequencyScan(false);
   }
-  else if (this->receive()) 
+  else if (this->receive(&rx)) {
+    for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
+      if(somfy.repeaters[i] == frame.remoteAddress) {
+        tx_queue.push(&rx);
+        Serial.println("Queued repeater frame...");
+        break;
+      }
+    }
     somfy.processFrame(this->frame, false);
-  else
+  }
+  else {
     somfy.processWaitingFrame();
+    // Check to see if there is anything in the buffer
+    if(tx_queue.length > 0 && millis() > tx_queue.delay_time && somfy_rx.cpt_synchro_hw == 0) {
+      this->beginTransmit();
+      somfy_tx_t tx;
+      
+      tx_queue.pop(&tx);
+      Serial.printf("Sending frame %d - %d-BIT [", tx.hwsync, tx.bit_length);
+      for(uint8_t j = 0; j < 10; j++) {
+        Serial.print(tx.payload[j]);
+        if(j < 9) Serial.print(", ");
+      }
+      Serial.println("]");
+      this->sendFrame(tx.payload, tx.hwsync, tx.bit_length);
+      tx_queue.delay_time = millis() + TX_QUEUE_DELAY;
+      
+      /*
+      while(tx_queue.length > 0 && tx_queue.pop(&tx)) {
+        Serial.printf("Sending frame %d - %d-BIT [", tx.hwsync, tx.bit_length);
+        for(uint8_t j = 0; j < 10; j++) {
+          Serial.print(tx.payload[j]);
+          if(j < 9) Serial.print(", ");
+        }
+        Serial.println("]");
+        this->sendFrame(tx.payload, tx.hwsync, tx.bit_length);
+      }
+      */
+      this->endTransmit();
+    }
+  }
 }
 somfy_frame_t& Transceiver::lastFrame() { return this->frame; }
 void Transceiver::beginTransmit() {

@@ -7,6 +7,7 @@
 #define SOMFY_MAX_LINKED_REMOTES 7
 #define SOMFY_MAX_GROUPED_SHADES 32
 #define SOMFY_MAX_ROOMS 16
+#define SOMFY_MAX_REPEATERS 7
 
 #define SECS_TO_MILLIS(x) ((x) * 1000)
 #define MINS_TO_MILLIS(x) SECS_TO_MILLIS((x) * 60)
@@ -77,7 +78,7 @@ somfy_commands translateSomfyCommand(const String& string);
 
 #define MAX_TIMINGS 300
 #define MAX_RX_BUFFER 3
-#define MAX_TX_BUFFER 3
+#define MAX_TX_BUFFER 5
 
 typedef enum {
     waiting_synchro = 0,
@@ -115,34 +116,35 @@ struct somfy_rx_queue_t {
   uint8_t length = 0;
   uint8_t index[MAX_RX_BUFFER];
   somfy_rx_t items[MAX_RX_BUFFER];
-  //void push(somfy_rx_t *rx);
+  void push(somfy_rx_t *rx);
   bool pop(somfy_rx_t *rx);
 };
 struct somfy_tx_t {
   void clear() {
-    this->await = 0;
-    this->cmd = somfy_commands::Unknown0;
-    this->repeats = 0;
+    this->hwsync = 0;
+    this->bit_length = 0;
+    memset(this->payload, 0x00, sizeof(this->payload));
   }
-  uint32_t await = 0;
-  somfy_commands cmd;
-  uint8_t repeats;
+  uint8_t hwsync = 0;
+  uint8_t bit_length = 0;
+  uint8_t payload[10] = {};
 };
 struct somfy_tx_queue_t {
-  somfy_tx_queue_t() {
-    this->clear();
-  }
+  somfy_tx_queue_t() { this->clear(); }
   void clear() {
     for (uint8_t i = 0; i < MAX_TX_BUFFER; i++) {
       this->index[i] = 255;
       this->items[i].clear();
     }
+    this->length = 0;
   }
+  unsigned long delay_time = 0;
   uint8_t length = 0;
-  uint8_t index[MAX_TX_BUFFER];
+  uint8_t index[MAX_TX_BUFFER] = {255};
   somfy_tx_t items[MAX_TX_BUFFER];
   bool pop(somfy_tx_t *tx);
-  bool push(uint32_t await, somfy_commands cmd, uint8_t repeats);
+  void push(somfy_rx_t *rx); // Used for repeats
+  void push(uint8_t hwsync, byte *payload, uint8_t bit_length);
 };
 
 enum class somfy_flags_t : byte {
@@ -156,6 +158,11 @@ enum class somfy_flags_t : byte {
 };
 enum class gpio_flags_t : byte {
   LowLevelTrigger = 0x01
+};
+struct somfy_relay_t {
+  uint32_t remoteAddress = 0;
+  uint8_t sync = 0;
+  byte frame[10] = {0};
 };
 struct somfy_frame_t {
     bool valid = false;
@@ -270,7 +277,7 @@ class SomfyShade : public SomfyRemote {
     #ifdef USE_NVS
     void load();
     #endif
-    somfy_tx_queue_t txQueue;
+    //somfy_tx_queue_t txQueue;
     float currentPos = 0.0f;
     float currentTiltPos = 0.0f;
     //uint16_t movement = 0;
@@ -479,7 +486,7 @@ class Transceiver {
     bool begin();
     void loop();
     bool end();
-    bool receive();
+    bool receive(somfy_rx_t *rx);
     void clearReceived();
     void enableReceive();
     void disableReceive();
@@ -523,14 +530,20 @@ class SomfyShadeController {
     bool begin();
     void loop();
     void end();
+    void compressRepeaters();
+    uint32_t repeaters[SOMFY_MAX_REPEATERS] = {0};
     SomfyRoom rooms[SOMFY_MAX_ROOMS];
     SomfyShade shades[SOMFY_MAX_SHADES];
     SomfyGroup groups[SOMFY_MAX_GROUPS];
+    bool linkRepeater(uint32_t address);
+    bool unlinkRepeater(uint32_t address);
     bool toJSON(DynamicJsonDocument &doc);
     bool toJSON(JsonObject &obj);
     bool toJSONRooms(JsonArray &arr);
     bool toJSONShades(JsonArray &arr);
     bool toJSONGroups(JsonArray &arr);
+    bool toJSONRepeaters(JsonArray &arr);
+    uint8_t repeaterCount();
     uint8_t roomCount();
     uint8_t shadeCount();
     uint8_t groupCount();

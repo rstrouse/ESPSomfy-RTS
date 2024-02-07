@@ -46,6 +46,10 @@
     left: 0px;
     color: white;
 }
+#divLinkRepeat {
+    border-radius:24px;
+}
+.edit-repeaterlist,
 .edit-roomlist,
 .edit-grouplist,
 .edit-motorlist {
@@ -61,6 +65,7 @@
     max-height:calc(100% - 77px);
     overflow:auto;
 }
+.instructions .sub-message,
 .prompt-message .sub-message {
     font-size: 17px;
     padding-left: 10px;
@@ -82,6 +87,7 @@
 .wizard[data-stepid="6"] .wizard-step:not([data-stepid="6"]) { display: none; }
 .wizard[data-stepid="7"] .wizard-step:not([data-stepid="7"]) { display: none; }
 
+.somfyRepeater,
 .somfyRoom,
 .somfyGroup,
 .somfyShade {
@@ -93,6 +99,8 @@
 }
     .linked-shade > div,
     .linked-shade > span,
+    .somfyRepeater > div,
+    .somfyRepeater > span,
     .somfyRoom > div,
     .somfyRoom > span,
     .somfyGroup > div,
@@ -103,12 +111,16 @@
         padding-left: 4px;
         padding-right: 4px;
     }
+.repeater-name,
 .linked-shade {
     width: 100%;
     padding-bottom: 4px;
     display: inline-table;
     padding-left: 4px;
     padding-right: 4px;
+}
+.repeater-name {
+    text-align:left;
 }
     .linked-shade > .linkedshade-name { width: 100%; }
 .pin-digit {

@@ -14,6 +14,7 @@ void restore_options_t::fromJSON(JsonObject &obj) {
   if(obj.containsKey("settings")) this->settings = obj["settings"];
   if(obj.containsKey("network")) this->network = obj["network"];
   if(obj.containsKey("transceiver")) this->transceiver = obj["transceiver"];
+  if(obj.containsKey("repeaters")) this->repeaters = obj["repeaters"];
 }
 int8_t appver_t::compare(appver_t &ver) {
   if(this->major == ver.major && this->minor == ver.minor && this->build == ver.build) return 0;
