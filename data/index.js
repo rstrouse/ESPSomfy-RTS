@@ -1807,7 +1807,7 @@ class Wifi {
     saveNetwork() {
         let pnl = document.getElementById('divNetAdapter');
         let obj = ui.fromElement(pnl);
-        obj.connType = obj.ethernet.hardwired ? obj.ethernet.wirelessFallback ? 3 : 2 : 1;
+        obj.connType = obj.ethernet.hardwired ? (obj.ethernet.wirelessFallback ? 3 : 2) : 1;
         console.log(obj);
         if (obj.connType >= 2) {
             let boardType = this.ethBoardTypes.find(elem => obj.ethernet.boardType === elem.val);
@@ -3782,7 +3782,9 @@ class Somfy {
         let div = document.createElement('div');
         let html = `<div id="divLinkRepeater" class="instructions" data-type="link-repeatremote" style="border-radius:27px;">`;
         html += '<div>Press any button on the remote to repeat its signals.</div>';
-        html += '<div class="sub-message">When assigned, ESPSomfy RTS will act as a repeater and repeat any frames for the identified remotes. Only repeat remotes when ESPSomfy RTS reliably hears the remote but the motor does not.  Repeating unnecessary radio signals will degrade radio performance.</div>'
+        html += '<div class="sub-message">When assigned, ESPSomfy RTS will act as a repeater and repeat any frames for the identified remotes.</div>'
+        html += '<div class="sub-message" style="font-size:14px;">Only assign a repeater when ESPSomfy RTS reliably hears a physical remote but the motor does not.  Repeating unnecessary radio signals will degrade radio performance and never assign the same repeater to more than one ESPSomfy RTS device.  You will have created an insidious echo chamber.</div>'
+
         html += '<div class="sub-message">Once a signal is detected from the remote this window will close and the remote signals will be repeated.</div>'
         html += '<hr></hr>';
         html += `<div><div class="button-container"><button id="btnStopLinking" type="button" style="padding-left:20px;padding-right:20px;" onclick="document.getElementById('divLinkRepeater').remove();">Cancel</button></div>`;

@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.4.0" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.4.0" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.4.0" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.4.0a" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.4.0a" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.4.0a" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.4.0"></script>
+    <script type="text/javascript" src="index.js?v=2.4.0a"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -158,7 +158,7 @@
                             <input id="cbHardwired" name="hardwired" data-bind="ethernet.hardwired" type="checkbox" style="display:inline-block;" onclick="wifi.useEthernetClicked();" />
                             <label for="cbHardwired" style="display:inline-block;cursor:pointer;">Use Ethernet</label>
                             <div id="divFallbackWireless" style="display:inline-block;padding-left:7px;">
-                                <input id="cbFallbackWireless" name="fallbackwireless" data-bind="wirelessFallback" type="checkbox" style="display:inline-block;" />
+                                <input id="cbFallbackWireless" name="fallbackwireless" data-bind="ethernet.wirelessFallback" type="checkbox" style="display:inline-block;" />
                                 <label for="cbFallbackWireless" style="display:inline-block;cursor:pointer;">Fallback to Wireless</label>
                             </div>
                         </div>
@@ -295,7 +295,7 @@
                     </div>
                 </div>
                 <div id="divSomfySettings" style="display:none;">
-                    <div class="subtab-container"><span class="selected" data-grpid="divSomfyRooms">Rooms</span><span class="" data-grpid="divSomfyMotors">Shades</span><span data-grpid="divSomfyGroups">Groups</span><span data-grpid="divRepeater">Repeater</span><span data-grpid="divVirtualRemote">Virtual Remote</span></div>
+                    <div class="subtab-container"><span class="selected" data-grpid="divSomfyRooms">Rooms</span><span class="" data-grpid="divSomfyMotors">Shades</span><span data-grpid="divSomfyGroups">Groups</span><span data-grpid="divRepeater">Repeater</span><span class="tabname-virtual-remote" data-grpid="divVirtualRemote"></span></div>
                     <div id="divSomfyRooms" class="subtab-content" style="padding-top:10px;">
                         <div id="divRoomListContainer">
                             <div style="font-size:.8em;">Drag each item to set the order in which they appear in the list.</div>

@@ -315,6 +315,10 @@
         .room-selector-list .room-row:hover {
             color: var(--shade-color, gray);
         }
+span.tabname-virtual-remote:after {
+    content: "Virtual Remote";
+}
+
 @media only screen and (max-device-width: 480px) {
     body {
         margin-top: 0px;
@@ -323,5 +327,8 @@
     .container {
         padding-left: 10px;
         padding-right: 10px;
+    }
+    span.tabname-virtual-remote:after {
+        content: "Remote";
     }
 }

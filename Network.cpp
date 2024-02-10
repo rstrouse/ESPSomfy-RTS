@@ -231,18 +231,12 @@ bool Network::connectWired() {
   if(!this->ethStarted) {
       this->ethStarted = true;
       WiFi.mode(WIFI_OFF);
-      if(!settings.IP.dhcp) {
-        if(!ETH.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
-          ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-      }
-      else
-          ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
       WiFi.onEvent(this->networkEvent);
       if(settings.hostname[0] != '\0') ETH.setHostname(settings.hostname);
       Serial.print("Set hostname to:");
       Serial.println(ETH.getHostname());
-      
       if(!ETH.begin(settings.Ethernet.phyAddress, settings.Ethernet.PWRPin, settings.Ethernet.MDCPin, settings.Ethernet.MDIOPin, settings.Ethernet.phyType, settings.Ethernet.CLKMode)) { 
+
           Serial.println("Ethernet Begin failed");
           if(settings.connType == conn_types::ethernetpref) {
             this->wifiFallback = true;
@@ -251,6 +245,14 @@ bool Network::connectWired() {
           return false;
       }
       else {
+        if(!settings.IP.dhcp) {
+          if(!ETH.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
+            Serial.println("Unable to configure static IP address....");
+            ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        }
+        else
+            ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        
         uint32_t wait = millis();
         while(millis() - wait < 7000) {
           if(this->connected()) return true;
