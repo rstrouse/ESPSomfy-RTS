@@ -54,7 +54,7 @@ body:
   - type: textarea
     id: reprod
     attributes:
-      label: "How to reproduce it (setp by step)"
+      label: "How to reproduce it (step by step)"
       description: Please enter an explicit description of your issue
       value: |
         1. Go to...

@@ -3193,19 +3193,16 @@ void SomfyShadeController::emitState(uint8_t num) {
 }
 void SomfyShadeController::publish() {
   this->updateGroupFlags();
-  StaticJsonDocument<128> docShades;
-  StaticJsonDocument<128> docGroups;
-  JsonArray arrShades = docShades.to<JsonArray>();
-  JsonArray arrGroups = docGroups.to<JsonArray>();
+  char arrIds[128] = "[";
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade *shade = &this->shades[i];
-    if(shade->getShadeId() == 255) {
-      continue;
-    }
-    arrShades.add(shade->getShadeId());
+    if(shade->getShadeId() == 255) continue;
+    if(strlen(arrIds) > 1) strcat(arrIds, ",");
+    itoa(shade->getShadeId(), &arrIds[strlen(arrIds)], 10);
     shade->publish();
   }
-  mqtt.publish("shades", arrShades, true);
+  strcat(arrIds, "]");
+  mqtt.publish("shades", arrIds, true);
   for(uint8_t i = 1; i <= SOMFY_MAX_SHADES; i++) {
     SomfyShade *shade = this->getShadeById(i);
     if(shade) continue;
@@ -3213,18 +3210,21 @@ void SomfyShadeController::publish() {
       SomfyShade::unpublish(i);
     }
   }
+  strcpy(arrIds, "[");
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
     SomfyGroup *group = &this->groups[i];
     if(group->getGroupId() == 255) continue;
-    arrGroups.add(group->getGroupId());
+    if(strlen(arrIds) > 1) strcat(arrIds, ",");
+    itoa(group->getGroupId(), &arrIds[strlen(arrIds)], 10);
     group->publish();
   }
+  strcat(arrIds, "]");
+  mqtt.publish("groups", arrIds, true);
   for(uint8_t i = 1; i <= SOMFY_MAX_GROUPS; i++) {
     SomfyGroup *group = this->getGroupById(i);
     if(group) continue;
     else SomfyGroup::unpublish(i);
   }
-  mqtt.publish("groups", arrGroups, true);
 }
 uint8_t SomfyShadeController::getNextShadeId() {
   // There is no shortcut for this since the deletion of

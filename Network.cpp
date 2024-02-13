@@ -236,7 +236,6 @@ bool Network::connectWired() {
       Serial.print("Set hostname to:");
       Serial.println(ETH.getHostname());
       if(!ETH.begin(settings.Ethernet.phyAddress, settings.Ethernet.PWRPin, settings.Ethernet.MDCPin, settings.Ethernet.MDIOPin, settings.Ethernet.phyType, settings.Ethernet.CLKMode)) { 
-
           Serial.println("Ethernet Begin failed");
           if(settings.connType == conn_types::ethernetpref) {
             this->wifiFallback = true;
@@ -246,9 +245,10 @@ bool Network::connectWired() {
       }
       else {
         if(!settings.IP.dhcp) {
-          if(!ETH.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
-            Serial.println("Unable to configure static IP address....");
-            ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+          if(!ETH.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2)) {
+              Serial.println("Unable to configure static IP address....");
+              ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+          }
         }
         else
             ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
@@ -467,7 +467,9 @@ bool Network::openSoftAP() {
 
     // If no clients have connected in 3 minutes from starting this server reboot this pig.  This will
     // force a reboot cycle until we have some response.  That is unless the SSID has been cleared.
-    if(clients == 0 && strlen(settings.WIFI.ssid) > 0 && millis() - startTime > 3 * 60000) {
+    if(clients == 0 && 
+      (strlen(settings.WIFI.ssid) > 0 || settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref) && 
+      millis() - startTime > 3 * 60000) {
       Serial.println();
       Serial.println("Stopping AP Mode");
       WiFi.softAPdisconnect(true);
