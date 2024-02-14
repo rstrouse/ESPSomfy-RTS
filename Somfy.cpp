@@ -2299,9 +2299,27 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
-      if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
-        if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+      if(this->stepSize == 0) return; // Avoid divide by 0.
+      if(this->tiltType == tilt_types::integrated) {
+        // With integrated tilt this is more involved than ne would think because the step command can be moving not just the tilt
+        // but the lift.  So a determination needs to be made as to whether we are currently moving and it should stop.
+        // Conditions:
+        // 1. If both the tilt and lift are at 0% do nothing
+        // 2. If the tilt position is not currently at the top then shift the tilt.
+        // 3. If the tilt position is not currently at the top then shift the lift.
+        if(this->currentTiltPos <= 0.0f && this->currentPos <= 0.0f) return; // Do nothing
+        else if(this->currentTiltPos > 0.0f) {
+          // Set the tilt position.  This should stop the lift movement.
+          this->p_target(this->currentPos);
+          if(this->tiltTime == 0) return; // Avoid divide by 0.
+          this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+        }
+        else {
+          // We only have the lift to move.
+          if(this->upTime == 0) return; // Avoid divide by 0.
+          this->p_tiltTarget(this->currentTiltPos);
+          this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
+        }
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
@@ -2321,9 +2339,27 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
-      if(this->tiltType == tilt_types::integrated && this->currentTiltPos < 100.0f) {
-        if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+      if(this->stepSize == 0) return; // Avoid divide by 0.
+      if(this->tiltType == tilt_types::integrated) {
+        // With integrated tilt this is more involved than ne would think because the step command can be moving not just the tilt
+        // but the lift.  So a determination needs to be made as to whether we are currently moving and it should stop.
+        // Conditions:
+        // 1. If both the tilt and lift are at 100% do nothing
+        // 2. If the tilt position is not currently at the bottom then shift the tilt.
+        // 3. If the tilt position is add the bottom then shift the lift.
+        if(this->currentTiltPos >= 100.0f && this->currentPos >= 100.0f) return; // Do nothing
+        else if(this->currentTiltPos < 100.0f) {
+          // Set the tilt position.  This should stop the lift movement.
+          this->p_target(this->currentPos);
+          if(this->tiltTime == 0) return; // Avoid divide by 0.
+          this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+        }
+        else {
+          // We only have the lift to move.
+          this->p_tiltTarget(this->currentTiltPos);
+          if(this->downTime == 0) return; // Avoid divide by 0.
+          this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize))))));
+        }
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
@@ -2417,16 +2453,34 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
-      if(this->tiltType == tilt_types::integrated && this->currentTiltPos > 0.0f) {
-        if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+      if(this->stepSize == 0) return; // Avoid divide by 0.
+      if(this->tiltType == tilt_types::integrated) {
+        // With integrated tilt this is more involved than ne would think because the step command can be moving not just the tilt
+        // but the lift.  So a determination needs to be made as to whether we are currently moving and it should stop.
+        // Conditions:
+        // 1. If both the tilt and lift are at 0% do nothing
+        // 2. If the tilt position is not currently at the top then shift the tilt.
+        // 3. If the tilt position is not currently at the top then shift the lift.
+        if(this->currentTiltPos <= 0.0f && this->currentPos <= 0.0f) return; // Do nothing
+        else if(this->currentTiltPos > 0.0f) {
+          // Set the tilt position.  This should stop the lift movement.
+          this->p_target(this->currentPos);
+          if(this->tiltTime == 0) return; // Avoid divide by 0.
+          this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+        }
+        else {
+          // We only have the lift to move.
+          if(this->upTime == 0) return; // Avoid divide by 0.
+          this->p_tiltTarget(this->currentTiltPos);
+          this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
+        }
       }
       else if(this->tiltType == tilt_types::tiltonly) {
-        if(this->tiltTime == 0 || this->stepSize == 0 || this->currentTiltPos <= 0.0f) return;
+        if(this->tiltTime == 0 || this->currentTiltPos <= 0.0f) return;
         this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
       }
       else if(this->currentPos > 0.0f) {
-        if(this->downTime == 0 || this->stepSize == 0) return;
+        if(this->upTime == 0) return;
         this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
       }
       break;
@@ -2435,9 +2489,27 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
-      if(this->tiltType == tilt_types::integrated && this->currentTiltPos < 100.0f) {
-        if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+      if(this->stepSize == 0) return; // Avoid divide by 0.
+      if(this->tiltType == tilt_types::integrated) {
+        // With integrated tilt this is more involved than ne would think because the step command can be moving not just the tilt
+        // but the lift.  So a determination needs to be made as to whether we are currently moving and it should stop.
+        // Conditions:
+        // 1. If both the tilt and lift are at 100% do nothing
+        // 2. If the tilt position is not currently at the bottom then shift the tilt.
+        // 3. If the tilt position is add the bottom then shift the lift.
+        if(this->currentTiltPos >= 100.0f && this->currentPos >= 100.0f) return; // Do nothing
+        else if(this->currentTiltPos < 100.0f) {
+          // Set the tilt position.  This should stop the lift movement.
+          this->p_target(this->currentPos);
+          if(this->tiltTime == 0) return; // Avoid divide by 0.
+          this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+        }
+        else {
+          // We only have the lift to move.
+          if(this->downTime == 0) return; // Avoid divide by 0.
+          this->p_tiltTarget(this->currentTiltPos);
+          this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize))))));
+        }
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0 || this->currentTiltPos >= 100.0f) return;
@@ -3983,13 +4055,6 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
     delayMicroseconds(13717);
     delayMicroseconds(13717);
   }
-  Serial.println("Frame Sent...");
-  /*
-  if(bitLength == 80)
-    delayMicroseconds(15055);
-  else
-    delayMicroseconds(30415);
-  */
 }
 void RECEIVE_ATTR Transceiver::handleReceive() {
     static unsigned long last_time = 0;
