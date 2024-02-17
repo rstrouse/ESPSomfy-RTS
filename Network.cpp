@@ -486,6 +486,7 @@ bool Network::openSoftAP() {
 bool Network::connected() {
   if(this->connType == conn_types::unset) return false;
   else if(this->connType == conn_types::wifi) return WiFi.status() == WL_CONNECTED;
+  else if(this->connType == conn_types::ethernet) return ETH.linkUp();
   else return this->connType != conn_types::unset;
   return false;
 }
@@ -506,6 +507,13 @@ void Network::networkEvent(WiFiEvent_t event) {
       net.mac = ETH.macAddress();
       net.setConnected(conn_types::ethernet);
       break;
+/*
+    case ARDUINO_EVENT_ETH_LOST_IP:
+      Serial.println("Ethernet Lost IP");
+      sockEmit.sendToClients("ethernet", "{\"connected\":false, \"speed\":0,\"fullduplex\":false}");
+      net.connType = conn_types::unset;
+      break;
+*/
     case ARDUINO_EVENT_ETH_CONNECTED:
       Serial.print("Ethernet Connected ");
       // We don't want to call setConnected if we do not have an IP address yet
