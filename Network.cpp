@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <ETH.h>
 #include <WiFi.h>
 #include <ESPmDNS.h>
@@ -40,18 +39,21 @@ bool Network::setup() {
 }
 void Network::loop() {
   if(millis() - this->lastEmit > 1500) {
-    while(!this->connect()) {
-      // If we lost our connenction
-      connectRetries++;
-      if(connectRetries > 100) {
-        this->openSoftAP();
-        break;
-      }
-      sockEmit.loop();
-    }
-    connectRetries = 0;
     this->lastEmit = millis();
+    if(!this->softAPOpened) {
+      while(!this->connect()) {
+        // If we lost our connection
+        connectRetries++;
+        if(connectRetries > 100) {
+          if(!this->connected()) this->openSoftAP();
+          break;
+        }
+        sockEmit.loop();
+      }
+      connectRetries = 0;
+    }
     this->emitSockets();
+    this->lastEmit = millis();
     if(!this->connected()) return;
   }
   if(this->connected() && millis() - this->lastMDNS > 60000) {
@@ -113,6 +115,21 @@ void Network::emitSockets(uint8_t num) {
 void Network::setConnected(conn_types connType) {
   this->connType = connType;
   this->connectTime = millis();
+  connectRetries = 0;
+  if(this->connType == conn_types::wifi) {
+    if(this->softAPOpened) {
+      WiFi.softAPdisconnect(true);
+      WiFi.mode(WIFI_STA);
+    }
+  }
+  else if(this->connType == conn_types::ethernet) {
+    if(this->softAPOpened) {
+      Serial.println("Disonnecting from SoftAP");
+      WiFi.softAPdisconnect(true);
+      WiFi.mode(WIFI_OFF);
+    }
+    this->wifiFallback = false;
+  }
   if(this->connectAttempts == 1) {
     Serial.println();
     if(this->connType == conn_types::wifi) {
@@ -217,8 +234,10 @@ void Network::setConnected(conn_types connType) {
   settings.printAvailHeap();
 }
 bool Network::connectWired() {
-  if(this->connType == conn_types::ethernet) {
+  //if(this->connType == conn_types::ethernet && ETH.linkUp()) {
+  if(ETH.linkUp()) {
     this->disconnected = 0;
+    this->wifiFallback = false;
     return true;
   }
   if(this->connectAttempts > 0) {
@@ -254,7 +273,7 @@ bool Network::connectWired() {
             ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
         
         uint32_t wait = millis();
-        while(millis() - wait < 7000) {
+        while(millis() - wait < 14000) {
           if(this->connected()) return true;
           delay(500);
         }
@@ -377,8 +396,13 @@ bool Network::connectWiFi() {
   return false;
 }
 bool Network::connect() {
-  if(settings.connType != conn_types::wifi && settings.connType != conn_types::unset && !this->wifiFallback)
-    return this->connectWired();
+  if(settings.connType == conn_types::unset) return true;
+  else if(settings.connType == conn_types::ethernet || (settings.connType == conn_types::ethernetpref)) {
+    bool bConnected = this->connectWired();
+    if(!bConnected && settings.connType == conn_types::ethernetpref && settings.WIFI.ssid[0] != '\0')
+      bConnected = this->connectWiFi();
+    return bConnected;
+  }
   return this->connectWiFi();
 }
 int Network::getStrengthByMac(const char *macAddr) {
@@ -444,7 +468,7 @@ bool Network::openSoftAP() {
   long startTime = millis();
   int c = 0;
   
-  while ((WiFi.status() != WL_CONNECTED))
+  while (!this->connected())
   {
     int clients = WiFi.softAPgetStationNum();
     webServer.loop();
@@ -531,9 +555,11 @@ void Network::networkEvent(WiFiEvent_t event) {
       break;
     case ARDUINO_EVENT_WIFI_AP_STOP:
       Serial.println("WiFi AP Stopped");
+      net.softAPOpened = false;
       break;      
     case ARDUINO_EVENT_WIFI_AP_START:
       Serial.println("WiFi AP Started");
+      net.softAPOpened = true;
       break;
     case ARDUINO_EVENT_WIFI_STA_START:
       if(settings.hostname[0] != '\0') WiFi.setHostname(settings.hostname);

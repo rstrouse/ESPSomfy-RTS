@@ -12,6 +12,7 @@ class Network {
     bool ethStarted = false;
   public:
     bool wifiFallback = false;
+    bool softAPOpened = false;
     conn_types connType = conn_types::unset;
     bool connected();
     String ssid;
