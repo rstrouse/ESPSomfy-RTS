@@ -818,6 +818,16 @@ void Web::handleDiscovery(WebServer &server) {
     snprintf(g_content, sizeof(g_content), "{\"serverId\":\"%s\",\"version\":\"%s\",\"latest\":\"%s\",\"model\":\"%s\",\"hostname\":\"%s\",\"authType\":%d,\"permissions\":%d,\"chipModel\":\"%s\",\"connType\":\"%s\",\"checkForUpdate\":%s",
       settings.serverId, settings.fwVersion.name, git.latest.name, "ESPSomfyRTS", settings.hostname, static_cast<uint8_t>(settings.Security.type), settings.Security.permissions, settings.chipModel, connType, settings.checkForUpdate ? "true" : "false");
     server.send_P(200, _encoding_json, g_content);
+    /*
+    if(net.connType == conn_types::ethernet) {
+      snprintf(g_content, sizeof(g_content), ",\"ethernet\":{\"connected\":true,\"speed\":%d,\"fullduplex\":%s}", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
+      server.sendContent(g_content);
+    }
+    else {
+      snprintf(g_content, sizeof(g_content), ",\"wifi\":{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel());
+      server.sendContent(g_content);
+    }
+    */
     server.sendContent(",\"rooms\":");
     this->chunkRoomsResponse(server);
     server.sendContent(",\"shades\":");
@@ -826,6 +836,7 @@ void Web::handleDiscovery(WebServer &server) {
     this->chunkGroupsResponse(server);
     server.sendContent("}");
     server.sendContent("", 0);
+    net.needsBroadcast = true;
   }
   else
     server.send(500, _encoding_text, "Invalid http method");

@@ -13,6 +13,7 @@ class Network {
   public:
     bool wifiFallback = false;
     bool softAPOpened = false;
+    bool needsBroadcast = true;
     conn_types connType = conn_types::unset;
     bool connected();
     String ssid;

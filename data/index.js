@@ -571,7 +571,7 @@ async function initSockets() {
         };
         socket.onclose = (evt) => {
             wifi.procWifiStrength({ ssid: '', channel: -1, strength: -100 });
-            wifi.procEthernet({ connected: '', speed: 0, fullduplex: false });
+            wifi.procEthernet({ connected: false, speed: 0, fullduplex: false });
             if (document.getElementsByClassName('socket-wait').length === 0)
                 ui.waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
             if (evt.wasClean) {

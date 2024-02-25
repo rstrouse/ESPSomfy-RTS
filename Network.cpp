@@ -71,46 +71,44 @@ void Network::loop() {
   mqtt.loop();
 }
 void Network::emitSockets() {
-  if(WiFi.status() == WL_CONNECTED) {
-    if(abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel) {
-      char buf[128];
-      snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel());
-      sockEmit.sendToClients("wifiStrength", buf);
-      this->lastRSSI = WiFi.RSSI();
-      this->lastChannel = WiFi.channel();
-      sockEmit.loop();
-    }
-  }
-  else {
-    if(this->connType == conn_types::ethernet && this->lastRSSI != -100 && this->lastChannel != -1) {
-      sockEmit.sendToClients("wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
-      this->lastRSSI = -100;
-      this->lastChannel = -1;
-      sockEmit.loop();
-    }
+  if(this->needsBroadcast || abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel) {
+    this->emitSockets(255);
+    sockEmit.loop();
+    this->needsBroadcast = false;
   }
 }
 void Network::emitSockets(uint8_t num) {
   char buf[128];
-  if(WiFi.status() == WL_CONNECTED) {
-      snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel());
-      sockEmit.sendToClient(num, "wifiStrength", buf);
-      this->lastRSSI = WiFi.RSSI();
-      this->lastChannel = WiFi.channel();
+  if(this->connType == conn_types::ethernet) {
+      snprintf(buf, sizeof(buf), "{\"connected\":%s,\"speed\":%d,\"fullduplex\":%s}", this->connected() ? "true" : "false", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
+      if(num == 255) 
+        sockEmit.sendToClients("ethernet", buf);
+      else
+        sockEmit.sendToClient(num, "ethernet", buf);
   }
   else {
-    if(this->connType == conn_types::ethernet && this->lastRSSI != -100 && this->lastChannel != -1)
-      sockEmit.sendToClient(num, "wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
-    this->lastRSSI = -100;
-    this->lastChannel = -1;
+      if(WiFi.status() == WL_CONNECTED) {
+        snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel());
+        if(num == 255)
+          sockEmit.sendToClients("wifiStrength", buf);
+        else
+          sockEmit.sendToClient(num, "wifiStrength", buf);
+        this->lastRSSI = WiFi.RSSI();
+        this->lastChannel = WiFi.channel();
+      }
+      else {
+        if(num == 255) {
+          sockEmit.sendToClients("wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
+          sockEmit.sendToClients("ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
+        }
+        else {
+          sockEmit.sendToClient(num, "wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
+          sockEmit.sendToClient(num, "ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
+        }
+        this->lastRSSI = -100;
+        this->lastChannel = -1;
+      }
   }
-  if(this->connType == conn_types::ethernet) {
-      snprintf(buf, sizeof(buf), "{\"connected\":true,\"speed\":%d,\"fullduplex\":%s}", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
-      sockEmit.sendToClient(num, "ethernet", buf);
-  }
-  else
-    sockEmit.sendToClient(num, "ethernet", "{\"connected\":false, \"speed\":0,\"fullduplex\":false}");
-  
 }
 void Network::setConnected(conn_types connType) {
   this->connType = connType;

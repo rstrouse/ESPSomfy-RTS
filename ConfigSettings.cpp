@@ -267,6 +267,12 @@ uint16_t ConfigSettings::calcNetRecSize() {
     + this->IP.subnet.toString().length() + 3
     + this->IP.dns1.toString().length() + 3
     + this->IP.dns2.toString().length() + 3
+    + strlen(this->MQTT.protocol) + 3
+    + strlen(this->MQTT.hostname) + 3
+    + 6 // MQTT Port
+    + 6 // PubDisco
+    + strlen(this->MQTT.rootTopic) + 3
+    + strlen(this->MQTT.discoTopic) + 3
     + 4 // ETH.boardType
     + 4 // ETH.phyType
     + 4 // ETH.clkMode

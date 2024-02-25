@@ -190,10 +190,12 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
                 Serial.printf("Socket [%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
                 // Send all the current shade settings to the client.
                 sockServer.sendTXT(num, "Connected");
+                sockServer.loop();
                 settings.emitSockets(num);
                 somfy.emitState(num);
-                net.emitSockets(num);
                 git.emitUpdateCheck(num);
+                net.emitSockets(num);
+                sockServer.loop();
             }
             break;
         case WStype_TEXT:

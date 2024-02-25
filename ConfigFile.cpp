@@ -7,7 +7,7 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 21
+#define SHADE_HDR_VER 22
 #define SHADE_HDR_SIZE 76
 #define SHADE_REC_SIZE 276
 #define GROUP_REC_SIZE 194
@@ -554,6 +554,9 @@ bool ShadeConfigFile::restoreFile(SomfyShadeController *s, const char *filename,
       }
     }
   }
+  else {
+    this->file.seek(this->file.position() + this->header.repeaterRecordSize, SeekSet);
+  }
   if(opts.settings) {
     // First read out the data.
     this->readSettingsRecord();
@@ -584,6 +587,7 @@ bool ShadeConfigFile::restoreFile(SomfyShadeController *s, const char *filename,
 }
 bool ShadeConfigFile::readNetRecord() {
   if(this->header.netRecordSize > 0) {
+    uint32_t startPos = this->file.position();
     Serial.println("Reading network settings from file...");
     settings.connType = static_cast<conn_types>(this->readUInt8(static_cast<uint8_t>(conn_types::unset)));
     settings.IP.dhcp = this->readBool(true);
@@ -598,9 +602,18 @@ bool ShadeConfigFile::readNetRecord() {
     settings.IP.dns1.fromString(ip);
     this->readVarString(ip, sizeof(ip));
     settings.IP.dns2.fromString(ip);
+    if(this->header.version >= 22) {
+      this->readVarString(settings.MQTT.protocol, sizeof(settings.MQTT.protocol));
+      this->readVarString(settings.MQTT.hostname, sizeof(settings.MQTT.hostname));
+      settings.MQTT.port = this->readUInt16(1883);
+      settings.MQTT.pubDisco = this->readBool(false);
+      this->readVarString(settings.MQTT.rootTopic, sizeof(settings.MQTT.rootTopic));
+      this->readVarString(settings.MQTT.discoTopic, sizeof(settings.MQTT.discoTopic));
+    }
     // Now lets check to see if we are the same board.  If we are then we will restore
     // the ethernet phy settings.
     if(strncmp(settings.serverId, this->header.serverId, sizeof(settings.serverId)) == 0) {
+      Serial.println("Restoring Ethernet adapter settings");
       settings.Ethernet.boardType = this->readUInt8(1);
       settings.Ethernet.phyType = static_cast<eth_phy_type_t>(this->readUInt8(0));
       settings.Ethernet.CLKMode = static_cast<eth_clock_mode_t>(this->readUInt8(0));
@@ -609,9 +622,8 @@ bool ShadeConfigFile::readNetRecord() {
       settings.Ethernet.MDCPin = this->readInt8(16);
       settings.Ethernet.MDIOPin = this->readInt8(23);
     }
-    else {
-      // We are not going to get the network adapter settings.
-      Serial.println("Skipping Ethernet adapter settings (Chip ids do not match)...");
+    if(this->file.position() != startPos + this->header.netRecordSize) {
+      Serial.println("Reading to end of network record");
       this->seekChar(CFG_REC_END);
     }
   }
@@ -619,6 +631,7 @@ bool ShadeConfigFile::readNetRecord() {
 }
 bool ShadeConfigFile::readTransRecord(transceiver_config_t &cfg) {
   if(this->header.transRecordSize > 0) {
+    uint32_t startPos = this->file.position();
     Serial.println("Reading Transceiver settings from file...");
     cfg.enabled = this->readBool(false);
     cfg.proto = static_cast<radio_proto>(this->readUInt8(0));
@@ -633,6 +646,11 @@ bool ShadeConfigFile::readTransRecord(transceiver_config_t &cfg) {
     cfg.rxBandwidth = this->readFloat(cfg.rxBandwidth);
     cfg.deviation = this->readFloat(cfg.deviation);
     cfg.txPower = this->readInt8(cfg.txPower);  
+    if(this->file.position() != startPos + this->header.transRecordSize) {
+      Serial.println("Reading to end of transceiver record");
+      this->seekChar(CFG_REC_END);
+    }
+    
   }
   return true; 
 }
@@ -947,6 +965,12 @@ bool ShadeConfigFile::writeNetRecord() {
   this->writeVarString(settings.IP.subnet.toString().c_str());
   this->writeVarString(settings.IP.dns1.toString().c_str());
   this->writeVarString(settings.IP.dns2.toString().c_str());
+  this->writeVarString(settings.MQTT.protocol);
+  this->writeVarString(settings.MQTT.hostname);
+  this->writeUInt16(settings.MQTT.port);
+  this->writeBool(settings.MQTT.pubDisco);
+  this->writeVarString(settings.MQTT.rootTopic);
+  this->writeVarString(settings.MQTT.discoTopic);
   this->writeUInt8(settings.Ethernet.boardType);
   this->writeUInt8(static_cast<uint8_t>(settings.Ethernet.phyType));
   this->writeUInt8(static_cast<uint8_t>(settings.Ethernet.CLKMode));
