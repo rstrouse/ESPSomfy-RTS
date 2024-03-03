@@ -196,6 +196,7 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
                 git.emitUpdateCheck(num);
                 net.emitSockets(num);
                 sockServer.loop();
+                net.needsBroadcast = true;
             }
             break;
         case WStype_TEXT:

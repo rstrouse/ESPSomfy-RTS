@@ -25,9 +25,11 @@ void Network::end() {
 }
 bool Network::setup() {
   WiFi.persistent(false);
+  WiFi.onEvent(this->networkEvent);
   if(WiFi.status() == WL_CONNECTED) WiFi.disconnect(true);
   if(settings.connType == conn_types::wifi || settings.connType == conn_types::unset) {
     WiFi.persistent(false);
+    if(settings.hostname[0] != '\0') WiFi.setHostname(settings.hostname);
     Serial.print("WiFi Mode: ");
     Serial.println(WiFi.getMode());
     WiFi.mode(WIFI_STA);
@@ -71,7 +73,8 @@ void Network::loop() {
   mqtt.loop();
 }
 void Network::emitSockets() {
-  if(this->needsBroadcast || abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel) {
+  if(this->needsBroadcast || 
+    (this->connType == conn_types::wifi && (abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel))) {
     this->emitSockets(255);
     sockEmit.loop();
     this->needsBroadcast = false;
@@ -230,13 +233,22 @@ void Network::setConnected(conn_types connType) {
   else if(SSDP.isStarted) SSDP.end();
   this->emitSockets();
   settings.printAvailHeap();
+  this->needsBroadcast = true;
 }
 bool Network::connectWired() {
   //if(this->connType == conn_types::ethernet && ETH.linkUp()) {
   if(ETH.linkUp()) {
-    this->disconnected = 0;
+    if(WiFi.status() == WL_CONNECTED) {
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+    }
+    if(this->connType != conn_types::ethernet) this->setConnected(conn_types::ethernet);
     this->wifiFallback = false;
     return true;
+  }
+  else if(this->ethStarted) {
+    if(settings.connType == conn_types::ethernetpref && settings.WIFI.ssid[0] != '\0')
+      return this->connectWiFi();
   }
   if(this->connectAttempts > 0) {
     Serial.printf("Ethernet Connection Lost... %d Reconnecting ", this->connectAttempts);
@@ -248,12 +260,16 @@ bool Network::connectWired() {
   if(!this->ethStarted) {
       this->ethStarted = true;
       WiFi.mode(WIFI_OFF);
-      WiFi.onEvent(this->networkEvent);
-      if(settings.hostname[0] != '\0') ETH.setHostname(settings.hostname);
+      if(settings.hostname[0] != '\0') 
+        ETH.setHostname(settings.hostname);
+      else
+        ETH.setHostname("ESPSomfy-RTS");
+     
       Serial.print("Set hostname to:");
       Serial.println(ETH.getHostname());
       if(!ETH.begin(settings.Ethernet.phyAddress, settings.Ethernet.PWRPin, settings.Ethernet.MDCPin, settings.Ethernet.MDIOPin, settings.Ethernet.phyType, settings.Ethernet.CLKMode)) { 
           Serial.println("Ethernet Begin failed");
+          this->ethStarted = false;
           if(settings.connType == conn_types::ethernetpref) {
             this->wifiFallback = true;
             return connectWiFi();
@@ -272,7 +288,11 @@ bool Network::connectWired() {
         
         uint32_t wait = millis();
         while(millis() - wait < 14000) {
-          if(this->connected()) return true;
+          if(ETH.linkUp()) {
+            net.mac = ETH.macAddress();
+            net.setConnected(conn_types::ethernet);
+            return true;
+          }
           delay(500);
         }
         if(settings.connType == conn_types::ethernetpref) {
@@ -281,12 +301,6 @@ bool Network::connectWired() {
         }
       }
   }
-  int retries = 0;
-  while(retries++ < 100) {
-    delay(100);
-    if(this->connected()) return true;
-  }
-  if(this->connectAttempts > 10) this->wifiFallback = true;
   return false;
 }
 void Network::updateHostname() {
@@ -326,7 +340,7 @@ bool Network::connectWiFi() {
     this->connectStart = millis();
     WiFi.setSleep(false);
     WiFi.mode(WIFI_MODE_NULL);
-    WiFi.onEvent(this->networkEvent);
+    //WiFi.onEvent(this->networkEvent);
 
     if(!settings.IP.dhcp) {
       if(!WiFi.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
@@ -397,12 +411,15 @@ bool Network::connect() {
   if(settings.connType == conn_types::unset) return true;
   else if(settings.connType == conn_types::ethernet || (settings.connType == conn_types::ethernetpref)) {
     bool bConnected = this->connectWired();
-    if(!bConnected && settings.connType == conn_types::ethernetpref && settings.WIFI.ssid[0] != '\0')
+    if(!bConnected && settings.connType == conn_types::ethernetpref && settings.WIFI.ssid[0] != '\0') {
       bConnected = this->connectWiFi();
+      this->wifiFallback = true;
+    }
     return bConnected;
   }
   return this->connectWiFi();
 }
+/* DEPRECATED 03-02-24
 int Network::getStrengthByMac(const char *macAddr) {
   int n = WiFi.scanNetworks(true);
   for(int i = 0; i < n; i++) {
@@ -411,6 +428,7 @@ int Network::getStrengthByMac(const char *macAddr) {
   }
   return -100;
 }
+*/
 uint32_t Network::getChipId() {
   uint32_t chipId = 0;
   uint64_t mac = ESP.getEfuseMac();
@@ -421,7 +439,7 @@ uint32_t Network::getChipId() {
 }
 int Network::getStrengthBySSID(const char *ssid) {
   int32_t strength = -100;
-  int n = WiFi.scanNetworks(false, true);
+  int n = WiFi.scanNetworks(false, false);
   for(int i = 0; i < n; i++) {
     if(WiFi.SSID(i).compareTo(ssid) == 0) strength = max(WiFi.RSSI(i), strength);
   }
@@ -516,18 +534,12 @@ void Network::networkEvent(WiFiEvent_t event) {
   switch(event) {
     case ARDUINO_EVENT_ETH_START:
       Serial.println("Ethernet Started");
-      if(settings.hostname[0] != '\0') 
-        ETH.setHostname(settings.hostname);
-      else
-        ETH.setHostname("ESPSomfy-RTS");
       break;
     case ARDUINO_EVENT_ETH_GOT_IP:
       // If the Wifi is connected then drop that connection
       if(WiFi.status() == WL_CONNECTED) WiFi.disconnect(true);
       Serial.print("Got Ethernet IP ");
       Serial.println(ETH.localIP());
-      net.mac = ETH.macAddress();
-      net.setConnected(conn_types::ethernet);
       break;
 /*
     case ARDUINO_EVENT_ETH_LOST_IP:
@@ -539,12 +551,12 @@ void Network::networkEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_ETH_CONNECTED:
       Serial.print("Ethernet Connected ");
       // We don't want to call setConnected if we do not have an IP address yet
-      if(ETH.localIP() != INADDR_NONE)
-        net.setConnected(conn_types::ethernet);
+      //if(ETH.localIP() != INADDR_NONE)
+      //  net.setConnected(conn_types::ethernet);
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       Serial.println("Ethernet Disconnected");
-      sockEmit.sendToClients("ethernet", "{\"connected\":false, \"speed\":0,\"fullduplex\":false}");
+      sockEmit.sendToClients("ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
       net.connType = conn_types::unset;
       break;
     case ARDUINO_EVENT_ETH_STOP:

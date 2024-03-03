@@ -3,7 +3,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 
-#define FW_VERSION "v2.4.0"
+#define FW_VERSION "v2.4.1"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -15,6 +15,7 @@ struct restore_options_t {
   bool network = false;
   bool transceiver = false;
   bool repeaters = false;
+  bool mqtt = false;
   void fromJSON(JsonObject &obj);
 };
 struct appver_t {

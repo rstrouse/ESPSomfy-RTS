@@ -15,6 +15,7 @@ void restore_options_t::fromJSON(JsonObject &obj) {
   if(obj.containsKey("network")) this->network = obj["network"];
   if(obj.containsKey("transceiver")) this->transceiver = obj["transceiver"];
   if(obj.containsKey("repeaters")) this->repeaters = obj["repeaters"];
+  if(obj.containsKey("mqtt")) this->mqtt = obj["mqtt"];
 }
 int8_t appver_t::compare(appver_t &ver) {
   if(this->major == ver.major && this->minor == ver.minor && this->build == ver.build) return 0;
@@ -571,7 +572,7 @@ void WifiSettings::print() {
   Serial.println("]");  
 }
 void WifiSettings::printNetworks() {
-  int n = WiFi.scanNetworks(false, true);
+  int n = WiFi.scanNetworks(false, false);
   Serial.print("Scanned ");
   Serial.print(n);
   Serial.println(" Networks...");

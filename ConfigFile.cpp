@@ -125,6 +125,29 @@ bool ConfigFile::readString(char *buff, size_t len) {
   _rtrim(buff);
   return true;
 }
+bool ConfigFile::skipValue(size_t len) {
+  if(!this->file) return false;
+  uint8_t quotes = 0;
+  uint8_t j = 0;
+  while(j < len) {
+    uint8_t val;
+    j++;
+    if(this->file.read(&val, 1) == 1) {
+      switch(val) {
+        case CFG_VALUE_SEP:
+          if(quotes >= 2 || quotes == 0) return true;
+          break;
+        case CFG_REC_END:
+          return true;
+        case CFG_TOK_QUOTE:
+          quotes++;
+          break;
+      }
+    }
+    else return false;
+  }
+  return true;
+}
 bool ConfigFile::readVarString(char *buff, size_t len) {
   if(!this->file) return false;
   memset(buff, 0x00, len);
@@ -564,8 +587,8 @@ bool ShadeConfigFile::restoreFile(SomfyShadeController *s, const char *filename,
   else {
     this->file.seek(this->file.position() + this->header.settingsRecordSize, SeekSet);
   }
-  if(opts.network) {
-    this->readNetRecord();
+  if(opts.network || opts.mqtt) {
+    this->readNetRecord(opts);
   }
   else {
     this->file.seek(this->file.position() + this->header.netRecordSize, SeekSet);
@@ -583,44 +606,68 @@ bool ShadeConfigFile::restoreFile(SomfyShadeController *s, const char *filename,
     settings.WIFI.save();
     settings.Ethernet.save();
   }
+  if(opts.mqtt) settings.MQTT.save();
   return true;
 }
-bool ShadeConfigFile::readNetRecord() {
+bool ShadeConfigFile::readNetRecord(restore_options_t &opts) {
   if(this->header.netRecordSize > 0) {
     uint32_t startPos = this->file.position();
-    Serial.println("Reading network settings from file...");
-    settings.connType = static_cast<conn_types>(this->readUInt8(static_cast<uint8_t>(conn_types::unset)));
-    settings.IP.dhcp = this->readBool(true);
-    char ip[24];
-    this->readVarString(ip, sizeof(ip));
-    settings.IP.ip.fromString(ip);
-    this->readVarString(ip, sizeof(ip));
-    settings.IP.gateway.fromString(ip);
-    this->readVarString(ip, sizeof(ip));
-    settings.IP.subnet.fromString(ip);
-    this->readVarString(ip, sizeof(ip));
-    settings.IP.dns1.fromString(ip);
-    this->readVarString(ip, sizeof(ip));
-    settings.IP.dns2.fromString(ip);
+    if(opts.network) {
+      Serial.println("Reading network settings from file...");
+      settings.connType = static_cast<conn_types>(this->readUInt8(static_cast<uint8_t>(conn_types::unset)));
+      settings.IP.dhcp = this->readBool(true);
+      char ip[24];
+      this->readVarString(ip, sizeof(ip));
+      settings.IP.ip.fromString(ip);
+      this->readVarString(ip, sizeof(ip));
+      settings.IP.gateway.fromString(ip);
+      this->readVarString(ip, sizeof(ip));
+      settings.IP.subnet.fromString(ip);
+      this->readVarString(ip, sizeof(ip));
+      settings.IP.dns1.fromString(ip);
+      this->readVarString(ip, sizeof(ip));
+      settings.IP.dns2.fromString(ip);
+    }
+    else {
+      this->skipValue(4); // connType
+      this->skipValue(6); // dhcp flag
+      this->skipValue(24); // ip
+      this->skipValue(24); // gateway
+      this->skipValue(24); // subnet
+      this->skipValue(24); // dns1
+      this->skipValue(24); // dns2
+    }
     if(this->header.version >= 22) {
-      this->readVarString(settings.MQTT.protocol, sizeof(settings.MQTT.protocol));
-      this->readVarString(settings.MQTT.hostname, sizeof(settings.MQTT.hostname));
-      settings.MQTT.port = this->readUInt16(1883);
-      settings.MQTT.pubDisco = this->readBool(false);
-      this->readVarString(settings.MQTT.rootTopic, sizeof(settings.MQTT.rootTopic));
-      this->readVarString(settings.MQTT.discoTopic, sizeof(settings.MQTT.discoTopic));
+      if(opts.mqtt) {
+        this->readVarString(settings.MQTT.protocol, sizeof(settings.MQTT.protocol));
+        this->readVarString(settings.MQTT.hostname, sizeof(settings.MQTT.hostname));
+        settings.MQTT.port = this->readUInt16(1883);
+        settings.MQTT.pubDisco = this->readBool(false);
+        this->readVarString(settings.MQTT.rootTopic, sizeof(settings.MQTT.rootTopic));
+        this->readVarString(settings.MQTT.discoTopic, sizeof(settings.MQTT.discoTopic));
+      }
+      else {
+        this->skipValue(sizeof(settings.MQTT.protocol));
+        this->skipValue(sizeof(settings.MQTT.hostname));
+        this->skipValue(6); // Port
+        this->skipValue(6); // pubDisco
+        this->skipValue(sizeof(settings.MQTT.rootTopic));
+        this->skipValue(sizeof(settings.MQTT.discoTopic));
+      }
     }
     // Now lets check to see if we are the same board.  If we are then we will restore
     // the ethernet phy settings.
-    if(strncmp(settings.serverId, this->header.serverId, sizeof(settings.serverId)) == 0) {
-      Serial.println("Restoring Ethernet adapter settings");
-      settings.Ethernet.boardType = this->readUInt8(1);
-      settings.Ethernet.phyType = static_cast<eth_phy_type_t>(this->readUInt8(0));
-      settings.Ethernet.CLKMode = static_cast<eth_clock_mode_t>(this->readUInt8(0));
-      settings.Ethernet.phyAddress = this->readInt8(1);
-      settings.Ethernet.PWRPin = this->readInt8(1);
-      settings.Ethernet.MDCPin = this->readInt8(16);
-      settings.Ethernet.MDIOPin = this->readInt8(23);
+    if(opts.network) {
+      if(strncmp(settings.serverId, this->header.serverId, sizeof(settings.serverId)) == 0) {
+        Serial.println("Restoring Ethernet adapter settings");
+        settings.Ethernet.boardType = this->readUInt8(1);
+        settings.Ethernet.phyType = static_cast<eth_phy_type_t>(this->readUInt8(0));
+        settings.Ethernet.CLKMode = static_cast<eth_clock_mode_t>(this->readUInt8(0));
+        settings.Ethernet.phyAddress = this->readInt8(1);
+        settings.Ethernet.PWRPin = this->readInt8(1);
+        settings.Ethernet.MDCPin = this->readInt8(16);
+        settings.Ethernet.MDIOPin = this->readInt8(23);
+      }
     }
     if(this->file.position() != startPos + this->header.netRecordSize) {
       Serial.println("Reading to end of network record");

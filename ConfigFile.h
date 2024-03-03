@@ -55,6 +55,7 @@ class ConfigFile {
     bool writeFloat(const float val, const uint8_t prec, const char tok = CFG_VALUE_SEP);
     bool readString(char *buff, size_t len);
     bool readVarString(char *buff, size_t len);
+    bool skipValue(size_t len);
     bool writeString(const char *val, size_t len, const char tok = CFG_VALUE_SEP);
     bool writeVarString(const char *val, const char tok = CFG_VALUE_SEP);
     char readChar(const char defVal = '\0');
@@ -79,7 +80,7 @@ class ShadeConfigFile : public ConfigFile {
     bool readShadeRecord(SomfyShade *shade);
     bool readGroupRecord(SomfyGroup *group);
     bool readSettingsRecord();
-    bool readNetRecord();
+    bool readNetRecord(restore_options_t &opts);
     bool readTransRecord(transceiver_config_t &cfg);
   public:
     static bool exists();
