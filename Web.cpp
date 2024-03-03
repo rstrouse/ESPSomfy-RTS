@@ -270,7 +270,7 @@ void Web::chunkGroupsResponse(WebServer &server, const char * elem) {
   }
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
     if(somfy.groups[i].getGroupId() != 255) {
-      DynamicJsonDocument doc(1024);
+      DynamicJsonDocument doc(8192);
       JsonObject obj = doc.to<JsonObject>(); 
       somfy.groups[i].toJSON(obj);
       strcpy(g_content, ndx++ != 0 ? "," : "[");
