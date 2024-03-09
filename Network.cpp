@@ -16,6 +16,7 @@ extern MQTTClass mqtt;
 extern rebootDelay_t rebootDelay;
 extern Network net;
 
+static bool _apScanning = false;
 int connectRetries = 0;
 void Network::end() {
   sockEmit.end();
@@ -24,9 +25,11 @@ void Network::end() {
   delay(100);
 }
 bool Network::setup() {
+  WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+  WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
   WiFi.persistent(false);
   WiFi.onEvent(this->networkEvent);
-  if(WiFi.status() == WL_CONNECTED) WiFi.disconnect(true);
+  if(WiFi.status() == WL_CONNECTED) WiFi.disconnect(true, true);
   if(settings.connType == conn_types::wifi || settings.connType == conn_types::unset) {
     WiFi.persistent(false);
     if(settings.hostname[0] != '\0') WiFi.setHostname(settings.hostname);
@@ -63,7 +66,35 @@ void Network::loop() {
     // the MDNS library.  The original library required manual updates
     // to the MDNS or it would lose its hostname after 2 minutes.
     if(this->lastMDNS != 0) MDNS.setInstanceName(settings.hostname);
+    // Every 60 seconds we are going to look at wifi connectivity
+    // to get around the roaming issues with ESP32.  We will try to do this in an async manner.  If
+    // there is a channel that is better we will stop the radio and reconnect
+    if(this->connType == conn_types::wifi && settings.WIFI.roaming && !this->softAPOpened) {
+      // If we are not already scanning then we need to start a passive scan
+      // and only respond if there is a better connection. 
+      // 1. If there is currently a waiting scan don't do anything
+      if(!_apScanning && WiFi.scanNetworks(true, false, true, 300, 0, settings.WIFI.ssid) == -1) {
+        _apScanning = true;
+      }
+    }
     this->lastMDNS = millis();
+  }
+  if(_apScanning) {
+    if(!settings.WIFI.roaming || this->connType != conn_types::wifi || this->softAPOpened) _apScanning = false;
+    else {
+      uint16_t n = WiFi.scanComplete();
+      if( n > 0) {
+        _apScanning = false;
+        uint8_t bssid[6];
+        int32_t channel = 0;
+        if(this->getStrongestAP(settings.WIFI.ssid, bssid, &channel)) {
+          if(memcmp(bssid, WiFi.BSSID(), sizeof(bssid)) != 0) {
+            Serial.printf("Found stronger AP %d %02X:%02X:%02X:%02X:%02X:%02X\n", channel, bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+            this->changeAP(bssid, channel);
+          }
+        }
+      }
+    }
   }
   if(settings.ssdpBroadcast) {
     if(!SSDP.isStarted) SSDP.begin();
@@ -71,6 +102,47 @@ void Network::loop() {
   }
   else if(!settings.ssdpBroadcast && SSDP.isStarted) SSDP.end();
   mqtt.loop();
+}
+bool Network::changeAP(const uint8_t *bssid, const int32_t channel) {
+  if(SSDP.isStarted) SSDP.end();
+  mqtt.disconnect();
+  WiFi.disconnect(false, true);
+  WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase, channel, bssid);
+  uint8_t retries = 0;
+  while(retries < 100) {
+    wl_status_t stat = WiFi.status();
+    if(stat == WL_CONNECTED) {
+      Serial.println("WiFi module connected");
+      this->ssid = WiFi.SSID();
+      this->mac = WiFi.BSSIDstr();
+      this->strength = WiFi.RSSI();
+      this->channel = WiFi.channel();
+      return true;
+    }
+    else if(stat == WL_CONNECT_FAILED) {
+      Serial.println("WiFi Module connection failed");
+      return false;
+    }
+    else if(stat == WL_NO_SSID_AVAIL) {
+        Serial.println(" Connection failed the SSID ");
+        return false;
+    }
+    else if(stat == WL_NO_SHIELD) {
+        Serial.println("Connection failed - WiFi module not found");
+        return false;
+    }
+    else if(stat == WL_IDLE_STATUS) {
+        Serial.print("*");
+    }
+    else if(stat == WL_DISCONNECTED) {
+        Serial.print("-");
+    }
+    else {
+      Serial.printf("Unknown status %d\n", stat);
+    }
+    delay(300);
+  }
+  return false;
 }
 void Network::emitSockets() {
   if(this->needsBroadcast || 
@@ -91,7 +163,7 @@ void Network::emitSockets(uint8_t num) {
   }
   else {
       if(WiFi.status() == WL_CONNECTED) {
-        snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel());
+        snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), this->channel);
         if(num == 255)
           sockEmit.sendToClients("wifiStrength", buf);
         else
@@ -122,6 +194,10 @@ void Network::setConnected(conn_types connType) {
       WiFi.softAPdisconnect(true);
       WiFi.mode(WIFI_STA);
     }
+    this->ssid = WiFi.SSID();
+    this->mac = WiFi.BSSIDstr();
+    this->strength = WiFi.RSSI();
+    this->channel = WiFi.channel();
   }
   else if(this->connType == conn_types::ethernet) {
     if(this->softAPOpened) {
@@ -356,7 +432,14 @@ bool Network::connectWiFi() {
     WiFi.mode(WIFI_STA);
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
-    WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase);
+    uint8_t bssid[6];
+    int32_t channel = 0;
+    if(this->getStrongestAP(settings.WIFI.ssid, bssid, &channel)) {
+      Serial.printf("Found strongest AP %d %02X:%02X:%02X:%02X:%02X:%02X\n", channel, bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+      WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase, channel, bssid);
+    }
+    else
+      WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase);
     delay(100);
     int retries = 0;
     while(retries < 100) {
@@ -438,6 +521,25 @@ uint32_t Network::getChipId() {
     chipId |= ((mac >> (40 - i)) & 0xff) << i;
   }
   return chipId;
+}
+
+bool Network::getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel) {
+  // The new AP must be at least 10dbm greater.
+  int32_t strength = this->connected() ? WiFi.RSSI() + 10 : -127;
+  int32_t chan = -1;
+  memset(bssid, 0x00, 6);
+  uint8_t n = this->connected() ? WiFi.scanComplete() : WiFi.scanNetworks(false, false, false, 300, 0, ssid);
+  for(uint8_t i = 0; i < n; i++) {
+    if(WiFi.SSID(i).compareTo(ssid) == 0) {
+      if(WiFi.RSSI(i) > strength) { 
+        strength = WiFi.RSSI(i); 
+        memcpy(bssid, WiFi.BSSID(i), 6); 
+        *channel = chan = WiFi.channel(i);
+      }
+    }
+  }  
+  WiFi.scanDelete();
+  return chan > 0;
 }
 int Network::getStrengthBySSID(const char *ssid) {
   int32_t strength = -100;

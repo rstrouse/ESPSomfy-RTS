@@ -29,6 +29,8 @@ class Network {
     bool connectWiFi();
     bool connectWired();
     void setConnected(conn_types connType);
+    bool getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel);
+    bool changeAP(const uint8_t *bssid, const int32_t channel);
     //int getStrengthByMac(const char *mac);
     int getStrengthBySSID(const char *ssid);
     void updateHostname();

@@ -1672,12 +1672,14 @@ class Wifi {
                 if (settings.connType >= 2) {
                     document.getElementById('divWiFiMode').style.display = 'none';
                     document.getElementById('divEthernetMode').style.display = '';
+                    document.getElementById('divRoaming').style.display = 'none';
                     document.getElementById('divFallbackWireless').style.display = 'inline-block';
                 }
                 else {
                     document.getElementById('divWiFiMode').style.display = '';
                     document.getElementById('divEthernetMode').style.display = 'none';
                     document.getElementById('divFallbackWireless').style.display = 'none';
+                    document.getElementById('divRoaming').style.display = 'inline-block';
                 }
                 document.getElementById('divETHSettings').style.display = settings.ethernet.boardType === 0 ? '' : 'none';
                 document.getElementById('divStaticIP').style.display = settings.ip.dhcp ? 'none' : '';
@@ -1691,6 +1693,7 @@ class Wifi {
         document.getElementById('divWiFiMode').style.display = useEthernet ? 'none' : '';
         document.getElementById('divEthernetMode').style.display = useEthernet ? '' : 'none';
         document.getElementById('divFallbackWireless').style.display = useEthernet ? 'inline-block' : 'none';
+        document.getElementById('divRoaming').style.display = useEthernet ? 'none' : 'inline-block';
     }
     async loadAPs() {
         if (document.getElementById('btnScanAPs').classList.contains('disabled')) return;
@@ -1878,6 +1881,7 @@ class Wifi {
     }
     procWifiStrength(strength) {
         let ssid = strength.ssid || strength.name;
+        console.log(strength);
         document.getElementById('spanNetworkSSID').innerHTML = !ssid || ssid === '' ? '-------------' : ssid;
         document.getElementById('spanNetworkChannel').innerHTML = isNaN(strength.channel) || strength.channel < 0 ? '--' : strength.channel;
         let cssClass = 'waveStrength-' + (isNaN(strength.strength) || strength > 0 ? -100 : this.calcWaveStrength(strength.strength));

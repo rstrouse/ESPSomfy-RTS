@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.4.1a" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.4.1a" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.4.1a" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.4.1b" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.4.1b" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.4.1b" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.4.1a"></script>
+    <script type="text/javascript" src="index.js?v=2.4.1b"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -157,6 +157,10 @@
                         <div class="field-group" style="vertical-align:middle;color:#00bcd4;margin-top:-24px;margin-bottom:18px;">
                             <input id="cbHardwired" name="hardwired" data-bind="ethernet.hardwired" type="checkbox" style="display:inline-block;" onclick="wifi.useEthernetClicked();" />
                             <label for="cbHardwired" style="display:inline-block;cursor:pointer;">Use Ethernet</label>
+                            <div id="divRoaming" style="display:inline-block;padding-left:7px;">
+                                <input id="cbRoaming" name="roaming" data-bind="wifi.roaming" type="checkbox" style="display:inline-block;" />
+                                <label for="cbRoaming" style="display:inline-block;cursor:pointer;">Enable Roaming</label>
+                            </div>
                             <div id="divFallbackWireless" style="display:inline-block;padding-left:7px;">
                                 <input id="cbFallbackWireless" name="fallbackwireless" data-bind="ethernet.wirelessFallback" type="checkbox" style="display:inline-block;" />
                                 <label for="cbFallbackWireless" style="display:inline-block;cursor:pointer;">Fallback to Wireless</label>

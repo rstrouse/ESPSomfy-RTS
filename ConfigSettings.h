@@ -59,6 +59,7 @@ class NTPSettings: BaseSettings {
 class WifiSettings: BaseSettings {
   public:
     WifiSettings();
+    bool roaming = true;
     char ssid[65] = "";
     char passphrase[65] = "";
     //bool ssdpBroadcast = true;

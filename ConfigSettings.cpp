@@ -522,11 +522,13 @@ bool WifiSettings::begin() {
 bool WifiSettings::fromJSON(JsonObject &obj) {
   this->parseValueString(obj, "ssid", this->ssid, sizeof(this->ssid));
   this->parseValueString(obj, "passphrase", this->passphrase, sizeof(this->passphrase));
+  if(obj.containsKey("roaming")) this->roaming = obj["roaming"];
   return true;
 }
 bool WifiSettings::toJSON(JsonObject &obj) {
   obj["ssid"] = this->ssid;
   obj["passphrase"] = this->passphrase;
+  obj["roaming"] = this->roaming;
   return true;
 }
 bool WifiSettings::save() {
@@ -534,6 +536,7 @@ bool WifiSettings::save() {
   pref.clear();
   pref.putString("ssid", this->ssid);
   pref.putString("passphrase", this->passphrase);
+  pref.putBool("roaming", this->roaming);
   pref.end();
   return true;
 }
@@ -543,6 +546,7 @@ bool WifiSettings::load() {
   pref.getString("passphrase", this->passphrase, sizeof(this->passphrase));
   this->ssid[sizeof(this->ssid) - 1] = '\0';
   this->passphrase[sizeof(this->passphrase) - 1] = '\0';
+  this->roaming = pref.getBool("roaming", true);
   pref.end();
   return true;
 }
