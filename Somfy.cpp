@@ -4318,7 +4318,7 @@ void Transceiver::disableReceive(void) {
   
 }
 bool Transceiver::toJSON(JsonObject& obj) {
-    Serial.println("Setting Transceiver Json");
+    //Serial.println("Setting Transceiver Json");
     JsonObject objConfig = obj.createNestedObject("config");
     this->config.toJSON(objConfig);
     return true;
@@ -4352,7 +4352,7 @@ bool Transceiver::end() {
     return true;
 }
 void transceiver_config_t::fromJSON(JsonObject& obj) {
-    Serial.print("Deserialize Radio JSON ");
+    //Serial.print("Deserialize Radio JSON ");
     if(obj.containsKey("type")) this->type = obj["type"];
     if(obj.containsKey("CSNPin")) this->CSNPin = obj["CSNPin"];
     if(obj.containsKey("MISOPin")) this->MISOPin = obj["MISOPin"];
@@ -4433,8 +4433,8 @@ void transceiver_config_t::toJSON(JsonObject& obj) {
     */
     obj["enabled"] = this->enabled;
     obj["radioInit"] = this->radioInit;
-    Serial.print("Serialize Radio JSON ");
-    Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
+    //Serial.print("Serialize Radio JSON ");
+    //Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
 }
 void transceiver_config_t::save() {
     pref.begin("CC1101");

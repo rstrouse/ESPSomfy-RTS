@@ -18,6 +18,7 @@ SomfyShadeController somfy;
 MQTTClass mqtt;
 GitUpdater git;
 
+uint32_t oldheap = 0;
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -39,6 +40,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  //uint32_t heap = ESP.getFreeHeap();
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
     Serial.print("Rebooting after ");
     Serial.print(rebootDelay.rebootTime);
@@ -65,4 +67,13 @@ void loop() {
     net.end();
     ESP.restart();
   }
+  /*
+  if(heap < oldheap) {
+      Serial.print("Heap: ");
+      Serial.print(oldheap);
+      Serial.print(" -> ");
+      Serial.println(heap);
+  }
+  oldheap = heap;
+  */
 }

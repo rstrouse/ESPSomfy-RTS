@@ -83,7 +83,7 @@ jobs:
           - board: esp32
             addr_bootloader: 0x1000
             chip: ESP32
-            fqbn: esp32:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,DebugLevel=none
+            fqbn: esp32:esp32:esp32wrover:PartitionScheme=default,FlashMode=qio,FlashFreq=80,DebugLevel=none
             # esp32:esp32:esp32wrover:PartitionScheme=default,FlashMode=qio,FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none 
             name: ESP32
             obname: SomfyController.onboard.esp32.bin
@@ -91,14 +91,14 @@ jobs:
           - board: esp32c3
             addr_bootloader: 0x0
             chip: ESP32-C3
-            fqbn: esp32:esp32:esp32c3
+            fqbn: esp32:esp32:esp32c3:JTAGAdapter=default,USBMode=hwcdc,CDCOnBoot=cdc,DebugLevel=none,FlashMode=qio,PartitionScheme=default
             name: ESP32C3
             obname: SomfyController.onboard.esp32c3.bin
             fwname: SomfyController.ino.esp32c3.bin
           - board: esp32s2
             addr_bootloader: 0x1000
             chip: ESP32-S2
-            fqbn: esp32:esp32:esp32s2
+            fqbn: esp32:esp32:esp32s2:JTAGAdapter=default,USBMode=hwcdc,CDCOnBoot=cdc,DebugLevel=none,FlashMode=qio,PartitionScheme=default,PSRAM=disabled
             name: ESP32S2
             obname: SomfyController.onboard.esp32s2.bin
             fwname: SomfyController.ino.esp32s2.bin
