@@ -4306,15 +4306,22 @@ class Firmware {
                     break;
                 case 3: // Updating -- this will be set by the update progress.
                     break;
-                case 4:
-                    div.style.color = 'red';
-                    let e = errors.find(x => x.code === rel.error) || { code: err.code, desc: 'Unspecified error' };
-                    let inst = document.getElementById('divGitInstall');
-                    if (inst) {
-                        inst.remove();
-                        ui.errorMessage(e.desc);
+                case 4: // Complete
+                    if (rel.error !== 0) {
+                        div.style.color = 'red';
+                        let e = errors.find(x => x.code === rel.error) || { code: rel.error, desc: 'Unspecified error' };
+                        let inst = document.getElementById('divGitInstall');
+                        if (inst) {
+                            inst.remove();
+                            ui.errorMessage(e.desc);
+                        }
+                        div.innerHTML = e.desc;
                     }
-                    div.innerHTML = e.desc;
+                    else {
+                        div.innerHTML = `Firmware update complete`;
+                        // Throw up a wait message this will be cleared on the reload.
+                        ui.waitMessage(document.getElementById('divContainer'));
+                    }
                     break;
                 case 5:
                     div.style.color = 'red';
