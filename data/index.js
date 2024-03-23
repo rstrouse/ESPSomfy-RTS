@@ -1684,6 +1684,7 @@ class Wifi {
                 document.getElementById('divETHSettings').style.display = settings.ethernet.boardType === 0 ? '' : 'none';
                 document.getElementById('divStaticIP').style.display = settings.ip.dhcp ? 'none' : '';
                 ui.toElement(document.getElementById('divDHCP'), settings);
+                document.getElementById('spanCurrentIP').innerHTML = settings.ip.ip;
             }
         });
 

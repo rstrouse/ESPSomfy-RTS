@@ -3,11 +3,11 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="main.css?v=2.4.1c" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.4.1c" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.4.1c" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.4.1r" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.4.1r" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.4.1r" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script type="text/javascript" src="index.js?v=2.4.1c"></script>
+    <script type="text/javascript" src="index.js?v=2.4.1r"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -221,6 +221,7 @@
                         </div>
                     </div>
                     <div id="divDHCP" class="subtab-content" style="display:none;">
+                        <div style="margin-top:-14px;"><span style="color: #00bcd4;">IP Adddress:</span><span id="spanCurrentIP"></span></div>
                         <div class="field-group">
                             <input id="cbUseDHCP" name="dhcp" type="checkbox" data-bind="ip.dhcp" style="display:inline-block;" onclick="wifi.onDHCPClicked(this);" checked="checked" />
                             <label for="cbUseDHCP" style="display:inline-block;cursor:pointer;">Acquire IP Address automatically (DHCP)</label>
