@@ -5,10 +5,10 @@
 #include "mbedtls/md.h"
 #include "ConfigSettings.h"
 #include "ConfigFile.h"
-#include "Web.h"
 #include "Utils.h"
 #include "SSDP.h"
 #include "Somfy.h"
+#include "Web.h"
 #include "MQTT.h"
 #include "GitOTA.h"
 #include "Network.h"
@@ -262,20 +262,36 @@ void Web::chunkShadesResponse(WebServer &server, const char * elem) {
   }
   server.sendContent(ndx == 0 ? "[]" : "]");
 }
+void Web::chunkGroupResponse(WebServer &server, SomfyGroup * grp, const char *prefix) {
+  grp->updateFlags();
+  snprintf(g_content, sizeof(g_content), "%s{\"groupId\":%d,\"roomId\":%d,\"name\":\"%s\",\"remoteAddress\":%d,\"lastRollingCode\":%d,\"bitLength\":%d,\"proto\":%d,\"sunSensor\":%s,\"flipCommands\":%s,\"flags\":%d,\"repeats\":%d,\"sortOrder\":%d,\"linkedShades\":[ ",
+  prefix ? prefix : "", grp->getGroupId(), grp->roomId, grp->name, grp->getRemoteAddress(), grp->lastRollingCode, grp->bitLength, static_cast<uint8_t>(grp->proto), grp->hasSunSensor() ? "true" : "false", grp->flipCommands ? "true" : "false", grp->flags, grp->repeats, grp->sortOrder);
+  server.sendContent(g_content);
+  uint8_t n = 0;
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    uint8_t shadeId = grp->linkedShades[i];
+    if(shadeId > 0 && shadeId < 255) {
+      SomfyShade *shade = somfy.getShadeById(shadeId);
+      if(shade) {
+        snprintf(g_content, sizeof(g_content), "%s{\"shadeId\":%d,\"roomId\":%d,\"name\":\"%s\",\"remoteAddress\":%d,\"paired\":%s,\"shadeType\":%d,\"bitLength\":%d,\"proto\":%d,\"flags\":%d,\"sunSensor\":%s,\"hasLight\":%s,\"repeats\":%d}",
+          n == 0 ? "" : ",", shade->getShadeId(), shade->roomId, shade->name, shade->getRemoteAddress(), shade->paired ? "true" : "false", static_cast<uint8_t>(shade->shadeType), shade->bitLength, static_cast<uint8_t>(shade->proto), shade->flags, 
+          shade->hasSunSensor() ? "true" : "false", shade->hasLight() ? "true" : "false", shade->repeats);
+        server.sendContent(g_content);
+        n++;
+      }
+    }
+  }
+  server.sendContent("]}");
+}
 void Web::chunkGroupsResponse(WebServer &server, const char * elem) {
   uint8_t ndx = 0;
   if(elem && strlen(elem) > 0) {
-    sprintf(g_content, "\"%s\"", elem);
+    sprintf(g_content, "\"%s\":", elem);
     server.sendContent(g_content);
   }
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
     if(somfy.groups[i].getGroupId() != 255) {
-      DynamicJsonDocument doc(8192);
-      JsonObject obj = doc.to<JsonObject>(); 
-      somfy.groups[i].toJSON(obj);
-      strcpy(g_content, ndx++ != 0 ? "," : "[");
-      serializeJson(doc, &g_content[strlen(g_content)], sizeof(g_content) - strlen(g_content));
-      server.sendContent(g_content);
+      this->chunkGroupResponse(server, &somfy.groups[i], ndx++ != 0 ? "," : "[");
     }
   }
   server.sendContent(ndx == 0 ? "[]" : "]");
@@ -562,11 +578,10 @@ void Web::handleGroupCommand(WebServer &server) {
       // Send the command to the group.
       if(repeat > 0) group->sendCommand(command, repeat);
       else group->sendCommand(command);
-      DynamicJsonDocument sdoc(512);
-      JsonObject sobj = sdoc.to<JsonObject>();
-      group->toJSON(sobj);
-      serializeJson(sdoc, g_content);
-      server.send(200, _encoding_json, g_content);
+      server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+      server.send_P(200, _encoding_json, " ");
+      this->chunkGroupResponse(server, group);
+      server.sendContent("", 0);
     }
     else {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group with the specified id not found.\"}"));
@@ -761,11 +776,10 @@ void Web::handleGroup(WebServer &server) {
       int groupId = atoi(server.arg("groupId").c_str());
       SomfyGroup* group = somfy.getGroupById(groupId);
       if (group) {
-        DynamicJsonDocument doc(2048);
-        JsonObject obj = doc.to<JsonObject>();
-        group->toJSON(obj);
-        serializeJson(doc, g_content);
-        server.send(200, _encoding_json, g_content);
+        server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+        server.send_P(200, _encoding_json, " ");
+        this->chunkGroupResponse(server, group);
+        server.sendContent("", 0);
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group Id not found.\"}"));
     }

@@ -1,4 +1,5 @@
 #include <WebServer.h>
+#include "Somfy.h"
 #ifndef webserver_h
 #define webserver_h
 class Web {
@@ -44,6 +45,7 @@ class Web {
     void chunkRoomsResponse(WebServer &server, const char *elem = nullptr);
     void chunkShadesResponse(WebServer &server, const char *elem = nullptr);
     void chunkGroupsResponse(WebServer &server, const char *elem = nullptr);
+    void chunkGroupResponse(WebServer &server, SomfyGroup *, const char *prefix = nullptr);
 };
 
 #endif
