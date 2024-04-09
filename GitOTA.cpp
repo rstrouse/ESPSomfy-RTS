@@ -8,6 +8,8 @@
 #include "Sockets.h"
 #include "Somfy.h"
 #include "Web.h"
+#include "WResp.h"
+
 
 
 extern ConfigSettings settings;
@@ -78,6 +80,20 @@ bool GitRelease::toJSON(JsonObject &obj) {
   JsonObject ver = obj.createNestedObject("version");
   this->version.toJSON(ver);
   return true;
+}
+void GitRelease::toJSON(JsonResponse &json) {
+  Timestamp ts;
+  json.addElem("id", this->id);
+  json.addElem("name", this->name);
+  json.addElem("date", ts.getISOTime(this->releaseDate));
+  json.addElem("draft", this->draft);
+  json.addElem("preRelease", this->preRelease);
+  json.addElem("main", this->main);
+  json.addElem("hasFS", this->hasFS);
+  json.addElem("hwVersions", this->hwVersions);
+  json.beginObject("version");
+  this->version.toJSON(json);
+  json.endObject();
 }
 #define ERR_CLIENT_OFFSET -50
 
@@ -221,6 +237,22 @@ int16_t GitRepo::getReleases(uint8_t num) {
   settings.printAvailHeap();
   return 0;
 }
+void GitRepo::toJSON(JsonResponse &json) {
+  json.beginObject("fwVersion");
+  settings.fwVersion.toJSON(json);
+  json.endObject();
+  json.beginObject("appVersion");
+  settings.appVersion.toJSON(json);
+  json.endObject();
+  json.beginArray("releases");
+  for(uint8_t i = 0; i < GIT_MAX_RELEASES + 1; i++) {
+    if(this->releases[i].id == 0) continue;
+    json.beginObject();
+    this->releases[i].toJSON(json);
+    json.endObject();
+  }
+  json.endArray();
+}
 bool GitRepo::toJSON(JsonObject &obj) {
   JsonObject fw = obj.createNestedObject("fwVersion");
   settings.fwVersion.toJSON(fw);
@@ -299,6 +331,24 @@ void GitUpdater::setCurrentRelease(GitRepo &repo) {
   }
   this->emitUpdateCheck();
 }
+void GitUpdater::toJSON(JsonResponse &json) {
+  json.addElem("available", this->updateAvailable);
+  json.addElem("status", this->status);
+  json.addElem("error", this->error);
+  json.addElem("cancelled", this->cancelled);
+  json.addElem("checkForUpdate", settings.checkForUpdate);
+  json.addElem("inetAvailable", this->inetAvailable);
+  json.beginObject("fwVersion");
+  settings.fwVersion.toJSON(json);
+  json.endObject();
+  json.beginObject("appVersion");
+  settings.appVersion.toJSON(json);
+  json.endObject();
+  json.beginObject("latest");
+  this->latest.toJSON(json);
+  json.endObject();
+}
+
 void GitUpdater::toJSON(JsonObject &obj) {
   obj["available"] = this->updateAvailable;
   obj["status"] = this->status;
@@ -314,6 +364,26 @@ void GitUpdater::toJSON(JsonObject &obj) {
   this->latest.toJSON(latest);
 }
 void GitUpdater::emitUpdateCheck(uint8_t num) {
+  JsonSockEvent *json = sockEmit.beginEmit("fwStatus");
+  json->beginObject();
+  json->addElem("available", this->updateAvailable);
+  json->addElem("status", this->status);
+  json->addElem("error", this->error);
+  json->addElem("cancelled", this->cancelled);
+  json->addElem("checkForUpdate", settings.checkForUpdate);
+  json->addElem("inetAvailable", this->inetAvailable);
+  json->beginObject("fwVersion");
+  settings.fwVersion.toJSON(json);
+  json->endObject();
+  json->beginObject("appVersion");
+  settings.appVersion.toJSON(json);
+  json->endObject();
+  json->beginObject("latest");
+  this->latest.toJSON(json);
+  json->endObject();
+  json->endObject();
+  sockEmit.endEmit(num);
+  /*
   ClientSocketEvent evt("fwStatus");
   DynamicJsonDocument doc(512);
   JsonObject obj = doc.to<JsonObject>();
@@ -322,6 +392,7 @@ void GitUpdater::emitUpdateCheck(uint8_t num) {
     sockEmit.sendToClients("fwStatus", doc);
   else
     sockEmit.sendToClient(num, "fwStatus", doc);
+  */
 }
 int GitUpdater::checkInternet() {
   int err = 500;
@@ -353,10 +424,22 @@ int GitUpdater::checkInternet() {
 }
 void GitUpdater::emitDownloadProgress(size_t total, size_t loaded, const char *evt) { this->emitDownloadProgress(255, total, loaded, evt); }
 void GitUpdater::emitDownloadProgress(uint8_t num, size_t total, size_t loaded, const char *evt) {
+  JsonSockEvent *json = sockEmit.beginEmit(evt);
+  json->beginObject();
+  json->addElem("ver", this->targetRelease);
+  json->addElem("part", this->partition);
+  json->addElem("file", this->currentFile);
+  json->addElem("total", total);
+  json->addElem("loaded", loaded);
+  json->addElem("error", this->error);
+  json->endObject();
+  sockEmit.endEmit(num);
+  /*
   char buf[420];
   snprintf(buf, sizeof(buf), "{\"ver\":\"%s\",\"part\":%d,\"file\":\"%s\",\"total\":%d,\"loaded\":%d, \"error\":%d}", this->targetRelease, this->partition, this->currentFile, total, loaded, this->error);
   if(num >= 255) sockEmit.sendToClients(evt, buf);
   else sockEmit.sendToClient(num, evt, buf);
+  */
   sockEmit.loop();
   webServer.loop();
 }

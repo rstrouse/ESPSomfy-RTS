@@ -85,6 +85,20 @@ bool appver_t::toJSON(JsonObject &obj) {
   obj["suffix"] = this->suffix;
   return true;
 }
+void appver_t::toJSON(JsonResponse &json) {
+  json.addElem("name", this->name);
+  json.addElem("major", this->major);
+  json.addElem("minor", this->minor);
+  json.addElem("build", this->build);
+  json.addElem("suffix", this->suffix);
+}
+void appver_t::toJSON(JsonSockEvent *json) {
+  json->addElem("name", this->name);
+  json->addElem("major", this->major);
+  json->addElem("minor", this->minor);
+  json->addElem("build", this->build);
+  json->addElem("suffix", this->suffix);
+}
 
 bool BaseSettings::load() { return true; }
 bool BaseSettings::loadFile(const char *filename) { 
@@ -235,6 +249,14 @@ bool ConfigSettings::toJSON(JsonObject &obj) {
   obj["checkForUpdate"] = this->checkForUpdate;
   return true;
 }
+void ConfigSettings::toJSON(JsonResponse &json) {
+  json.addElem("ssdpBroadcast", this->ssdpBroadcast);
+  json.addElem("hostname", this->hostname);
+  json.addElem("connType", static_cast<uint8_t>(this->connType));
+  json.addElem("chipModel", this->chipModel);
+  json.addElem("checkForUpdate", this->checkForUpdate);
+}
+
 bool ConfigSettings::requiresAuth() { return this->Security.type != security_types::None; }
 bool ConfigSettings::fromJSON(JsonObject &obj) {
     if(obj.containsKey("ssdpBroadcast")) this->ssdpBroadcast = obj["ssdpBroadcast"];
@@ -286,6 +308,18 @@ bool MQTTSettings::begin() {
   this->load();
   return true;
 }
+void MQTTSettings::toJSON(JsonResponse &json) {
+  json.addElem("enabled", this->enabled);
+  json.addElem("pubDisco", this->pubDisco);
+  json.addElem("protocol", this->protocol);
+  json.addElem("hostname", this->hostname);
+  json.addElem("port", this->port);
+  json.addElem("username", this->username);
+  json.addElem("password", this->password);
+  json.addElem("rootTopic", this->rootTopic);
+  json.addElem("discoTopic", this->discoTopic);
+}
+
 bool MQTTSettings::toJSON(JsonObject &obj) {
   obj["enabled"] = this->enabled;
   obj["pubDisco"] = this->pubDisco;
@@ -384,6 +418,11 @@ bool NTPSettings::fromJSON(JsonObject &obj) {
   this->parseValueString(obj, "posixZone", this->posixZone, sizeof(this->posixZone));
   return true;
 }
+void NTPSettings::toJSON(JsonResponse &json) {
+  json.addElem("ntpServer", this->ntpServer);
+  json.addElem("posixZone", this->posixZone);
+}
+
 bool NTPSettings::toJSON(JsonObject &obj) {
   obj["ntpServer"] = this->ntpServer;
   obj["posixZone"] = this->posixZone;
@@ -420,6 +459,16 @@ bool IPSettings::toJSON(JsonObject &obj) {
   obj["dns2"] = this->dns2 == ipEmpty ? "" : this->dns2.toString();
   return true;  
 }
+void IPSettings::toJSON(JsonResponse &json) {
+  IPAddress ipEmpty(0,0,0,0);
+  json.addElem("dhcp", this->dhcp);
+  json.addElem("ip", this->ip.toString().c_str());
+  json.addElem("gateway", this->gateway.toString().c_str());
+  json.addElem("subnet", this->subnet.toString().c_str());
+  json.addElem("dns1", this->dns1.toString().c_str());
+  json.addElem("dns2", this->dns2.toString().c_str());
+}
+
 bool IPSettings::save() {
   pref.begin("IP");
   pref.clear();
@@ -480,6 +529,14 @@ bool SecuritySettings::toJSON(JsonObject &obj) {
   obj["permissions"] = this->permissions;
   return true;  
 }
+void SecuritySettings::toJSON(JsonResponse &json) {
+  json.addElem("type", static_cast<uint8_t>(this->type));
+  json.addElem("username", this->username);
+  json.addElem("password", this->password);
+  json.addElem("pin", this->pin);
+  json.addElem("permissions", this->permissions);
+}
+
 bool SecuritySettings::save() {
   pref.begin("SEC");
   pref.clear();
@@ -531,6 +588,12 @@ bool WifiSettings::toJSON(JsonObject &obj) {
   obj["roaming"] = this->roaming;
   return true;
 }
+void WifiSettings::toJSON(JsonResponse &json) {
+  json.addElem("ssid", this->ssid);
+  json.addElem("passphrase", this->passphrase);
+  json.addElem("roaming", this->roaming);
+}
+
 bool WifiSettings::save() {
   pref.begin("WIFI");
   pref.clear();
@@ -628,6 +691,16 @@ bool EthernetSettings::toJSON(JsonObject &obj) {
   obj["MDIOPin"] = this->MDIOPin;
   return true;
 }
+void EthernetSettings::toJSON(JsonResponse &json) {
+  json.addElem("boardType", this->boardType);
+  json.addElem("phyAddress", this->phyAddress);
+  json.addElem("CLKMode", static_cast<uint8_t>(this->CLKMode));
+  json.addElem("phyType", static_cast<uint8_t>(this->phyType));
+  json.addElem("PWRPin", this->PWRPin);
+  json.addElem("MDCPin", this->MDCPin);
+  json.addElem("MDIOPin", this->MDIOPin);
+}
+
 bool EthernetSettings::usesPin(uint8_t pin) {
   if((this->CLKMode == 0 || this->CLKMode == 1) && pin == 0) return true;
   else if(this->CLKMode == 2 && pin == 16) return true;

@@ -4,6 +4,7 @@
 #include <ArduinoJson.h>
 #include <time.h>
 #include "ConfigSettings.h"
+#include "WResp.h"
 
 #define GIT_MAX_RELEASES 5
 #define GIT_STATUS_READY 0
@@ -28,13 +29,14 @@ class GitRelease {
     void setReleaseProperty(const char *key, const char *val);
     void setAssetProperty(const char *key, const char *val);
     bool toJSON(JsonObject &obj);
-    
+    void toJSON(JsonResponse &json);
 };
 class GitRepo {
   public:
     int16_t getReleases(uint8_t num = GIT_MAX_RELEASES);
     GitRelease releases[GIT_MAX_RELEASES + 1];
     bool toJSON(JsonObject &obj);
+    void toJSON(JsonResponse &json);
 };
 class GitUpdater {
   public:
@@ -59,6 +61,7 @@ class GitUpdater {
     void setCurrentRelease(GitRepo &repo);
     void loop();
     void toJSON(JsonObject &obj);
+    void toJSON(JsonResponse &json);
     bool recoverFilesystem();
     int checkInternet();
     void emitUpdateCheck(uint8_t num=255);

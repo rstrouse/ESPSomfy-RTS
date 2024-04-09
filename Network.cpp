@@ -155,23 +155,58 @@ void Network::emitSockets() {
 void Network::emitSockets(uint8_t num) {
   char buf[128];
   if(this->connType == conn_types::ethernet) {
+      JsonSockEvent *json = sockEmit.beginEmit("ethernet");
+      json->beginObject();
+      json->addElem("connected", this->connected());
+      json->addElem("speed", ETH.linkSpeed());
+      json->addElem("fullduplex", ETH.fullDuplex());
+      json->endObject();
+      sockEmit.endEmit(num);
+      /*
       snprintf(buf, sizeof(buf), "{\"connected\":%s,\"speed\":%d,\"fullduplex\":%s}", this->connected() ? "true" : "false", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
       if(num == 255) 
         sockEmit.sendToClients("ethernet", buf);
       else
         sockEmit.sendToClient(num, "ethernet", buf);
+      */
   }
   else {
       if(WiFi.status() == WL_CONNECTED) {
+        JsonSockEvent *json = sockEmit.beginEmit("wifiStrength");
+        json->beginObject();
+        json->addElem("ssid", WiFi.SSID().c_str());
+        json->addElem("strength", WiFi.RSSI());
+        json->addElem("channel", this->channel);
+        json->endObject();
+        sockEmit.endEmit(num);
+        /*
         snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), this->channel);
         if(num == 255)
           sockEmit.sendToClients("wifiStrength", buf);
         else
           sockEmit.sendToClient(num, "wifiStrength", buf);
+        */
         this->lastRSSI = WiFi.RSSI();
         this->lastChannel = WiFi.channel();
       }
       else {
+        JsonSockEvent *json = sockEmit.beginEmit("wifiStrength");
+        json->beginObject();
+        json->addElem("ssid", "");
+        json->addElem("strength", -100);
+        json->addElem("channel", -1);
+        json->endObject();
+        sockEmit.endEmit(num);
+        
+        json = sockEmit.beginEmit("ethernet");
+        json->beginObject();
+        json->addElem("connected", false);
+        json->addElem("speed", 0);
+        json->addElem("fullduplex", false);
+        json->endObject();
+        sockEmit.endEmit(num);
+        /*
+
         if(num == 255) {
           sockEmit.sendToClients("wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
           sockEmit.sendToClients("ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
@@ -180,6 +215,7 @@ void Network::emitSockets(uint8_t num) {
           sockEmit.sendToClient(num, "wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
           sockEmit.sendToClient(num, "ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
         }
+        */
         this->lastRSSI = -100;
         this->lastChannel = -1;
       }
@@ -239,9 +275,18 @@ void Network::setConnected(conn_types connType) {
         settings.IP.dns1 = ETH.dnsIP(0);
         settings.IP.dns2 = ETH.dnsIP(1);
       }
+      JsonSockEvent *json = sockEmit.beginEmit("ethernet");
+      json->beginObject();
+      json->addElem("connected", this->connected());
+      json->addElem("speed", ETH.linkSpeed());
+      json->addElem("fullduplex", ETH.fullDuplex());
+      json->endObject();
+      sockEmit.endEmit();
+      /*
       char buf[128];
       snprintf(buf, sizeof(buf), "{\"connected\":true,\"speed\":%d,\"fullduplex\":%s}", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
       sockEmit.sendToClients("ethernet", buf);
+      */
     }
   }
   else {
@@ -364,7 +409,7 @@ bool Network::connectWired() {
         
         uint32_t wait = millis();
         while(millis() - wait < 14000) {
-          if(ETH.linkUp()) {
+          if(ETH.linkUp() && ETH.localIP() != INADDR_NONE) {
             net.mac = ETH.macAddress();
             net.setConnected(conn_types::ethernet);
             return true;
@@ -660,7 +705,18 @@ void Network::networkEvent(WiFiEvent_t event) {
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       Serial.println("Ethernet Disconnected");
+      {
+        JsonSockEvent *json = sockEmit.beginEmit("ethernet");
+        json->beginObject();
+        json->addElem("connected", false);
+        json->addElem("speed", 0);
+        json->addElem("fullduplex", false);
+        json->endObject();
+        sockEmit.endEmit();
+      }
+      /*
       sockEmit.sendToClients("ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
+      */
       net.connType = conn_types::unset;
       break;
     case ARDUINO_EVENT_ETH_STOP:

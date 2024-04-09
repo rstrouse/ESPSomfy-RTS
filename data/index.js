@@ -1,5 +1,6 @@
 //var hst = '192.168.1.208';
-var hst = '192.168.1.152';
+//var hst = '192.168.1.152';
+var hst = '192.168.1.159';
 var _rooms = [{ roomId: 0, name: 'Home' }];
 
 var errors = [
@@ -562,6 +563,8 @@ async function initSockets() {
                     await wifi.loadNetwork();
                     await somfy.loadSomfy();
                     await mqtt.loadMQTT();
+                    if (ui.isConfigOpen()) socket.send('join:0');
+
                     //await general.init();
                     //await somfy.init();
                     //await mqtt.init();
@@ -1264,7 +1267,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.4.1';
+    appVersion = 'v2.4.2';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -2582,12 +2585,15 @@ class Somfy {
                 divCtl += `<span class="groupctl-name">${group.name}</span>`;
                 divCtl += `<div class="groupctl-shades">`;
                 if (typeof group.linkedShades !== 'undefined') {
+                    divCtl += `<label>Members:</label><span>${group.linkedShades.length}`;
+                    /*
                     for (let j = 0; j < group.linkedShades.length; j++) {
                         divCtl += '<span>';
                         if (j !== 0) divCtl += ', ';
                         divCtl += group.linkedShades[j].name;
                         divCtl += '</span>';
                     }
+                    */
                 }
                 divCtl += '</div></div>';
                 divCtl += `<div class="groupctl-buttons">`;

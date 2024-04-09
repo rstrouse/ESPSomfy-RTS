@@ -16,6 +16,9 @@ extern GitUpdater git;
 
 WebSocketsServer sockServer = WebSocketsServer(8080);
 
+#define MAX_SOCK_RESPONSE 2048
+static char g_response[MAX_SOCK_RESPONSE];
+
 bool room_t::isJoined(uint8_t num) {
   for(uint8_t i = 0; i < sizeof(this->clients); i++) { 
     if(this->clients[i] == num) return true; 
@@ -49,7 +52,9 @@ uint8_t room_t::activeClients() {
 /*********************************************************************
  * ClientSocketEvent class members
  ********************************************************************/
+/*
 void ClientSocketEvent::prepareMessage(const char *evt, const char *payload) {
+  if(strlen(payload) + 5 >= sizeof(this->msg)) Serial.printf("Socket buffer overflow %d > 2048\n", strlen(payload) + 5 + strlen(evt));
     snprintf(this->msg, sizeof(this->msg), "42[%s,%s]", evt, payload);
 }
 void ClientSocketEvent::prepareMessage(const char *evt, JsonDocument &doc) {
@@ -58,6 +63,7 @@ void ClientSocketEvent::prepareMessage(const char *evt, JsonDocument &doc) {
   serializeJson(doc, &this->msg[strlen(this->msg)], sizeof(this->msg) - strlen(this->msg) - 2);
   strcat(this->msg, "]");
 }
+*/
 
 /*********************************************************************
  * SocketEmitter class members
@@ -76,56 +82,113 @@ void SocketEmitter::loop() {
   sockServer.loop();  
 }
 /*
-bool SocketEmitter::sendToClients(const char *evt, JsonObject &obj) {
-  serializeJson(obj, g_buffer, sizeof(g_buffer));
-  return this->sendToClients(evt, g_buffer);
-}
-bool SocketEmitter::sendToClient(uint8_t num, const char *evt, JsonObject &obj) {
-  serializeJson(obj, g_buffer, sizeof(g_buffer));
-  return this->sendToClient(num, evt, g_buffer);
-}
-*/
-ClientSocketEvent::ClientSocketEvent() {}
+ClientSocketEvent::ClientSocketEvent() { this->msg[0] = 0x00; }
 ClientSocketEvent::ClientSocketEvent(const char *evt) { snprintf(this->msg, sizeof(this->msg), "42[%s,]", evt); }
-ClientSocketEvent::ClientSocketEvent(const char *evt, const char *payload) { snprintf(this->msg, sizeof(this->msg), "42[%s,%s]", evt, payload); }
+//ClientSocketEvent::ClientSocketEvent(const char *evt, const char *payload) { snprintf(this->msg, sizeof(this->msg), "42[%s,%s]", evt, payload); }
+void ClientSocketEvent::beginEmit(const char *evt) { snprintf(this->msg, sizeof(this->msg), "42[%s,", evt); }
+void ClientSocketEvent::endEmit() { this->_safecat("]"); }
 void ClientSocketEvent::appendMessage(const char *text) {
   uint16_t len = strlen(this->msg);
   this->msg[len - 1] = '\0';
   strcat(this->msg, text);
   strcat(this->msg, "]");
 }
-/*
-void ClientSocketEvent::appendJSONElem(const char *elem) {
-  this->msg[strlen(this->msg) - 1] = '\0'; // Trim off the ending bracket.
-  uint16_t len = strlen(this->msg);
-  if(len > 0) {
-    if(this->msg[strlen(this->msg) - 1] == '{') strcat(this->msg, ',');
+void ClientSocketEvent::beginObject(const char *name) {
+  if(name && strlen(name) > 0) this->appendElem(name);
+  else if(!this->_nocomma) this->_safecat(",");
+  this->_safecat("{");
+  this->_objects++;
+  this->_nocomma = true;
+}
+void ClientSocketEvent::endObject() {
+  //if(strlen(this->buff) + 1 > this->buffSize - 1) this->send();
+  this->_safecat("}");
+  this->_objects--;
+  this->_nocomma = false;
+}
+void ClientSocketEvent::beginArray(const char *name) {
+  if(name && strlen(name) > 0) this->appendElem(name);
+  else if(!this->_nocomma) this->_safecat(",");
+  this->_safecat("[");
+  this->_arrays++;
+  this->_nocomma = true;
+}
+void ClientSocketEvent::endArray() {
+  //if(strlen(this->buff) + 1 > this->buffSize - 1) this->send();
+  this->_safecat("]");
+  this->_arrays--;
+  this->_nocomma = false;
+}
+
+
+void ClientSocketEvent::appendElem(const char *name) {
+  if(!this->_nocomma) this->_safecat(",");
+  if(name && strlen(name) > 0) {
+    this->_safecat(name, true);
+    this->_safecat(":");
   }
-  strcat(this->msg, "\"");
-  strcat(this->msg, elem);
-  strcat(this->msg, "\":");
-  strcat(this->msg, "]");
+  this->_nocomma = false;
 }
-void ClientSocketEvent::appendJSON(const char *elem, const char *text, bool quoted) {
-  this->appendJSONElem(elem);
-  this->msg[strlen(this->msg) - 1] = '\0'; // Trim off the ending bracket.
-  if(quoted) strcat(this->msg, "\"");
-  strcat(this->msg, text);
-  if(quoted) strcat(this->msg, "\"");
-  strcat(this->msg, "]");
+
+void ClientSocketEvent::addElem(const char *name, const char *val) {
+  if(!val) return;
+  this->appendElem(name);
+  this->_safecat(val, true);
 }
-void ClientSocketEvent::appendJSON(const char *elem, const bool b) { this->appendJSON(elem, b ? "true" : "false", false); }
-void ClientSocketEvent::appendJSON(const char *elem, const uint8_t val) {
-  char buff[5];
-  sprintf(buff, "%d", val);
-  this->appendJSON(elem, buff, false);
+void ClientSocketEvent::addElem(const char *val) { this->addElem(nullptr, val); }
+void ClientSocketEvent::addElem(float fval) { sprintf(this->_numbuff, "%.4f", fval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(int8_t nval) { sprintf(this->_numbuff, "%d", nval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(uint8_t nval) { sprintf(this->_numbuff, "%u", nval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(int16_t nval) { sprintf(this->_numbuff, "%d", nval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(uint16_t nval) { sprintf(this->_numbuff, "%u", nval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(int32_t nval) { sprintf(this->_numbuff, "%ld", (long)nval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(uint32_t nval) { sprintf(this->_numbuff, "%lu", (unsigned long)nval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(int64_t lval) { sprintf(this->_numbuff, "%lld", (long long)lval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(uint64_t lval) { sprintf(this->_numbuff, "%llu", (unsigned long long)lval); this->_appendNumber(nullptr); }
+void ClientSocketEvent::addElem(bool bval) { strcpy(this->_numbuff, bval ? "true" : "false"); this->_appendNumber(nullptr); }
+
+void ClientSocketEvent::addElem(const char *name, float fval) { sprintf(this->_numbuff, "%.4f", fval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, int8_t nval) { sprintf(this->_numbuff, "%d", nval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, uint8_t nval) { sprintf(this->_numbuff, "%u", nval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, int16_t nval) { sprintf(this->_numbuff, "%d", nval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, uint16_t nval) { sprintf(this->_numbuff, "%u", nval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, int32_t nval) { sprintf(this->_numbuff, "%ld", (long)nval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, uint32_t nval) { sprintf(this->_numbuff, "%lu", (unsigned long)nval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, int64_t lval) { sprintf(this->_numbuff, "%lld", (long long)lval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, uint64_t lval) { sprintf(this->_numbuff, "%llu", (unsigned long long)lval); this->_appendNumber(name); }
+void ClientSocketEvent::addElem(const char *name, bool bval) { strcpy(this->_numbuff, bval ? "true" : "false"); this->_appendNumber(name); }
+
+void ClientSocketEvent::_safecat(const char *val, bool escape) {
+  size_t len = strlen(val) + strlen(this->msg);
+  if(escape) len += 2;
+  if(len >= sizeof(this->msg)) {
+    //this->send();
+  }
+  if(escape) strcat(this->msg, "\"");
+  strcat(this->msg, val);
+  if(escape) strcat(this->msg, "\"");
 }
+void ClientSocketEvent::_appendNumber(const char *name) { this->appendElem(name); this->_safecat(this->_numbuff); } 
 */
 
+JsonSockEvent *SocketEmitter::beginEmit(const char *evt) {
+  this->json.beginEvent(&sockServer, evt, g_response, sizeof(g_response));
+  return &this->json;
+}
+void SocketEmitter::endEmit(uint8_t num) { this->json.endEvent(num); }
+void SocketEmitter::endEmitRoom(uint8_t room) {
+  if(room < SOCK_MAX_ROOMS) {
+    room_t *r = &this->rooms[room];
+    for(uint8_t i = 0; i < sizeof(r->clients); i++) {
+      if(r->clients[i] != 255) this->json.endEvent(r->clients[i]);
+    }
+  }
+}
 uint8_t SocketEmitter::activeClients(uint8_t room) {
   if(room < SOCK_MAX_ROOMS) return this->rooms[room].activeClients();
   return 0;
 }
+/*
 bool SocketEmitter::sendToRoom(uint8_t room, ClientSocketEvent *evt) {
   if(room < SOCK_MAX_ROOMS) {
     room_t *r = &this->rooms[room];
@@ -164,7 +227,7 @@ bool SocketEmitter::sendToClients(const char *evt, JsonDocument &doc) {
   this->evt.prepareMessage(evt, doc);
   return sockServer.broadcastTXT(this->evt.msg);
 }
-
+*/
 void SocketEmitter::end() { sockServer.close(); }
 void SocketEmitter::disconnect() { sockServer.disconnect(); }
 void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
