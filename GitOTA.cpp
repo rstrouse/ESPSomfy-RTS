@@ -427,10 +427,10 @@ void GitUpdater::emitDownloadProgress(uint8_t num, size_t total, size_t loaded, 
   JsonSockEvent *json = sockEmit.beginEmit(evt);
   json->beginObject();
   json->addElem("ver", this->targetRelease);
-  json->addElem("part", this->partition);
+  json->addElem("part", (int16_t)this->partition);
   json->addElem("file", this->currentFile);
-  json->addElem("total", total);
-  json->addElem("loaded", loaded);
+  json->addElem("total", (uint32_t)total);
+  json->addElem("loaded", (uint32_t)loaded);
   json->addElem("error", this->error);
   json->endObject();
   sockEmit.endEmit(num);
