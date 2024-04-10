@@ -2503,6 +2503,7 @@ void Web::begin() {
     JsonResponse resp;
     resp.beginResponse(&server, g_content, sizeof(g_content));
     resp.beginObject();
+    settings.toJSON(resp);
     resp.addElem("fwVersion", settings.fwVersion.name);
     resp.beginObject("ethernet");
     settings.Ethernet.toJSON(resp);
