@@ -4495,7 +4495,7 @@ void Transceiver::emitFrame(somfy_frame_t *frame, somfy_rx_t *rx) {
     json->addElem("address", (uint32_t)frame->remoteAddress);
     json->addElem("rcode", (uint32_t)frame->rollingCode);
     json->addElem("command", translateSomfyCommand(frame->cmd).c_str());
-    json->addElem("rssi", (uint32_t)frame->rssi);
+    json->addElem("rssi", (int32_t)frame->rssi);
     json->addElem("bits", rx->bit_length);
     json->addElem("proto", static_cast<uint8_t>(frame->proto));
     json->addElem("valid", frame->valid);

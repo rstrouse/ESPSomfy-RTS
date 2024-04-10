@@ -1884,6 +1884,7 @@ class Wifi {
         });
     }
     procWifiStrength(strength) {
+        //console.log(strength);
         let ssid = strength.ssid || strength.name;
         document.getElementById('spanNetworkSSID').innerHTML = !ssid || ssid === '' ? '-------------' : ssid;
         document.getElementById('spanNetworkChannel').innerHTML = isNaN(strength.channel) || strength.channel < 0 ? '--' : strength.channel;

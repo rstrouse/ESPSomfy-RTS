@@ -65,7 +65,9 @@ void Network::loop() {
     // We are doing this every 60 seconds because of the BS related to
     // the MDNS library.  The original library required manual updates
     // to the MDNS or it would lose its hostname after 2 minutes.
-    if(this->lastMDNS != 0) MDNS.setInstanceName(settings.hostname);
+    //if(this->lastMDNS != 0) MDNS.setInstanceName(settings.hostname);
+
+    
     // Every 60 seconds we are going to look at wifi connectivity
     // to get around the roaming issues with ESP32.  We will try to do this in an async manner.  If
     // there is a channel that is better we will stop the radio and reconnect
@@ -153,7 +155,7 @@ void Network::emitSockets() {
   }
 }
 void Network::emitSockets(uint8_t num) {
-  char buf[128];
+  //char buf[128];
   if(this->connType == conn_types::ethernet) {
       JsonSockEvent *json = sockEmit.beginEmit("ethernet");
       json->beginObject();
@@ -175,8 +177,8 @@ void Network::emitSockets(uint8_t num) {
         JsonSockEvent *json = sockEmit.beginEmit("wifiStrength");
         json->beginObject();
         json->addElem("ssid", WiFi.SSID().c_str());
-        json->addElem("strength", (uint32_t)WiFi.RSSI());
-        json->addElem("channel", (uint32_t)this->channel);
+        json->addElem("strength", (int32_t)WiFi.RSSI());
+        json->addElem("channel", (int32_t)this->channel);
         json->endObject();
         sockEmit.endEmit(num);
         /*
@@ -339,7 +341,7 @@ void Network::setConnected(conn_types connType) {
   SSDP.setActive(0, true);
   if(MDNS.begin(settings.hostname)) {
     Serial.printf("MDNS Responder Started: serverId=%s\n", settings.serverId);
-    //MDNS.addService("http", "tcp", 80);
+    MDNS.addService("http", "tcp", 80);
     //MDNS.addServiceTxt("http", "tcp", "board", "ESP32");
     //MDNS.addServiceTxt("http", "tcp", "model", "ESPSomfyRTS");
     
