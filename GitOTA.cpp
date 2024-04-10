@@ -83,7 +83,9 @@ bool GitRelease::toJSON(JsonObject &obj) {
 }
 void GitRelease::toJSON(JsonResponse &json) {
   Timestamp ts;
-  json.addElem("id", this->id);
+  char buff[20];
+  sprintf(buff, "%llu", this->id);
+  json.addElem("id", buff);
   json.addElem("name", this->name);
   json.addElem("date", ts.getISOTime(this->releaseDate));
   json.addElem("draft", this->draft);
@@ -334,7 +336,7 @@ void GitUpdater::setCurrentRelease(GitRepo &repo) {
 void GitUpdater::toJSON(JsonResponse &json) {
   json.addElem("available", this->updateAvailable);
   json.addElem("status", this->status);
-  json.addElem("error", this->error);
+  json.addElem("error", (int32_t)this->error);
   json.addElem("cancelled", this->cancelled);
   json.addElem("checkForUpdate", settings.checkForUpdate);
   json.addElem("inetAvailable", this->inetAvailable);
@@ -368,7 +370,7 @@ void GitUpdater::emitUpdateCheck(uint8_t num) {
   json->beginObject();
   json->addElem("available", this->updateAvailable);
   json->addElem("status", this->status);
-  json->addElem("error", this->error);
+  json->addElem("error", (int32_t)this->error);
   json->addElem("cancelled", this->cancelled);
   json->addElem("checkForUpdate", settings.checkForUpdate);
   json->addElem("inetAvailable", this->inetAvailable);
@@ -427,11 +429,11 @@ void GitUpdater::emitDownloadProgress(uint8_t num, size_t total, size_t loaded, 
   JsonSockEvent *json = sockEmit.beginEmit(evt);
   json->beginObject();
   json->addElem("ver", this->targetRelease);
-  json->addElem("part", (int16_t)this->partition);
+  json->addElem("part", (int32_t)this->partition);
   json->addElem("file", this->currentFile);
   json->addElem("total", (uint32_t)total);
   json->addElem("loaded", (uint32_t)loaded);
-  json->addElem("error", this->error);
+  json->addElem("error", (uint32_t)this->error);
   json->endObject();
   sockEmit.endEmit(num);
   /*

@@ -175,8 +175,8 @@ void Network::emitSockets(uint8_t num) {
         JsonSockEvent *json = sockEmit.beginEmit("wifiStrength");
         json->beginObject();
         json->addElem("ssid", WiFi.SSID().c_str());
-        json->addElem("strength", WiFi.RSSI());
-        json->addElem("channel", this->channel);
+        json->addElem("strength", (uint32_t)WiFi.RSSI());
+        json->addElem("channel", (uint32_t)this->channel);
         json->endObject();
         sockEmit.endEmit(num);
         /*
@@ -193,15 +193,15 @@ void Network::emitSockets(uint8_t num) {
         JsonSockEvent *json = sockEmit.beginEmit("wifiStrength");
         json->beginObject();
         json->addElem("ssid", "");
-        json->addElem("strength", -100);
-        json->addElem("channel", -1);
+        json->addElem("strength", (int8_t)-100);
+        json->addElem("channel", (int8_t)-1);
         json->endObject();
         sockEmit.endEmit(num);
         
         json = sockEmit.beginEmit("ethernet");
         json->beginObject();
         json->addElem("connected", false);
-        json->addElem("speed", 0);
+        json->addElem("speed", (uint8_t)0);
         json->addElem("fullduplex", false);
         json->endObject();
         sockEmit.endEmit(num);
@@ -709,7 +709,7 @@ void Network::networkEvent(WiFiEvent_t event) {
         JsonSockEvent *json = sockEmit.beginEmit("ethernet");
         json->beginObject();
         json->addElem("connected", false);
-        json->addElem("speed", 0);
+        json->addElem("speed", (uint8_t)0);
         json->addElem("fullduplex", false);
         json->endObject();
         sockEmit.endEmit();

@@ -313,7 +313,7 @@ void MQTTSettings::toJSON(JsonResponse &json) {
   json.addElem("pubDisco", this->pubDisco);
   json.addElem("protocol", this->protocol);
   json.addElem("hostname", this->hostname);
-  json.addElem("port", this->port);
+  json.addElem("port", (uint32_t)this->port);
   json.addElem("username", this->username);
   json.addElem("password", this->password);
   json.addElem("rootTopic", this->rootTopic);

@@ -272,12 +272,12 @@ void Web::handleController(WebServer &server) {
     JsonResponse resp;
     resp.beginResponse(&server, g_content, sizeof(g_content));
     resp.beginObject();
-    resp.addElem("maxRooms", SOMFY_MAX_ROOMS);
-    resp.addElem("maxShades", SOMFY_MAX_SHADES);
-    resp.addElem("maxGroups", SOMFY_MAX_GROUPS);
-    resp.addElem("maxGroupedShades", SOMFY_MAX_GROUPED_SHADES);
-    resp.addElem("maxLinkedRemotes", SOMFY_MAX_LINKED_REMOTES);
-    resp.addElem("startingAddress", somfy.startingAddress);
+    resp.addElem("maxRooms", (uint8_t)SOMFY_MAX_ROOMS);
+    resp.addElem("maxShades", (uint8_t)SOMFY_MAX_SHADES);
+    resp.addElem("maxGroups", (uint8_t)SOMFY_MAX_GROUPS);
+    resp.addElem("maxGroupedShades", (uint8_t)SOMFY_MAX_GROUPED_SHADES);
+    resp.addElem("maxLinkedRemotes", (uint8_t)SOMFY_MAX_LINKED_REMOTES);
+    resp.addElem("startingAddress", (uint32_t)somfy.startingAddress);
     resp.beginObject("transceiver");
     somfy.transceiver.toJSON(resp);
     resp.endObject();
@@ -1224,9 +1224,9 @@ void Web::begin() {
     resp.beginResponse(&server, g_content, sizeof(g_content));
     resp.beginObject();
     resp.addElem("shadeId", shadeId);
-    resp.addElem("remoteAddress", somfy.getNextRemoteAddress(shadeId));
+    resp.addElem("remoteAddress", (uint32_t)somfy.getNextRemoteAddress(shadeId));
     resp.addElem("bitLength", somfy.transceiver.config.type);
-    resp.addElem("stepSize", 100);
+    resp.addElem("stepSize", (uint8_t)100);
     resp.addElem("proto", static_cast<uint8_t>(somfy.transceiver.config.proto));
     resp.endObject();
     resp.endResponse();
@@ -1238,7 +1238,7 @@ void Web::begin() {
     resp.beginResponse(&server, g_content, sizeof(g_content));
     resp.beginObject();
     resp.addElem("groupId", groupId);
-    resp.addElem("remoteAddress", somfy.getNextRemoteAddress(groupId));
+    resp.addElem("remoteAddress", (uint32_t)somfy.getNextRemoteAddress(groupId));
     resp.addElem("bitLength", somfy.transceiver.config.type);
     resp.addElem("proto", static_cast<uint8_t>(somfy.transceiver.config.proto));
     resp.endObject();
@@ -2189,16 +2189,16 @@ void Web::begin() {
     resp.beginObject("connected");
     resp.addElem("name", settings.WIFI.ssid);
     resp.addElem("passphrase", settings.WIFI.passphrase);
-    resp.addElem("strength", WiFi.RSSI());
-    resp.addElem("channel", WiFi.channel());
+    resp.addElem("strength", (int32_t)WiFi.RSSI());
+    resp.addElem("channel", (int32_t)WiFi.channel());
     resp.endObject();
     resp.beginArray("accessPoints");
     for(int i = 0; i < n; ++i) {
       if(WiFi.SSID(i).length() == 0 || WiFi.RSSI(i) < -95) continue; // Ignore hidden and weak networks that we cannot connect to anyway.
       resp.beginObject();
       resp.addElem("name", WiFi.SSID(i).c_str());
-      resp.addElem("channel", WiFi.channel(i));
-      resp.addElem("strength", WiFi.RSSI(i));
+      resp.addElem("channel", (int32_t)WiFi.channel(i));
+      resp.addElem("strength", (int32_t)WiFi.RSSI(i));
       resp.addElem("macAddress", WiFi.BSSIDstr(i).c_str());
       resp.endObject();
     }

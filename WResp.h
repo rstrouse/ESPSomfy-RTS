@@ -24,25 +24,29 @@ class JsonFormatter {
 
     void addElem(const char* val);
     void addElem(float fval);
-    void addElem(int nval);
     void addElem(int8_t nval);
     void addElem(uint8_t nval);
+    /*
+    void addElem(int32_t nval);
     void addElem(int16_t nval);
     void addElem(uint16_t nval);
-    void addElem(uint32_t nval);
-    void addElem(int64_t lval);
-    void addElem(uint64_t lval);
+    void addElem(unsigned int nval);
+    */
+    void addElem(int32_t lval);
+    void addElem(uint32_t lval);
     void addElem(bool bval);
     
     void addElem(const char* name, float fval);
-    void addElem(const char* name, int nval);
     void addElem(const char* name, int8_t nval);
     void addElem(const char* name, uint8_t nval);
+    /*
+    void addElem(const char* name, int nval);
     void addElem(const char* name, int16_t nval);
     void addElem(const char* name, uint16_t nval);
-    void addElem(const char* name, uint32_t nval);
-    void addElem(const char* name, int64_t lval);
-    void addElem(const char* name, uint64_t lval);
+    void addElem(const char* name, unsigned int nval);
+    */
+    void addElem(const char* name, int32_t lval);
+    void addElem(const char* name, uint32_t lval);
     void addElem(const char* name, bool bval);
     void addElem(const char *name, const char *val);
 };
