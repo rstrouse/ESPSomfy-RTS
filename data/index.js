@@ -491,6 +491,9 @@ async function initSockets() {
                         return value;
                     });
                     switch (eventName) {
+                        case 'memStatus':
+                            firmware.procMemoryStatus(msg);
+                            break;
                         case 'updateProgress':
                             firmware.procUpdateProgress(msg);
                             break;
@@ -2772,7 +2775,7 @@ class Somfy {
     }
     pinMaps = [
         { name: '', maxPins: 39, inputs: [0, 1, 6, 7, 8, 9, 10, 11, 37, 38], outputs: [3, 6, 7, 8, 9, 10, 11, 34, 35, 36, 37, 38, 39] },
-        { name: 's2', maxPins: 46, inputs: [0, 15, 16, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 45], outputs: [0, 15, 16, 19, 20, 26, 27, 28, 29, 30, 31, 32, 45, 46]},
+        { name: 's2', maxPins: 46, inputs: [0, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 45], outputs: [0, 19, 20, 26, 27, 28, 29, 30, 31, 32, 45, 46]},
         { name: 's3', maxPins: 48, inputs: [0, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 39, 40, 41, 42, 43], outputs: [0, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 39, 40, 41, 42, 43] },
         { name: 'c3', maxPins: 21, inputs: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20], outputs: [11, 12, 13, 14, 15, 16, 17, 21] }
     ];
@@ -4299,6 +4302,12 @@ class Firmware {
         div.innerHTML = html;
         return div;
     }
+    procMemoryStatus(mem) {
+        console.log(mem);
+        let sp = document.getElementById('spanMemory');
+        sp.innerHTML = mem.max.fmt("#,##0 bytes");
+    }
+
     procFwStatus(rel) {
         console.log(rel);
         let div = document.getElementById('divFirmwareUpdate');

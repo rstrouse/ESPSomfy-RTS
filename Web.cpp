@@ -830,6 +830,11 @@ void Web::handleDiscovery(WebServer &server) {
     resp.addElem("chipModel", settings.chipModel);
     resp.addElem("connType", connType);
     resp.addElem("checkForUpdate", settings.checkForUpdate);
+    resp.beginObject("memory");
+    resp.addElem("max", ESP.getMaxAllocHeap());
+    resp.addElem("free", ESP.getFreeHeap());
+    resp.addElem("min", ESP.getMinFreeHeap());
+    resp.endObject();
     resp.beginArray("rooms");
     somfy.toJSONRooms(resp);
     resp.endArray();
@@ -2179,7 +2184,6 @@ void Web::begin() {
   server.on("/scanaps", []() {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-    int statusCode = 200;
     int n = WiFi.scanNetworks();
     Serial.print("Scanned ");
     Serial.print(n);

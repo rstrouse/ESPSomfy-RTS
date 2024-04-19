@@ -17,6 +17,7 @@ extern rebootDelay_t rebootDelay;
 extern Network net;
 
 static bool _apScanning = false;
+static uint32_t _lastHeap = 0;
 int connectRetries = 0;
 void Network::end() {
   sockEmit.end();
@@ -147,6 +148,7 @@ bool Network::changeAP(const uint8_t *bssid, const int32_t channel) {
   return false;
 }
 void Network::emitSockets() {
+  this->emitHeap();
   if(this->needsBroadcast || 
     (this->connType == conn_types::wifi && (abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel))) {
     this->emitSockets(255);
@@ -222,6 +224,7 @@ void Network::emitSockets(uint8_t num) {
         this->lastChannel = -1;
       }
   }
+  this->emitHeap(num);
 }
 void Network::setConnected(conn_types connType) {
   this->connType = connType;
@@ -331,7 +334,7 @@ void Network::setConnected(conn_types connType) {
   if(strlen(settings.chipModel) == 0) SSDP.setModelNumber(0, "ESP32");
   else {
     char sModel[20] = "";
-    snprintf(sModel, sizeof(sModel), "ESP32-%S", settings.chipModel);
+    snprintf(sModel, sizeof(sModel), "ESP32-%s", settings.chipModel);
     SSDP.setModelNumber(0, sModel);
   }
   SSDP.setModelURL(0, "https://github.com/rstrouse/ESPSomfy-RTS");
@@ -742,5 +745,17 @@ void Network::networkEvent(WiFiEvent_t event) {
       if(event > ARDUINO_EVENT_ETH_START)
         Serial.printf("Unknown Ethernet Event %d\n", event);
       break;
+  }
+}
+void Network::emitHeap(uint8_t num) {
+  if(num != 255 || this->needsBroadcast || ESP.getMaxAllocHeap() != _lastHeap) {
+    _lastHeap = ESP.getMaxAllocHeap();
+    JsonSockEvent *json = sockEmit.beginEmit("memStatus");
+    json->beginObject();
+    json->addElem("max", _lastHeap);
+    json->addElem("free", ESP.getFreeHeap());
+    json->addElem("min", ESP.getMinFreeHeap());
+    json->endObject();
+    sockEmit.endEmit(num);
   }
 }

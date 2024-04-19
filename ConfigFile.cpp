@@ -483,7 +483,7 @@ bool ShadeConfigFile::validate() {
   if(this->header.version >= 21) {
     recs = 0;
     while(recs < this->header.repeaterRecords) {
-      uint32_t pos = this->file.position();
+      //uint32_t pos = this->file.position();
       if(!this->seekChar(CFG_REC_END)) {
         Serial.printf("Failed to find the repeater record end %d\n", recs);
       }
@@ -757,7 +757,7 @@ bool ShadeConfigFile::readGroupRecord(SomfyGroup *group) {
 bool ShadeConfigFile::readRepeaterRecord(SomfyShadeController *s) {
   uint32_t startPos = this->file.position();
   
-  for(uint8_t i; i < SOMFY_MAX_REPEATERS; i++) {
+  for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
     s->linkRepeater(this->readUInt32(0));  
   }
   if(this->file.position() != startPos + this->header.repeaterRecordSize) {

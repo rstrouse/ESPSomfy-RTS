@@ -32,7 +32,7 @@ static const char _ssdp_bye_template[] PROGMEM =
   "NTS: ssdp:byebye\r\n"
   "NT: %s\r\n"
   "USN: %s\r\n"
-  "BOOTID.UPNP.ORG: %ul\r\n"
+  "BOOTID.UPNP.ORG: %lu\r\n"
   "CONFIGID.UPNP.ORG: %d\r\n"
   "\r\n";
 static const char _ssdp_packet_template[] PROGMEM =
@@ -42,7 +42,7 @@ static const char _ssdp_packet_template[] PROGMEM =
   "USN: %s\r\n" // _uuid
   "%s: %s\r\n"  // "NT" or "ST", _deviceType
   "LOCATION: http://%u.%u.%u.%u:%u/%s\r\n" // WiFi.localIP(), _port, _schemaURL
-  "BOOTID.UPNP.ORG: %ul\r\n"
+  "BOOTID.UPNP.ORG: %lu\r\n"
   "CONFIGID.UPNP.ORG: %d\r\n"
   "\r\n";
 static const char _ssdp_device_schema_template[] PROGMEM =
@@ -160,7 +160,7 @@ void UPNPDeviceType::setChipId(uint32_t chipId) {
     (uint16_t)((chipId >> 8) & 0xff),
     (uint16_t)chipId & 0xff);    
 }
-SSDPClass::SSDPClass():sendQueue{false, INADDR_NONE, 0, nullptr, false, 0, ""} {}
+SSDPClass::SSDPClass():sendQueue{false, INADDR_NONE, 0, nullptr, false, 0, "", response_types_t::root} {}
 SSDPClass::~SSDPClass() { end(); }
 bool SSDPClass::begin() { 
   for(int i = 0; i < SSDP_QUEUE_SIZE; i++) {
@@ -407,7 +407,7 @@ void SSDPClass::_sendResponse(IPAddress addr, uint16_t port, UPNPDeviceType *d, 
   strcpy_P(pbuff, _ssdp_response_template);
 
   // Don't use ip.toString as this fragments the heap like no tomorrow.
-  int len = snprintf_P(buffer, sizeof(buffer)-1,
+  snprintf_P(buffer, sizeof(buffer)-1,
                        _ssdp_packet_template,
                        pbuff,
                        this->_interval,

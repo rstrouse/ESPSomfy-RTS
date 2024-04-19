@@ -175,7 +175,7 @@ JsonSockEvent *SocketEmitter::beginEmit(const char *evt) {
   this->json.beginEvent(&sockServer, evt, g_response, sizeof(g_response));
   return &this->json;
 }
-void SocketEmitter::endEmit(uint8_t num) { this->json.endEvent(num); }
+void SocketEmitter::endEmit(uint8_t num) { sockServer.loop(); this->json.endEvent(num); }
 void SocketEmitter::endEmitRoom(uint8_t room) {
   if(room < SOCK_MAX_ROOMS) {
     room_t *r = &this->rooms[room];

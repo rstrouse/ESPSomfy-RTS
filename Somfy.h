@@ -197,7 +197,7 @@ class SomfyRoom {
     void clear();
     bool save();
     bool fromJSON(JsonObject &obj);
-    bool toJSON(JsonObject &obj);
+    //bool toJSON(JsonObject &obj);
     void toJSON(JsonResponse &json);
     void emitState(const char *evt = "roomState");
     void emitState(uint8_t num, const char *evt = "roomState");
@@ -228,7 +228,7 @@ class SomfyRemote {
     uint8_t repeats = 1;
     virtual bool isLastCommand(somfy_commands cmd);
     char *getRemotePrefId() {return m_remotePrefId;}
-    virtual bool toJSON(JsonObject &obj);
+    //virtual bool toJSON(JsonObject &obj);
     virtual void toJSON(JsonResponse &json);
     virtual void setRemoteAddress(uint32_t address);
     virtual uint32_t getRemoteAddress();
@@ -297,7 +297,7 @@ class SomfyShade : public SomfyRemote {
     //bool toJSONRef(JsonObject &obj);
     void toJSONRef(JsonResponse &json);
     int8_t fromJSON(JsonObject &obj);
-    bool toJSON(JsonObject &obj) override;
+    //bool toJSON(JsonObject &obj) override;
     void toJSON(JsonResponse &json) override;
     
     char name[21] = "";
@@ -475,7 +475,7 @@ struct transceiver_config_t {
     bool appendStatus = false;        // Appends the RSSI and LQI values to the TX packed as well as the CRC.
  */
     void fromJSON(JsonObject& obj);
-    void toJSON(JsonObject& obj);
+    //void toJSON(JsonObject& obj);
     void toJSON(JsonResponse& json);
     void save();
     void load();
@@ -490,7 +490,7 @@ class Transceiver {
   public:
     transceiver_config_t config;
     bool printBuffer = false;
-    bool toJSON(JsonObject& obj);
+    //bool toJSON(JsonObject& obj);
     void toJSON(JsonResponse& json);
     bool fromJSON(JsonObject& obj);
     bool save();

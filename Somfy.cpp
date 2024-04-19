@@ -3258,6 +3258,7 @@ void SomfyShade::toJSON(JsonResponse &json) {
   json.endArray();
 }
 
+/*
 bool SomfyShade::toJSON(JsonObject &obj) {
   //Serial.print("Serializing Shade:");
   //Serial.print(this->getShadeId());
@@ -3310,17 +3311,20 @@ bool SomfyShade::toJSON(JsonObject &obj) {
   }
   return true;
 }
+*/
 bool SomfyRoom::fromJSON(JsonObject &obj) {
   if(obj.containsKey("name")) strlcpy(this->name, obj["name"], sizeof(this->name));
   if(obj.containsKey("sortOrder")) this->sortOrder = obj["sortOrder"];
   return true;
 }
+/*
 bool SomfyRoom::toJSON(JsonObject &obj) {
   obj["roomId"] = this->roomId;
   obj["name"] = this->name;
   obj["sortOrder"] = this->sortOrder;
   return true;
 }
+*/
 void SomfyRoom::toJSON(JsonResponse &json) {
   json.addElem("roomId", this->roomId);
   json.addElem("name", this->name);
@@ -3422,16 +3426,19 @@ bool SomfyGroup::toJSON(JsonObject &obj) {
   return true;
 }
 */
+
 void SomfyRemote::toJSON(JsonResponse &json) {
   json.addElem("remoteAddress", (uint32_t)this->getRemoteAddress());
   json.addElem("lastRollingCode", (uint32_t)this->lastRollingCode);
 }
+/*
 bool SomfyRemote::toJSON(JsonObject &obj) {
   //obj["remotePrefId"] = this->getRemotePrefId();
   obj["remoteAddress"] = this->getRemoteAddress();
   obj["lastRollingCode"] = this->lastRollingCode;
   return true;  
 }
+*/
 void SomfyRemote::setRemoteAddress(uint32_t address) { this->m_remoteAddress = address; snprintf(this->m_remotePrefId, sizeof(this->m_remotePrefId), "_%lu", (unsigned long)this->m_remoteAddress); }
 uint32_t SomfyRemote::getRemoteAddress() { return this->m_remoteAddress; }
 void SomfyShadeController::processFrame(somfy_frame_t &frame, bool internal) {
@@ -4571,13 +4578,14 @@ void Transceiver::toJSON(JsonResponse& json) {
     this->config.toJSON(json);
     json.endObject();
 }
-
+/*
 bool Transceiver::toJSON(JsonObject& obj) {
     //Serial.println("Setting Transceiver Json");
     JsonObject objConfig = obj.createNestedObject("config");
     this->config.toJSON(objConfig);
     return true;
 }
+*/
 bool Transceiver::fromJSON(JsonObject& obj) {
     if (obj.containsKey("config")) {
       JsonObject objConfig = obj["config"];
@@ -4664,6 +4672,7 @@ void transceiver_config_t::toJSON(JsonResponse &json) {
     json.addElem("enabled", this->enabled);
     json.addElem("radioInit", this->radioInit);
 }
+/*
 void transceiver_config_t::toJSON(JsonObject& obj) {
     obj["type"] = this->type;
     obj["TXPin"] = this->TXPin;
@@ -4677,36 +4686,35 @@ void transceiver_config_t::toJSON(JsonObject& obj) {
     obj["deviation"] = this->deviation;  // float
     obj["txPower"] = this->txPower;
     obj["proto"] = static_cast<uint8_t>(this->proto);
-    /*
-    obj["internalCCMode"] = this->internalCCMode;
-    obj["modulationMode"] = this->modulationMode;
-    obj["channel"] = this->channel;
-    obj["channelSpacing"] = this->channelSpacing; // float
-    obj["dataRate"] = this->dataRate; // float
-    obj["syncMode"] = this->syncMode;
-    obj["syncWordHigh"] = this->syncWordHigh;
-    obj["syncWordLow"] = this->syncWordLow;
-    obj["addrCheckMode"] = this->addrCheckMode;
-    obj["checkAddr"] = this->checkAddr;
-    obj["dataWhitening"] = this->dataWhitening;
-    obj["pktFormat"] = this->pktFormat;
-    obj["pktLengthMode"] = this->pktLengthMode;
-    obj["pktLength"] = this->pktLength;
-    obj["useCRC"] = this->useCRC;
-    obj["autoFlushCRC"] = this->autoFlushCRC;
-    obj["disableDCFilter"] = this->disableDCFilter;
-    obj["enableManchester"] = this->enableManchester;
-    obj["enableFEC"] = this->enableFEC;
-    obj["minPreambleBytes"] = this->minPreambleBytes;
-    obj["pqtThreshold"] = this->pqtThreshold;
-    obj["appendStatus"] = this->appendStatus;
-    obj["printBuffer"] = somfy.transceiver.printBuffer;
-    */
+    //obj["internalCCMode"] = this->internalCCMode;
+    //obj["modulationMode"] = this->modulationMode;
+    //obj["channel"] = this->channel;
+    //obj["channelSpacing"] = this->channelSpacing; // float
+    //obj["dataRate"] = this->dataRate; // float
+    //obj["syncMode"] = this->syncMode;
+    //obj["syncWordHigh"] = this->syncWordHigh;
+    //obj["syncWordLow"] = this->syncWordLow;
+    //obj["addrCheckMode"] = this->addrCheckMode;
+    //obj["checkAddr"] = this->checkAddr;
+    //obj["dataWhitening"] = this->dataWhitening;
+    //obj["pktFormat"] = this->pktFormat;
+    //obj["pktLengthMode"] = this->pktLengthMode;
+    //obj["pktLength"] = this->pktLength;
+    //obj["useCRC"] = this->useCRC;
+    //obj["autoFlushCRC"] = this->autoFlushCRC;
+    //obj["disableDCFilter"] = this->disableDCFilter;
+    //obj["enableManchester"] = this->enableManchester;
+    //obj["enableFEC"] = this->enableFEC;
+    //obj["minPreambleBytes"] = this->minPreambleBytes;
+    //obj["pqtThreshold"] = this->pqtThreshold;
+    //obj["appendStatus"] = this->appendStatus;
+    //obj["printBuffer"] = somfy.transceiver.printBuffer;
     obj["enabled"] = this->enabled;
     obj["radioInit"] = this->radioInit;
     //Serial.print("Serialize Radio JSON ");
     //Serial.printf("SCK:%u MISO:%u MOSI:%u CSN:%u RX:%u TX:%u\n", this->SCKPin, this->MISOPin, this->MOSIPin, this->CSNPin, this->RXPin, this->TXPin);
 }
+*/
 void transceiver_config_t::save() {
     pref.begin("CC1101");
     pref.clear();

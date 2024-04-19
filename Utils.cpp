@@ -36,7 +36,14 @@ time_t Timestamp::mkUTCTime(struct tm *dt) {
   return tsBadLocal + tsLocalOffset;
 }
 time_t Timestamp::parseUTCTime(const char *buff) {
-  struct tm dt = {0};
+  struct tm dt;
+  dt.tm_hour = 0;
+  dt.tm_mday = 0;
+  dt.tm_mon = 0;
+  dt.tm_year = 0;
+  dt.tm_wday = 0;
+  dt.tm_yday = 0;
+  dt.tm_isdst = false;
   char num[5];
   uint8_t i = 0;
   memset(num, 0x00, sizeof(num));

@@ -39,6 +39,7 @@ class Network {
     void end();
     void emitSockets();
     void emitSockets(uint8_t num);
+    void emitHeap(uint8_t num = 255);
     uint32_t getChipId();
     static void networkEvent(WiFiEvent_t event);
 };
