@@ -418,28 +418,6 @@ void SSDPClass::_sendResponse(IPAddress addr, uint16_t port, UPNPDeviceType *d, 
   buffer[sizeof(buffer) - 1] = '\0';
   this->_sendResponse(addr, port, buffer);
   free(pbuff);
-/*
-static const char _ssdp_packet_template[] PROGMEM =
-  "%s" // _ssdp_response_template / _ssdp_notify_template
-  "CACHE-CONTROL: max-age=%u\r\n" // _interval
-  "SERVER: Arduino/1.0 UPNP/1.1 %s/%s\r\n" // _modelName, _modelNumber
-  "USN: %s\r\n" // _uuid
-  "%s: %s\r\n"  // "NT" or "ST", _deviceType
-  "LOCATION: http://%u.%u.%u.%u:%u/%s\r\n" // WiFi.localIP(), _port, _schemaURL
-  "\r\n";
-
-
-                       
-  #ifdef DEBUG_SSDP
-  DEBUG_SSDP.print("Sending Response to ");
-  DEBUG_SSDP.print(IPAddress(addr));
-  DEBUG_SSDP.print(":");
-  DEBUG_SSDP.println(port);
-  DEBUG_SSDP.println(buffer);
-  #endif
-  
-  _server.writeTo((const uint8_t *)buffer, len, addr, port);
-  */
 }
 void SSDPClass::_sendResponse(IPAddress addr, uint16_t port, const char *buff) {
   #ifdef DEBUG_SSDP
@@ -545,6 +523,7 @@ void SSDPClass::_sendNotify(UPNPDeviceType *d, bool root) {
                        ip[0], ip[1], ip[2], ip[3], _port, d->schemaURL, this->bootId, this->configId);
   this->_sendNotify(buffer);
   d->lastNotified = millis();
+  free(pbuff);
 }
 void SSDPClass::setActive(uint8_t ndx, bool isActive) {
   UPNPDeviceType *d = &this->deviceTypes[ndx];

@@ -1,6 +1,6 @@
 //var hst = '192.168.1.208';
-//var hst = '192.168.1.152';
-var hst = '192.168.1.159';
+var hst = '192.168.1.152';
+//var hst = '192.168.1.159';
 var _rooms = [{ roomId: 0, name: 'Home' }];
 
 var errors = [
@@ -4304,8 +4304,14 @@ class Firmware {
     }
     procMemoryStatus(mem) {
         console.log(mem);
-        let sp = document.getElementById('spanMemory');
-        sp.innerHTML = mem.max.fmt("#,##0 bytes");
+        let sp = document.getElementById('spanFreeMemory');
+        if (sp) sp.innerHTML = mem.free.fmt("#,##0");
+        sp = document.getElementById('spanMaxMemory');
+        if (sp) sp.innerHTML = mem.max.fmt('#,##0');
+        sp = document.getElementById('spanMinMemory');
+        if (sp) sp.innerHTML = mem.min.fmt('#,##0');
+
+
     }
 
     procFwStatus(rel) {

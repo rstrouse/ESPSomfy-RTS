@@ -79,6 +79,7 @@ void SocketEmitter::begin() {
   settings.printAvailHeap();
 }
 void SocketEmitter::loop() {
+  this->initClients();
   sockServer.loop();  
 }
 /*
@@ -175,7 +176,7 @@ JsonSockEvent *SocketEmitter::beginEmit(const char *evt) {
   this->json.beginEvent(&sockServer, evt, g_response, sizeof(g_response));
   return &this->json;
 }
-void SocketEmitter::endEmit(uint8_t num) { sockServer.loop(); this->json.endEvent(num); }
+void SocketEmitter::endEmit(uint8_t num) { this->json.endEvent(num); sockServer.loop(); }
 void SocketEmitter::endEmitRoom(uint8_t room) {
   if(room < SOCK_MAX_ROOMS) {
     room_t *r = &this->rooms[room];
@@ -228,6 +229,30 @@ bool SocketEmitter::sendToClients(const char *evt, JsonDocument &doc) {
   return sockServer.broadcastTXT(this->evt.msg);
 }
 */
+void SocketEmitter::initClients() {
+  for(uint8_t i = 0; i < sizeof(this->newClients); i++) {
+    uint8_t num = this->newClients[i];
+    if(num != 255) {
+      if(sockServer.clientIsConnected(num)) {
+        Serial.printf("Initializing Socket Client %u\n", num);
+        settings.emitSockets(num);
+        somfy.emitState(num);
+        git.emitUpdateCheck(num);
+        net.emitSockets(num);
+      }
+      this->newClients[i] = 255;
+    }
+  }
+}
+void SocketEmitter::delayInit(uint8_t num) {
+  for(uint8_t i=0; i < sizeof(this->newClients); i++) {
+    if(this->newClients[i] == num) break;
+    else if(this->newClients[i] == 255) {
+      this->newClients[i] = num;
+      break;
+    }
+  }
+}
 void SocketEmitter::end() { sockServer.close(); }
 void SocketEmitter::disconnect() { sockServer.disconnect(); }
 void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
@@ -253,13 +278,8 @@ void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t
                 Serial.printf("Socket [%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
                 // Send all the current shade settings to the client.
                 sockServer.sendTXT(num, "Connected");
-                sockServer.loop();
-                settings.emitSockets(num);
-                somfy.emitState(num);
-                git.emitUpdateCheck(num);
-                net.emitSockets(num);
-                sockServer.loop();
-                net.needsBroadcast = true;
+                //sockServer.loop();
+                sockEmit.delayInit(num);
             }
             break;
         case WStype_TEXT:

@@ -1925,6 +1925,7 @@ void SomfyRoom::emitState(uint8_t num, const char *evt) {
 }
 void SomfyGroup::emitState(const char *evt) { this->emitState(255, evt); }
 void SomfyGroup::emitState(uint8_t num, const char *evt) {
+  uint8_t flags = 0;
   JsonSockEvent *json = sockEmit.beginEmit(evt);
   json->beginObject();
   json->addElem("groupId", this->groupId);
@@ -1936,9 +1937,11 @@ void SomfyGroup::emitState(uint8_t num, const char *evt) {
     if(this->linkedShades[i] != 255 && this->linkedShades[i] != 0) {
       SomfyShade *shade = somfy.getShadeById(this->linkedShades[i]);
       if(shade) json->addElem(this->linkedShades[i]);
+      flags |= shade->flags;
     }
   }
   json->endArray();
+  json->addElem("flags", flags);
   json->endObject();
   sockEmit.endEmit(num);
   /*

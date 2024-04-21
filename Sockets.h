@@ -68,11 +68,16 @@ class ClientSocketEvent {
 };
 */
 class SocketEmitter {
+  protected:
+    uint8_t newclients = 0;
+    uint8_t newClients[5] = {255,255,255,255,255};
+    void delayInit(uint8_t num);
   public:
     JsonSockEvent json;
     //ClientSocketEvent evt;
     room_t rooms[SOCK_MAX_ROOMS];
     uint8_t activeClients(uint8_t room);
+    void initClients();
     void startup();
     void begin();
     void loop();

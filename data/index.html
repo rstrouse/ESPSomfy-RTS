@@ -8,9 +8,9 @@
     <meta name="apple-mobile-web-app-title" content="ESPSomfy RTS App">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="stylesheet" href="main.css?v=2.4.2c" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.4.2c" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.4.2c" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.4.2r" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.4.2r" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.4.2r" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
 
     <!-- iPad retina icon -->
@@ -114,7 +114,7 @@
           rel="apple-touch-startup-image">
 
 
-    <script type="text/javascript" src="index.js?v=2.4.2c"></script>
+    <script type="text/javascript" src="index.js?v=2.4.2r"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -222,8 +222,8 @@
                         </div>
                     </div>
                     
-                    <div id="divFirmware" class="subtab-content" style="display:none;">
-                        <div>
+                    <div id="divFirmware" class="subtab-content" style="display:none;padding-top:10px;">
+                        <div style="display:inline-block">
                             <div style="font-size:17px;">
                                 <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;margin-top:-27px;">Hardware: </span>
                                 <span style="padding-left: 4px; display: inline-block;">ESP32<span id="spanHwVersion" style="text-transform:uppercase; text-align:left;width:120px;"></span></span>
@@ -237,10 +237,15 @@
                                 <span id="spanAppVersion" style="padding-left:4px;display:inline-block;text-align:left;width:120px;">v-.--</span>
                             </div>
                         </div>
-                        <div>
-                            <div style="font-size:17px;">
-                                <span style="text-align:right;display:inline-block;color:#00bcd4;width:127px;margin-top:-27px;">Memory: </span>
-                                <span style="padding-left: 4px; display: inline-block;"><span id="spanMemory" style="text-align:right;width:120px;"></span></span>
+                        <div style="display:inline-block;font-size:12px;padding-top:10px;padding-left:37px;">
+                            <div style="color: #00bcd4;">Memory (bytes)</div>
+                            <div style="font-size:12px;display:inline-block;">
+                                <span style="text-align:right;display:inline-block;color:#00bcd4;">Free: </span>
+                                <span id="spanFreeMemory" style="text-align:right;width:120px;"></span>
+                                <span style="text-align:right;display:inline-block;color:#00bcd4;">Max: </span>
+                                <span id="spanMaxMemory" style="text-align:right;width:120px;"></span>
+                                <span style="text-align:right;display:inline-block;color:#00bcd4;">Min: </span>
+                                <span id="spanMinMemory" style="text-align:right;width:120px;"></span>
                             </div>
                         </div>
                         <div class="button-container">

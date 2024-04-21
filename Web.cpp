@@ -834,6 +834,7 @@ void Web::handleDiscovery(WebServer &server) {
     resp.addElem("max", ESP.getMaxAllocHeap());
     resp.addElem("free", ESP.getFreeHeap());
     resp.addElem("min", ESP.getMinFreeHeap());
+    resp.addElem("total", ESP.getHeapSize());
     resp.endObject();
     resp.beginArray("rooms");
     somfy.toJSONRooms(resp);

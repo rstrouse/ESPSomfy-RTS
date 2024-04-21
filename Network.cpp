@@ -17,12 +17,13 @@ extern rebootDelay_t rebootDelay;
 extern Network net;
 
 static bool _apScanning = false;
+static uint32_t _lastMaxHeap = 0;
 static uint32_t _lastHeap = 0;
 int connectRetries = 0;
 void Network::end() {
-  sockEmit.end();
   SSDP.end();
   mqtt.end();
+  sockEmit.end();
   delay(100);
 }
 bool Network::setup() {
@@ -39,7 +40,6 @@ bool Network::setup() {
     WiFi.mode(WIFI_STA);
     settings.WIFI.printNetworks();
   }
-  sockEmit.begin();
   if(!this->connect()) this->openSoftAP();
   return true;
 }
@@ -62,6 +62,7 @@ void Network::loop() {
     this->lastEmit = millis();
     if(!this->connected()) return;
   }
+  sockEmit.loop();
   if(this->connected() && millis() - this->lastMDNS > 60000) {
     // We are doing this every 60 seconds because of the BS related to
     // the MDNS library.  The original library required manual updates
@@ -87,7 +88,6 @@ void Network::loop() {
     else {
       uint16_t n = WiFi.scanComplete();
       if( n > 0) {
-        _apScanning = false;
         uint8_t bssid[6];
         int32_t channel = 0;
         if(this->getStrongestAP(settings.WIFI.ssid, bssid, &channel)) {
@@ -96,6 +96,7 @@ void Network::loop() {
             this->changeAP(bssid, channel);
           }
         }
+        _apScanning = false;
       }
     }
   }
@@ -109,6 +110,7 @@ void Network::loop() {
 bool Network::changeAP(const uint8_t *bssid, const int32_t channel) {
   if(SSDP.isStarted) SSDP.end();
   mqtt.disconnect();
+  sockEmit.end();
   WiFi.disconnect(false, true);
   WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase, channel, bssid);
   uint8_t retries = 0;
@@ -248,6 +250,7 @@ void Network::setConnected(conn_types connType) {
     }
     this->wifiFallback = false;
   }
+  sockEmit.begin();
   if(this->connectAttempts == 1) {
     Serial.println();
     if(this->connType == conn_types::wifi) {
@@ -365,6 +368,7 @@ bool Network::connectWired() {
   //if(this->connType == conn_types::ethernet && ETH.linkUp()) {
   if(ETH.linkUp()) {
     if(WiFi.status() == WL_CONNECTED) {
+      sockEmit.end();
       WiFi.disconnect(true);
       WiFi.mode(WIFI_OFF);
     }
@@ -637,7 +641,7 @@ bool Network::openSoftAP() {
   //pinMode(D0, INPUT_PULLUP);
   long startTime = millis();
   int c = 0;
-  
+  sockEmit.begin();
   while (!this->connected())
   {
     int clients = WiFi.softAPgetStationNum();
@@ -748,13 +752,15 @@ void Network::networkEvent(WiFiEvent_t event) {
   }
 }
 void Network::emitHeap(uint8_t num) {
-  if(num != 255 || this->needsBroadcast || ESP.getMaxAllocHeap() != _lastHeap) {
-    _lastHeap = ESP.getMaxAllocHeap();
+  if(num != 255 || this->needsBroadcast || (ESP.getMaxAllocHeap() != _lastMaxHeap || ESP.getFreeHeap() != _lastHeap)) {
+    _lastMaxHeap = ESP.getMaxAllocHeap();
+    _lastHeap = ESP.getFreeHeap();
     JsonSockEvent *json = sockEmit.beginEmit("memStatus");
     json->beginObject();
-    json->addElem("max", _lastHeap);
-    json->addElem("free", ESP.getFreeHeap());
+    json->addElem("max", _lastMaxHeap);
+    json->addElem("free", _lastHeap);
     json->addElem("min", ESP.getMinFreeHeap());
+    json->addElem("total", ESP.getHeapSize());
     json->endObject();
     sockEmit.endEmit(num);
   }

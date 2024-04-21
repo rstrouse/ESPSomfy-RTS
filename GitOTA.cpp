@@ -19,6 +19,7 @@ extern rebootDelay_t rebootDelay;
 extern Web webServer;
 
 
+
 #define MAX_BUFF_SIZE 4096
 void GitRelease::setReleaseProperty(const char *key, const char *val) {
   if(strcmp(key, "id") == 0) this->id = atol(val);
@@ -115,16 +116,16 @@ int16_t GitRepo::getReleases(uint8_t num) {
   strcpy(main->version.name, "main");
   strcpy(main->name, "Main");
   strcpy(main->hwVersions, "32,s3");
-  HTTPClient *https = new HTTPClient();
-  https->setReuse(false);
-  if(https->begin(sclient, url)) {
-    int httpCode = https->GET();
+  HTTPClient https;
+  https.setReuse(false);
+  if(https.begin(sclient, url)) {
+    int httpCode = https.GET();
     Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
     if(httpCode > 0) {
-      int len = https->getSize();
+      int len = https.getSize();
       Serial.printf("[HTTPS] GET... code: %d - %d\n", httpCode, len);
       if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-        WiFiClient *stream = https->getStreamPtr();
+        WiFiClient *stream = https.getStreamPtr();
         uint8_t buff[128] = {0};
         char jsonElem[32] = "";
         char jsonValue[128] = "";
@@ -135,7 +136,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
         bool inValue = false;
         bool awaitValue = false;
         bool inAss = false;
-        while(https->connected() && (len > 0 || len == -1) && ndx < count) {
+        while(https.connected() && (len > 0 || len == -1) && ndx < count) {
           size_t size = stream->available();
           if(size) {
             int c = stream->readBytes(buff, ((size > sizeof(buff)) ? sizeof(buff) : size));
@@ -226,16 +227,14 @@ int16_t GitRepo::getReleases(uint8_t num) {
         }
       }
       else {
-        https->end();
-        sclient.stop();
-        delete https;
+        https.end();
+        //sclient.stop();
         return httpCode;
       }
     }
-    https->end();  
-    delete https;
+    https.end();  
+    sclient.stop();
   }
-  sclient.stop();
   settings.printAvailHeap();
   return 0;
 }
@@ -399,15 +398,15 @@ void GitUpdater::emitUpdateCheck(uint8_t num) {
 int GitUpdater::checkInternet() {
   int err = 500;
   uint32_t t = millis();
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setHandshakeTimeout(3);
-  HTTPClient *https = new HTTPClient();
-  https->setReuse(false);
-  if(https->begin(client, "https://github.com/rstrouse/ESPSomfy-RTS")) {
-    https->setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    https->setTimeout(5000);
-    int httpCode = https->sendRequest("HEAD");
+  WiFiClientSecure sclient;
+  sclient.setInsecure();
+  sclient.setHandshakeTimeout(3);
+  HTTPClient https;
+  https.setReuse(false);
+  if(https.begin(sclient, "https://github.com/rstrouse/ESPSomfy-RTS")) {
+    https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    https.setTimeout(5000);
+    int httpCode = https.sendRequest("HEAD");
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
       err = 0;
       Serial.printf("Internet is Available: %ldms\n", millis() - t);
@@ -418,10 +417,9 @@ int GitUpdater::checkInternet() {
       Serial.printf("Internet is Unavailable: %d: %ldms\n", err, millis() - t);
       this->inetAvailable = false;
     }
-    https->end();
+    https.end();
+    sclient.stop();
   }
-  client.stop();
-  delete https;
   return err;
 }
 void GitUpdater::emitDownloadProgress(size_t total, size_t loaded, const char *evt) { this->emitDownloadProgress(255, total, loaded, evt); }
@@ -516,119 +514,114 @@ bool GitUpdater::recoverFilesystem() {
 }
 bool GitUpdater::endUpdate() { return true; }
 int8_t GitUpdater::downloadFile() {
-  WiFiClientSecure *client = new WiFiClientSecure;
   Serial.printf("Begin update %s\n", this->currentFile);
-  if(client) {
-    client->setInsecure();
-    HTTPClient https;
-    char url[196];
-    sprintf(url, "%s%s", this->baseUrl, this->currentFile);
-    Serial.println(url);
-    if(https.begin(*client, url)) {
-      https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-      Serial.print("[HTTPS] GET...\n");
-      int httpCode = https.GET();
-      if(httpCode > 0) {
-        size_t len = https.getSize();
-        size_t total = 0;
-        uint8_t pct = 0;
-        Serial.printf("[HTTPS] GET... code: %d - %d\n", httpCode, len);
-        if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
-          WiFiClient *stream = https.getStreamPtr();
-          if(!Update.begin(len, this->partition)) {
-            Serial.println("Update Error detected!!!!!");
-            Update.printError(Serial);
-            https.end();
-            return -(Update.getError() + UPDATE_ERR_OFFSET);
-          }
-          uint8_t *buff = (uint8_t *)malloc(MAX_BUFF_SIZE);
-          if(buff) {
-            this->emitDownloadProgress(len, total);
-            int timeouts = 0;
-            while(https.connected() && (len > 0 || len == -1) && total < len) {
-              size_t size = stream->available();
-              if(size) {
-                if(this->cancelled && !this->lockFS) {
-                  Update.abort();
-                  https.end();
-                  free(buff);
-                  return -(Update.getError() + UPDATE_ERR_OFFSET);
-                }
-                int c = stream->readBytes(buff, ((size > MAX_BUFF_SIZE) ? MAX_BUFF_SIZE : size));
-                total += c;
-                //Serial.println(total);
-                if (Update.write(buff, c) != c) {
+  WiFiClientSecure sclient;
+  sclient.setInsecure();
+  HTTPClient https;
+  char url[196];
+  sprintf(url, "%s%s", this->baseUrl, this->currentFile);
+  Serial.println(url);
+  if(https.begin(sclient, url)) {
+    https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    Serial.print("[HTTPS] GET...\n");
+    int httpCode = https.GET();
+    if(httpCode > 0) {
+      size_t len = https.getSize();
+      size_t total = 0;
+      uint8_t pct = 0;
+      Serial.printf("[HTTPS] GET... code: %d - %d\n", httpCode, len);
+      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
+        WiFiClient *stream = https.getStreamPtr();
+        if(!Update.begin(len, this->partition)) {
+          Serial.println("Update Error detected!!!!!");
+          Update.printError(Serial);
+          https.end();
+          return -(Update.getError() + UPDATE_ERR_OFFSET);
+        }
+        uint8_t *buff = (uint8_t *)malloc(MAX_BUFF_SIZE);
+        if(buff) {
+          this->emitDownloadProgress(len, total);
+          int timeouts = 0;
+          while(https.connected() && (len > 0 || len == -1) && total < len) {
+            size_t size = stream->available();
+            if(size) {
+              if(this->cancelled && !this->lockFS) {
+                Update.abort();
+                free(buff);
+                https.end();
+                return -(Update.getError() + UPDATE_ERR_OFFSET);
+              }
+              int c = stream->readBytes(buff, ((size > MAX_BUFF_SIZE) ? MAX_BUFF_SIZE : size));
+              total += c;
+              //Serial.println(total);
+              if (Update.write(buff, c) != c) {
+                Update.printError(Serial);
+                Serial.printf("Upload of %s aborted invalid size %d\n", url, c);
+                free(buff);
+                https.end();
+                sclient.stop();
+                return -(Update.getError() + UPDATE_ERR_OFFSET);
+              }
+              // Calculate the percentage.
+              uint8_t p = (uint8_t)floor(((float)total / (float)len) * 100.0f);
+              if(p != pct) {
+                pct = p;
+                Serial.printf("LEN:%d TOTAL:%d %d%%\n", len, total, pct);
+                this->emitDownloadProgress(len, total);
+              }
+              delay(1);
+              if(total >= len) {
+                if(!Update.end(true)) {
+                  Serial.println("Error downloading update...");
                   Update.printError(Serial);
-                  Serial.printf("Upload of %s aborted invalid size %d\n", url, c);
-                  free(buff);
-                  https.end();
-                  return -(Update.getError() + UPDATE_ERR_OFFSET);
                 }
-                // Calculate the percentage.
-                uint8_t p = (uint8_t)floor(((float)total / (float)len) * 100.0f);
-                if(p != pct) {
-                  pct = p;
-                  Serial.printf("LEN:%d TOTAL:%d %d%%\n", len, total, pct);
-                  this->emitDownloadProgress(len, total);
+                else {
+                  Serial.println("Update.end Called...");
                 }
-                delay(1);
-                if(total >= len) {
-                  if(!Update.end(true)) {
-                    Serial.println("Error downloading update...");
-                    Update.printError(Serial);
-                  }
-                  else {
-                    Serial.println("Update.end Called...");
-                  }
-                  https.end();
-                }
-              }
-              else {
-                timeouts++;
-                if(timeouts >= 500) {
-                  Update.abort();
-                  https.end();
-                  free(buff);
-                  Serial.println("Stream timeout!!!");
-                  return -43;
-                }
-                sockEmit.loop();
-                webServer.loop();
-                delay(100);
+                https.end();
+                sclient.stop();
               }
             }
-            free(buff);
-            if(len > total) {
-              Update.abort();
-              somfy.commit();
-              Serial.println("Error downloading file!!!");
-              return -42;
-              
+            else {
+              timeouts++;
+              if(timeouts >= 500) {
+                Update.abort();
+                https.end();
+                free(buff);
+                Serial.println("Stream timeout!!!");
+                return -43;
+              }
+              sockEmit.loop();
+              webServer.loop();
+              delay(100);
             }
-            else
-              Serial.printf("Update %s complete\n", this->currentFile);
-            
           }
-          else {
-            // TODO: memory allocation error.
-            Serial.println("Unable to allocate memory for update!!!");
+          free(buff);
+          if(len > total) {
+            Update.abort();
+            somfy.commit();
+            Serial.println("Error downloading file!!!");
+            return -42;
           }
+          else
+            Serial.printf("Update %s complete\n", this->currentFile);
         }
         else {
-          Serial.printf("Invalid HTTP Code... %d", httpCode);
-          return httpCode;
+          // TODO: memory allocation error.
+          Serial.println("Unable to allocate memory for update!!!");
         }
-      }        
-      else {
-        Serial.printf("Invalid HTTP Code: %d\n", httpCode);
       }
-      
-      if(https.connected()) https.end();  
-      Serial.printf("End update %s\n", this->currentFile);
-
+      else {
+        Serial.printf("Invalid HTTP Code... %d", httpCode);
+        return httpCode;
+      }
+    }        
+    else {
+      Serial.printf("Invalid HTTP Code: %d\n", httpCode);
     }
-    client->stop();
-    delete client;
+    https.end(); 
+    sclient.stop(); 
+    Serial.printf("End update %s\n", this->currentFile);
   }
   return 0;
 }
