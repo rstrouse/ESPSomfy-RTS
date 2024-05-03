@@ -28,14 +28,12 @@ class GitRelease {
     appver_t version;
     void setReleaseProperty(const char *key, const char *val);
     void setAssetProperty(const char *key, const char *val);
-    bool toJSON(JsonObject &obj);
     void toJSON(JsonResponse &json);
 };
 class GitRepo {
   public:
     int16_t getReleases(uint8_t num = GIT_MAX_RELEASES);
     GitRelease releases[GIT_MAX_RELEASES + 1];
-    bool toJSON(JsonObject &obj);
     void toJSON(JsonResponse &json);
 };
 class GitUpdater {
@@ -60,7 +58,6 @@ class GitUpdater {
     void setFirmwareFile();
     void setCurrentRelease(GitRepo &repo);
     void loop();
-    void toJSON(JsonObject &obj);
     void toJSON(JsonResponse &json);
     bool recoverFilesystem();
     int checkInternet();

@@ -299,18 +299,6 @@ bool MQTTClass::publish(const char *topic, uint32_t val, bool retain) {
   snprintf(g_content, sizeof(g_content), "%u", val);
   return this->publish(topic, g_content, retain);
 }
-bool MQTTClass::publish(const char *topic, JsonDocument &doc, bool retain) {
-  serializeJson(doc, g_content, sizeof(g_content));
-  return this->publish(topic, g_content, retain);
-}
-bool MQTTClass::publish(const char *topic, JsonArray &arr, bool retain) {
-  serializeJson(arr, g_content, sizeof(g_content));
-  return this->publish(topic, g_content, retain);
-}
-bool MQTTClass::publish(const char *topic, JsonObject &obj, bool retain) {
-  serializeJson(obj, g_content, sizeof(g_content));
-  return this->publish(topic, g_content, retain);
-}
 bool MQTTClass::unpublish(const char *topic) {
   if(mqttClient.connected()) {
     char top[128];

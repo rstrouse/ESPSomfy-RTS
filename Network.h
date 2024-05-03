@@ -2,6 +2,8 @@
 
 #ifndef Network_h
 #define Network_h
+
+#define CONNECT_TIMEOUT 20000
 class Network {
   protected:
     unsigned long lastEmit = 0;
@@ -9,21 +11,24 @@ class Network {
     int lastRSSI = 0;
     int lastChannel = 0;
     int linkSpeed = 0;
-    bool ethStarted = false;
+    bool _connecting = false;
   public:
+    bool ethStarted = false;
     bool wifiFallback = false;
     bool softAPOpened = false;
     bool needsBroadcast = true;
     conn_types connType = conn_types::unset;
+    conn_types connTarget = conn_types::unset;
     bool connected();
+    bool connecting();
     String ssid;
     String mac;
     int channel;
     int strength;
     int disconnected = 0;
     int connectAttempts = 0;
-    long connectStart = 0;
-    long connectTime = 0;
+    uint32_t connectStart = 0;
+    uint32_t connectTime = 0;
     bool openSoftAP();
     bool connect();
     bool connectWiFi();

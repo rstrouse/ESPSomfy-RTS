@@ -3,7 +3,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 #include "WResp.h"
-#define FW_VERSION "v2.4.2"
+#define FW_VERSION "v2.4.3"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -161,7 +161,8 @@ enum class conn_types : byte {
     unset = 0x00,
     wifi = 0x01,
     ethernet = 0x02,
-    ethernetpref = 0x03
+    ethernetpref = 0x03,
+    ap = 0x04
 };
 class ConfigSettings: BaseSettings {
   public:

@@ -7,10 +7,10 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 22
+#define SHADE_HDR_VER 23
 #define SHADE_HDR_SIZE 76
 #define SHADE_REC_SIZE 276
-#define GROUP_REC_SIZE 194
+#define GROUP_REC_SIZE 200
 #define TRANS_REC_SIZE 74
 #define ROOM_REC_SIZE 29
 #define REPEATER_REC_SIZE 77
@@ -728,12 +728,14 @@ bool ShadeConfigFile::readGroupRecord(SomfyGroup *group) {
   this->readString(group->name, sizeof(group->name));
   group->proto = static_cast<radio_proto>(this->readUInt8(0));
   group->bitLength = this->readUInt8(56);
+  if(this->header.version >= 23) group->lastRollingCode = this->readUInt16(0);
   if(group->getRemoteAddress() != 0) {
     uint16_t rc = pref.getUShort(group->getRemotePrefId(), 0);
     group->lastRollingCode = max(rc, group->lastRollingCode);
     if(rc < group->lastRollingCode) pref.putUShort(group->getRemotePrefId(), group->lastRollingCode);
   }
   uint8_t lsd = 0;
+  memset(group->linkedShades, 0x00, sizeof(group->linkedShades));
   for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
     uint8_t shadeId = this->readUInt8(0);
     // Do this to eliminate gaps.
@@ -925,6 +927,7 @@ bool ShadeConfigFile::writeGroupRecord(SomfyGroup *group) {
   this->writeString(group->name, sizeof(group->name));
   this->writeUInt8(static_cast<uint8_t>(group->proto));
   this->writeUInt8(group->bitLength);
+  this->writeUInt16(group->lastRollingCode);
   for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
     this->writeUInt8(group->linkedShades[j]);
   }

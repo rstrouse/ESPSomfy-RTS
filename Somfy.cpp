@@ -57,6 +57,8 @@ somfy_commands translateSomfyCommand(const String& string) {
     else if (string.equalsIgnoreCase("Flag")) return somfy_commands::Flag;
     else if (string.equalsIgnoreCase("Sensor")) return somfy_commands::Sensor;
     else if (string.equalsIgnoreCase("Toggle")) return somfy_commands::Toggle;
+    else if (string.equalsIgnoreCase("Favorite")) return somfy_commands::Fav;
+    else if (string.startsWith("fav") || string.startsWith("FAV")) return somfy_commands::Fav;
     else if (string.startsWith("mud") || string.startsWith("MUD")) return somfy_commands::MyUpDown;
     else if (string.startsWith("md") || string.startsWith("MD")) return somfy_commands::MyDown;
     else if (string.startsWith("ud") || string.startsWith("UD")) return somfy_commands::UpDown;
@@ -104,6 +106,8 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Sensor";
     case somfy_commands::Toggle:
         return "Toggle";
+    case somfy_commands::Fav:
+        return "Favorite";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
     }
@@ -154,7 +158,11 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     this->remoteAddress = (decoded[6] + (decoded[5] << 8) + (decoded[4] << 16));
     this->valid = this->checksum == checksum && this->remoteAddress > 0 && this->remoteAddress < 16777215;
     if (this->cmd != somfy_commands::Sensor && this->valid) this->valid = (this->rollingCode > 0);
+
     if (this->valid) {
+        uint8_t csc80 = 0;
+        uint8_t cs80 = 0;
+
         // Check for valid command.
         switch (this->cmd) {
         //case somfy_commands::Unknown0:
@@ -177,7 +185,24 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         case somfy_commands::StepUp:
         case somfy_commands::StepDown:
         case somfy_commands::Toggle:
+        case somfy_commands::Fav:
             // These must be 80 bit commands
+            csc80 = (decoded[9] & 0x0F);
+            cs80 = (((decoded[7] & 0xF0) >> 4) ^ ((decoded[8] & 0xF0) >> 4));
+            cs80 ^= ((decoded[9] & 0xF0) >> 4);
+            cs80 ^= (decoded[7] & 0x0F);
+            cs80 ^= (decoded[8] & 0x0F);
+            //cs80 = (((decoded[7] & 0xF0) >> 4) ^ ((decoded[8] & 0xF0) >> 4) ^ ((decoded[9] & 0xF0) >> 4) ^ (decoded[7] & 0x0F) ^ (decoded[8] & 0x0F));
+            if(csc80 != cs80) this->valid = false;
+            /*
+            uint8_t ai = ((decoded[7] & 0xF0) >> 4);
+            uint8_t aj = ((decoded[8] & 0xF0) >> 4);
+            uint8_t ak = ((decoded[9] & 0xF0) >> 4);
+            uint8_t al = (decoded[7] & 0x0F);
+            uint8_t am = (decoded[8] & 0x0F);
+            uint8_t an = (decoded[9] & 0x0F);
+            cs80 = ai ^ aj ^ ak ^ al ^ am;
+            */
             break;
         default:
             this->valid = false;
@@ -644,8 +669,10 @@ void SomfyRoom::clear() {
 void SomfyGroup::clear() {
   this->setGroupId(255);
   this->setRemoteAddress(0);
-  this->repeats = 1;
-  memset(&this->linkedShades[0], 0x00, sizeof(this->linkedShades));
+  this->repeats = 0;
+  this->roomId = 0;
+  this->name[0] = 0x00;
+  memset(&this->linkedShades, 0x00, sizeof(this->linkedShades));
 }
 bool SomfyShade::linkRemote(uint32_t address, uint16_t rollingCode) {
   // Check to see if the remote is already linked. If it is
@@ -830,10 +857,13 @@ bool SomfyShade::isAtTarget() {
   else if(this->tiltType == tilt_types::none) return fabs(this->currentPos - this->target) < epsilon;
   return fabs(this->currentPos - this->target) < epsilon && fabs(this->currentTiltPos - this->tiltTarget) < epsilon; 
 }
+bool SomfyRemote::simMy() { return (this->flags & static_cast<uint8_t>(somfy_flags_t::SimMy)) > 0; }
+void SomfyRemote::setSimMy(bool bSimMy) { bSimMy ? this->flags |= static_cast<uint8_t>(somfy_flags_t::SimMy) : this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SimMy)); }
 bool SomfyRemote::hasSunSensor() { return (this->flags & static_cast<uint8_t>(somfy_flags_t::SunSensor)) > 0;}
 bool SomfyRemote::hasLight() { return (this->flags & static_cast<uint8_t>(somfy_flags_t::Light)) > 0; }
 void SomfyRemote::setSunSensor(bool bHasSensor ) { bHasSensor ? this->flags |= static_cast<uint8_t>(somfy_flags_t::SunSensor) : this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::SunSensor)); }
 void SomfyRemote::setLight(bool bHasLight ) { bHasLight ? this->flags |= static_cast<uint8_t>(somfy_flags_t::Light) : this->flags &= ~(static_cast<uint8_t>(somfy_flags_t::Light)); }
+
 void SomfyGroup::updateFlags() { 
   uint8_t oldFlags = this->flags;
   this->flags = 0;
@@ -2772,7 +2802,12 @@ void SomfyShade::moveToMyPosition() {
   if(this->tiltType != tilt_types::tiltonly && this->myPos >= 0.0f && this->myPos <= 100.0f) this->p_target(this->myPos);
   if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
   this->settingPos = false;
-  SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+  if(this->simMy()) {
+    Serial.print("Moving to simulated favorite\n");
+    this->moveToTarget(this->myPos, this->myTiltPos);
+  }
+  else
+    SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
 }
 void SomfyShade::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
 void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
@@ -3098,6 +3133,7 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
     if(obj.containsKey("bitLength")) this->bitLength = obj["bitLength"];
     if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
     if(obj.containsKey("sunSensor")) this->setSunSensor(obj["sunSensor"]);
+    if(obj.containsKey("simMy")) this->setSimMy(obj["simMy"]);
     if(obj.containsKey("light")) this->setLight(obj["light"]);
     if(obj.containsKey("gpioFlags")) this->gpioFlags = obj["gpioFlags"];
     if(obj.containsKey("gpioLLTrigger")) {
@@ -3180,24 +3216,6 @@ int8_t SomfyShade::fromJSON(JsonObject &obj) {
   }
   return err;
 }
-/*
-bool SomfyShade::toJSONRef(JsonObject &obj) {
-  obj["shadeId"] = this->getShadeId();
-  obj["roomId"] = this->roomId;
-  obj["name"] = this->name;
-  obj["remoteAddress"] = this->m_remoteAddress;
-  obj["paired"] = this->paired;
-  obj["shadeType"] = static_cast<uint8_t>(this->shadeType);
-  obj["bitLength"] = this->bitLength;
-  obj["proto"] = static_cast<uint8_t>(this->proto);
-  obj["flags"] = this->flags;
-  obj["sunSensor"] = this->hasSunSensor();
-  obj["hasLight"] = this->hasLight();
-  obj["repeats"] = this->repeats;
-  SomfyRemote::toJSON(obj);
-  return true;
-}
-*/
 void SomfyShade::toJSONRef(JsonResponse &json) {
   json.addElem("shadeId", this->getShadeId());
   json.addElem("roomId", this->roomId);
@@ -3249,6 +3267,7 @@ void SomfyShade::toJSON(JsonResponse &json) {
   json.addElem("gpioDown", this->gpioDown);
   json.addElem("gpioMy", this->gpioMy);
   json.addElem("gpioLLTrigger", ((this->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0) ? false : true);
+  json.addElem("simMy", this->simMy());
   json.beginArray("linkedRemotes");
   for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
     SomfyLinkedRemote &lremote = this->linkedRemotes[i];
@@ -4093,13 +4112,6 @@ void SomfyShadeController::toJSONRepeaters(JsonResponse &json) {
     if(somfy.repeaters[i] != 0) json.addElem((uint8_t)somfy.repeaters[i]);
   }
 }
-bool SomfyShadeController::toJSONRepeaters(JsonArray &arr) {
-  for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
-    if(somfy.repeaters[i] != 0) arr.add(somfy.repeaters[i]);
-  }
-  return true;
-}
-
 void SomfyShadeController::loop() { 
   this->transceiver.loop(); 
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {

@@ -68,20 +68,6 @@ void GitRelease::setAssetProperty(const char *key, const char *val) {
     }
   }
 }
-bool GitRelease::toJSON(JsonObject &obj) {
-  Timestamp ts;
-  obj["id"] = this->id;
-  obj["name"] = this->name;
-  obj["date"] = ts.getISOTime(this->releaseDate);
-  obj["draft"] = this->draft;
-  obj["preRelease"] = this->preRelease;
-  obj["main"] = this->main;
-  obj["hasFS"] = this->hasFS;
-  obj["hwVersions"] = this->hwVersions;
-  JsonObject ver = obj.createNestedObject("version");
-  this->version.toJSON(ver);
-  return true;
-}
 void GitRelease::toJSON(JsonResponse &json) {
   Timestamp ts;
   char buff[20];
@@ -228,7 +214,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
       }
       else {
         https.end();
-        //sclient.stop();
+        sclient.stop();
         return httpCode;
       }
     }
@@ -254,19 +240,6 @@ void GitRepo::toJSON(JsonResponse &json) {
   }
   json.endArray();
 }
-bool GitRepo::toJSON(JsonObject &obj) {
-  JsonObject fw = obj.createNestedObject("fwVersion");
-  settings.fwVersion.toJSON(fw);
-  JsonObject app = obj.createNestedObject("appVersion");
-  settings.appVersion.toJSON(app);
-  JsonArray arr = obj.createNestedArray("releases");
-  for(uint8_t i = 0; i < GIT_MAX_RELEASES + 1; i++) {
-    if(this->releases[i].id == 0) continue;
-    JsonObject o = arr.createNestedObject();
-    this->releases[i].toJSON(o);
-  }
-  return true;
-}
 #define UPDATE_ERR_OFFSET 20
 #define ERR_DOWNLOAD_HTTP -40
 #define ERR_DOWNLOAD_BUFFER -41
@@ -274,11 +247,8 @@ bool GitRepo::toJSON(JsonObject &obj) {
 
 void GitUpdater::loop() {
   if(this->status == GIT_STATUS_READY) {
-    //if(this->lastCheck == 0) 
-      //this->lastCheck = millis();
-    //else 
     if(settings.checkForUpdate && 
-      //(this->lastCheck + 14400000 < millis() || this->lastCheck == 0) && !rebootDelay.reboot) { // 4 hours
+      (millis() > 60000) && // Wait a minute before checking after boot.
       (this->lastCheck + 86400000 < millis() || this->lastCheck == 0) && !rebootDelay.reboot) { // 1 day
       this->checkForUpdate();
     }
@@ -302,6 +272,7 @@ void GitUpdater::loop() {
 void GitUpdater::checkForUpdate() {
   if(this->status != 0) return; // If we are already checking.
   Serial.println("Check github for updates...");
+  
   this->status = GIT_STATUS_CHECK;
   settings.printAvailHeap();  
   this->lastCheck = millis();
@@ -349,21 +320,6 @@ void GitUpdater::toJSON(JsonResponse &json) {
   this->latest.toJSON(json);
   json.endObject();
 }
-
-void GitUpdater::toJSON(JsonObject &obj) {
-  obj["available"] = this->updateAvailable;
-  obj["status"] = this->status;
-  obj["error"] = this->error;
-  obj["cancelled"] = this->cancelled;
-  obj["checkForUpdate"] = settings.checkForUpdate;
-  obj["inetAvailable"] = this->inetAvailable;
-  JsonObject fw = obj.createNestedObject("fwVersion");
-  settings.fwVersion.toJSON(fw);
-  JsonObject app = obj.createNestedObject("appVersion");
-  settings.appVersion.toJSON(app);
-  JsonObject latest = obj.createNestedObject("latest");
-  this->latest.toJSON(latest);
-}
 void GitUpdater::emitUpdateCheck(uint8_t num) {
   JsonSockEvent *json = sockEmit.beginEmit("fwStatus");
   json->beginObject();
@@ -384,16 +340,6 @@ void GitUpdater::emitUpdateCheck(uint8_t num) {
   json->endObject();
   json->endObject();
   sockEmit.endEmit(num);
-  /*
-  ClientSocketEvent evt("fwStatus");
-  DynamicJsonDocument doc(512);
-  JsonObject obj = doc.to<JsonObject>();
-  this->toJSON(obj);
-  if(num == 255)
-    sockEmit.sendToClients("fwStatus", doc);
-  else
-    sockEmit.sendToClient(num, "fwStatus", doc);
-  */
 }
 int GitUpdater::checkInternet() {
   int err = 500;

@@ -8,9 +8,9 @@
     <meta name="apple-mobile-web-app-title" content="ESPSomfy RTS App">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="stylesheet" href="main.css?v=2.4.2r" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.4.2r" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.4.2r" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.4.3b" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.4.3b" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.4.3b" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
 
     <!-- iPad retina icon -->
@@ -609,6 +609,13 @@
                                     <label for="cbFlipPosition" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Invert Position (expressed in % of open)</label>
                                 </div>
                             </div>
+                            <div style="margin-top:-10px;" id="divSimMy">
+                                <div class="field-group">
+                                    <input id="cbSimMy" name="simMy" data-bind="simMy" type="checkbox" style="" />
+                                    <label for="cbSimMy" style="display:block;font-size:1em;margin-top:0px;margin-left:7px;display:inline-block;">Simulate Favorite Position</label>
+                                </div>
+                            </div>
+
                             <div classs="field-group" style="display:inline-block;">
                                 <label for="selRepeatCommnds" style="cursor:pointer;color:#00bcd4;margin-right:4px;">Repeat Commands</label>
                                 <select id="selRepeatCommands" data-bind="repeats" data-datatype="int" style="width:127px;">

@@ -47,6 +47,7 @@ enum class somfy_commands : byte {
     RTWProto = 0xF, // RTW Protocol
     // Command extensions for 80 bit frames
     StepUp = 0x8B,
+    Fav = 0x90,
 };
 enum class group_types : byte {
   channel = 0x00
@@ -155,7 +156,8 @@ enum class somfy_flags_t : byte {
     Light = 0x08,
     Windy = 0x10,
     Sunny = 0x20,
-    Lighted = 0x40
+    Lighted = 0x40,
+    SimMy = 0x80
 };
 enum class gpio_flags_t : byte {
   LowLevelTrigger = 0x01
@@ -181,6 +183,7 @@ struct somfy_frame_t {
     uint32_t await = 0;
     uint8_t bitLength = 56;
     uint16_t pulseCount = 0;
+    uint8_t stepSize = 0;
     void print();
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
@@ -197,7 +200,6 @@ class SomfyRoom {
     void clear();
     bool save();
     bool fromJSON(JsonObject &obj);
-    //bool toJSON(JsonObject &obj);
     void toJSON(JsonResponse &json);
     void emitState(const char *evt = "roomState");
     void emitState(uint8_t num, const char *evt = "roomState");
@@ -228,7 +230,6 @@ class SomfyRemote {
     uint8_t repeats = 1;
     virtual bool isLastCommand(somfy_commands cmd);
     char *getRemotePrefId() {return m_remotePrefId;}
-    //virtual bool toJSON(JsonObject &obj);
     virtual void toJSON(JsonResponse &json);
     virtual void setRemoteAddress(uint32_t address);
     virtual uint32_t getRemoteAddress();
@@ -236,8 +237,10 @@ class SomfyRemote {
     virtual uint16_t setRollingCode(uint16_t code);
     bool hasSunSensor();
     bool hasLight();
+    bool simMy();
     void setSunSensor(bool bHasSensor);
     void setLight(bool bHasLight);
+    void setSimMy(bool bSimMy);
     virtual void sendCommand(somfy_commands cmd);
     virtual void sendCommand(somfy_commands cmd, uint8_t repeat);
     void sendSensorCommand(int8_t isWindy, int8_t isSunny, uint8_t repeat);
@@ -280,10 +283,8 @@ class SomfyShade : public SomfyRemote {
     #ifdef USE_NVS
     void load();
     #endif
-    //somfy_tx_queue_t txQueue;
     float currentPos = 0.0f;
     float currentTiltPos = 0.0f;
-    //uint16_t movement = 0;
     int8_t lastMovement = 0;
     int8_t direction = 0; // 0 = stopped, 1=down, -1=up.
     int8_t tiltDirection = 0; // 0=stopped, 1=clockwise, -1=counter clockwise
@@ -294,10 +295,8 @@ class SomfyShade : public SomfyRemote {
     SomfyLinkedRemote linkedRemotes[SOMFY_MAX_LINKED_REMOTES];
     bool paired = false;
     int8_t validateJSON(JsonObject &obj);
-    //bool toJSONRef(JsonObject &obj);
     void toJSONRef(JsonResponse &json);
     int8_t fromJSON(JsonObject &obj);
-    //bool toJSON(JsonObject &obj) override;
     void toJSON(JsonResponse &json) override;
     
     char name[21] = "";
@@ -548,16 +547,10 @@ class SomfyShadeController {
     SomfyGroup groups[SOMFY_MAX_GROUPS];
     bool linkRepeater(uint32_t address);
     bool unlinkRepeater(uint32_t address);
-    //bool toJSON(DynamicJsonDocument &doc);
-    //bool toJSON(JsonObject &obj);
-    //bool toJSONRooms(JsonArray &arr);
-    //bool toJSONShades(JsonArray &arr);
-    //bool toJSONGroups(JsonArray &arr);
     void toJSONShades(JsonResponse &json);
     void toJSONRooms(JsonResponse &json);
     void toJSONGroups(JsonResponse &json);
     void toJSONRepeaters(JsonResponse &json);
-    bool toJSONRepeaters(JsonArray &arr);
     uint8_t repeaterCount();
     uint8_t roomCount();
     uint8_t shadeCount();
