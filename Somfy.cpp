@@ -2,6 +2,7 @@
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <SPI.h>
 #include <WebServer.h>
+#include <esp_task_wdt.h>
 #include "Utils.h"
 #include "ConfigSettings.h"
 #include "Somfy.h"
@@ -2113,8 +2114,12 @@ void SomfyShade::processWaitingFrame() {
           this->emitState();
         }
         else if(this->isIdle()) {
-          if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->p_target(this->myPos);
-          if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
+          if(this->simMy())
+            this->moveToMyPosition(); // Call out like this (instead of move to target) so that we don't get some of the goofy tilt only problems.
+          else {
+            if(this->myPos >= 0.0f && this->myPos <= 100.0f) this->p_target(this->myPos);
+            if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
+          }
           this->setMovement(0);
           this->lastFrame.processed = true;
           this->emitCommand(cmd, "remote", this->lastFrame.remoteAddress);
@@ -2538,8 +2543,13 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
     case somfy_commands::My:
       if(this->isIdle()) {
         Serial.printf("Shade #%d is idle\n", this->getShadeId());
-        if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
-        if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->p_target(this->myPos);
+        if(this->simMy()) {
+          this->moveToMyPosition();
+        }
+        else {
+          if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
+          if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->p_target(this->myPos);
+        }
       }
       else {
         if(this->tiltType == tilt_types::tiltonly) {
@@ -2881,6 +2891,7 @@ void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
   // is expected to be called internally when the motor needs commanded.
   if(this->bitLength == 0) this->bitLength = somfy.transceiver.config.type;
   SomfyRemote::sendCommand(cmd, repeat);
+  
   switch(cmd) {
     case somfy_commands::My:
       this->p_direction(0);
@@ -2894,6 +2905,7 @@ void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
     default:
       break;
   }
+  
   for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
     if(this->linkedShades[i] != 0) {
       SomfyShade *shade = somfy.getShadeById(this->linkedShades[i]);
@@ -3931,6 +3943,7 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
   }
   for(uint8_t i = 0; i < repeat; i++) {
     this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 7 : 6, frame.bitLength);
+    esp_task_wdt_reset();
   }
   this->transceiver.endTransmit();
 }
