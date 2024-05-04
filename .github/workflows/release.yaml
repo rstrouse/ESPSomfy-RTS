@@ -7,7 +7,7 @@ on:
 env:
   ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json"
   ARDUINO_CLI_VERSION: "0.x"
-  ARDUINO_ESP32_VERSION: "2.0.15"
+  ARDUINO_ESP32_VERSION: "2.0.16"
   ARDUINO_JSON_VERSION: "6.21.5"
   ESPTOOL_VERSION: "4.7"
   LITTLEFS_VERSION: "v2.5.1"
