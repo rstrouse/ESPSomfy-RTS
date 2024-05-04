@@ -2,6 +2,7 @@
 #include <WiFiClientSecure.h>
 #include <Update.h>
 #include <HTTPClient.h>
+#include <esp_task_wdt.h>
 #include "GitOTA.h"
 #include "Utils.h"
 #include "ConfigSettings.h"
@@ -105,6 +106,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
   HTTPClient https;
   https.setReuse(false);
   if(https.begin(sclient, url)) {
+    esp_task_wdt_reset();
     int httpCode = https.GET();
     Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
     if(httpCode > 0) {
@@ -125,6 +127,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
         while(https.connected() && (len > 0 || len == -1) && ndx < count) {
           size_t size = stream->available();
           if(size) {
+            esp_task_wdt_reset();
             int c = stream->readBytes(buff, ((size > sizeof(buff)) ? sizeof(buff) : size));
             //Serial.write(buff, c);
             if(len > 0) len -= c;
@@ -347,6 +350,7 @@ int GitUpdater::checkInternet() {
   WiFiClientSecure sclient;
   sclient.setInsecure();
   sclient.setHandshakeTimeout(3);
+  esp_task_wdt_reset();
   HTTPClient https;
   https.setReuse(false);
   if(https.begin(sclient, "https://github.com/rstrouse/ESPSomfy-RTS")) {
@@ -366,6 +370,7 @@ int GitUpdater::checkInternet() {
     https.end();
     sclient.stop();
   }
+  esp_task_wdt_reset();
   return err;
 }
 void GitUpdater::emitDownloadProgress(size_t total, size_t loaded, const char *evt) { this->emitDownloadProgress(255, total, loaded, evt); }
@@ -467,6 +472,7 @@ int8_t GitUpdater::downloadFile() {
   char url[196];
   sprintf(url, "%s%s", this->baseUrl, this->currentFile);
   Serial.println(url);
+  esp_task_wdt_reset();
   if(https.begin(sclient, url)) {
     https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     Serial.print("[HTTPS] GET...\n");
@@ -491,6 +497,7 @@ int8_t GitUpdater::downloadFile() {
           while(https.connected() && (len > 0 || len == -1) && total < len) {
             size_t size = stream->available();
             if(size) {
+              esp_task_wdt_reset();
               if(this->cancelled && !this->lockFS) {
                 Update.abort();
                 free(buff);
@@ -569,5 +576,6 @@ int8_t GitUpdater::downloadFile() {
     sclient.stop(); 
     Serial.printf("End update %s\n", this->currentFile);
   }
+  esp_task_wdt_reset();
   return 0;
 }

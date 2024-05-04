@@ -4200,7 +4200,7 @@ class Firmware {
     init() { this.initialized = true; }
     isMobile() {
         let agt = navigator.userAgent.toLowerCase();
-        return /Android|iPhone|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
+        return /Android|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
     }
     async backup() {
         let overlay = ui.waitMessage(document.getElementById('divContainer'));

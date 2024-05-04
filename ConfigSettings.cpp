@@ -658,6 +658,7 @@ void WifiSettings::printNetworks() {
     Serial.print(WiFi.BSSIDstr(i));
     Serial.println();
   }
+
 }
 bool WifiSettings::ssidExists(const char *ssid) {
   int n = WiFi.scanNetworks(false, true);

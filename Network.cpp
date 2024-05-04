@@ -1,6 +1,7 @@
 #include <ETH.h>
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#include <esp_task_wdt.h>
 #include "ConfigSettings.h"
 #include "Network.h"
 #include "Web.h"
@@ -520,7 +521,9 @@ bool Network::getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel)
   int32_t strength = this->connected() ? WiFi.RSSI() + 10 : -127;
   int32_t chan = -1;
   memset(bssid, 0x00, 6);
+  esp_task_wdt_delete(NULL);
   uint8_t n = this->connected() ? WiFi.scanComplete() : WiFi.scanNetworks(false, false, false, 300, 0, ssid);
+  esp_task_wdt_add(NULL);
   for(uint8_t i = 0; i < n; i++) {
     if(WiFi.SSID(i).compareTo(ssid) == 0) {
       if(WiFi.RSSI(i) > strength) { 
@@ -533,9 +536,12 @@ bool Network::getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel)
   WiFi.scanDelete();
   return chan > 0;
 }
+/*
 int Network::getStrengthBySSID(const char *ssid) {
   int32_t strength = -100;
-  int n = WiFi.scanNetworks(false, false);
+  esp_task_wdt_delete(NULL);
+  int n = WiFi.scanNetworks(false, false, false, 300, 0, ssid);
+  esp_task_wdt_add(NULL);
   for(int i = 0; i < n; i++) {
     if(WiFi.SSID(i).compareTo(ssid) == 0) strength = max(WiFi.RSSI(i), strength);
   }
@@ -564,6 +570,7 @@ int Network::getStrengthBySSID(const char *ssid) {
   }
   return strength;
 }
+*/
 bool Network::openSoftAP() {
   Serial.println();
   Serial.println("Turning the HotSpot On");
@@ -624,6 +631,7 @@ bool Network::openSoftAP() {
       Serial.println();
       c = 0;
     }
+    esp_task_wdt_reset();
     yield();
   }
   return true;

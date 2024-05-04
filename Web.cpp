@@ -2,6 +2,7 @@
 #include <WebServer.h>
 #include <LittleFS.h>
 #include <Update.h>
+#include <esp_task_wdt.h>
 #include "mbedtls/md.h"
 #include "ConfigSettings.h"
 #include "ConfigFile.h"
@@ -227,42 +228,6 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
   server.streamFile(file, encoding);
   file.close();
 }
-/*
-void Web::chunkGroupResponse(WebServer &server, SomfyGroup * grp, const char *prefix) {
-  grp->updateFlags();
-  snprintf(g_content, sizeof(g_content), "%s{\"groupId\":%d,\"roomId\":%d,\"name\":\"%s\",\"remoteAddress\":%d,\"lastRollingCode\":%d,\"bitLength\":%d,\"proto\":%d,\"sunSensor\":%s,\"flipCommands\":%s,\"flags\":%d,\"repeats\":%d,\"sortOrder\":%d,\"linkedShades\":[ ",
-  prefix ? prefix : "", grp->getGroupId(), grp->roomId, grp->name, grp->getRemoteAddress(), grp->lastRollingCode, grp->bitLength, static_cast<uint8_t>(grp->proto), grp->hasSunSensor() ? "true" : "false", grp->flipCommands ? "true" : "false", grp->flags, grp->repeats, grp->sortOrder);
-  server.sendContent(g_content);
-  uint8_t n = 0;
-  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
-    uint8_t shadeId = grp->linkedShades[i];
-    if(shadeId > 0 && shadeId < 255) {
-      SomfyShade *shade = somfy.getShadeById(shadeId);
-      if(shade) {
-        snprintf(g_content, sizeof(g_content), "%s{\"shadeId\":%d,\"roomId\":%d,\"name\":\"%s\",\"remoteAddress\":%d,\"paired\":%s,\"shadeType\":%d,\"bitLength\":%d,\"proto\":%d,\"flags\":%d,\"sunSensor\":%s,\"hasLight\":%s,\"repeats\":%d}",
-          n == 0 ? "" : ",", shade->getShadeId(), shade->roomId, shade->name, shade->getRemoteAddress(), shade->paired ? "true" : "false", static_cast<uint8_t>(shade->shadeType), shade->bitLength, static_cast<uint8_t>(shade->proto), shade->flags, 
-          shade->hasSunSensor() ? "true" : "false", shade->hasLight() ? "true" : "false", shade->repeats);
-        server.sendContent(g_content);
-        n++;
-      }
-    }
-  }
-  server.sendContent("]}");
-}
-void Web::chunkGroupsResponse(WebServer &server, const char * elem) {
-  uint8_t ndx = 0;
-  if(elem && strlen(elem) > 0) {
-    sprintf(g_content, "\"%s\":", elem);
-    server.sendContent(g_content);
-  }
-  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
-    if(somfy.groups[i].getGroupId() != 255) {
-      this->chunkGroupResponse(server, &somfy.groups[i], ndx++ != 0 ? "," : "[");
-    }
-  }
-  server.sendContent(ndx == 0 ? "[]" : "]");
-}
-*/
 void Web::handleController(WebServer &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -1181,6 +1146,7 @@ void Web::begin() {
       rebootDelay.rebootTime = millis() + 1000;
     }
     }, []() {
+      esp_task_wdt_reset();
       HTTPUpload& upload = server.upload();
       if (upload.status == UPLOAD_FILE_START) {
         webServer.uploadSuccess = false;
@@ -1191,12 +1157,15 @@ void Web::begin() {
       }
       else if (upload.status == UPLOAD_FILE_WRITE) {
         File fup = LittleFS.open("/shades.tmp", "a");
+        //upload.buf[upload.currentSize] = 0x00;
+        //Serial.print((char *)upload.buf);
         fup.write(upload.buf, upload.currentSize);
         fup.close();
       }
       else if (upload.status == UPLOAD_FILE_END) {
         webServer.uploadSuccess = true;
       }
+
     });
   server.on("/index.js", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/index.js", "text/javascript"); });
   server.on("/main.css", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/main.css", "text/css"); });
@@ -2104,6 +2073,7 @@ void Web::begin() {
           Update.printError(Serial);
         }
       }
+      esp_task_wdt_reset();
     });
   server.on("/updateShadeConfig", HTTP_POST, []() {
     if(git.lockFS) {
@@ -2181,11 +2151,17 @@ void Web::begin() {
           Update.printError(Serial);
         }
       }
+      esp_task_wdt_reset();
     });
   server.on("/scanaps", []() {
     webServer.sendCORSHeaders(server);
+    esp_task_wdt_reset();
+    
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
+    esp_task_wdt_delete(NULL);
     int n = WiFi.scanNetworks();
+    esp_task_wdt_add(NULL);
+    
     Serial.print("Scanned ");
     Serial.print(n);
     Serial.println(" networks");

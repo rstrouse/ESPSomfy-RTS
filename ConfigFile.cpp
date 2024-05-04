@@ -7,7 +7,7 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 23
+#define SHADE_HDR_VER 24
 #define SHADE_HDR_SIZE 76
 #define SHADE_REC_SIZE 276
 #define GROUP_REC_SIZE 200
@@ -728,12 +728,7 @@ bool ShadeConfigFile::readGroupRecord(SomfyGroup *group) {
   this->readString(group->name, sizeof(group->name));
   group->proto = static_cast<radio_proto>(this->readUInt8(0));
   group->bitLength = this->readUInt8(56);
-  if(this->header.version >= 23) group->lastRollingCode = this->readUInt16(0);
-  if(group->getRemoteAddress() != 0) {
-    uint16_t rc = pref.getUShort(group->getRemotePrefId(), 0);
-    group->lastRollingCode = max(rc, group->lastRollingCode);
-    if(rc < group->lastRollingCode) pref.putUShort(group->getRemotePrefId(), group->lastRollingCode);
-  }
+  if(this->header.version == 23) group->lastRollingCode = this->readUInt16(0);
   uint8_t lsd = 0;
   memset(group->linkedShades, 0x00, sizeof(group->linkedShades));
   for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
@@ -749,6 +744,13 @@ bool ShadeConfigFile::readGroupRecord(SomfyGroup *group) {
   else group->compressLinkedShadeIds();
   if(this->header.version >= 18) group->flipCommands = this->readBool(false);
   if(this->header.version >= 19) group->roomId = this->readUInt8(0);
+  if(this->header.version >= 24) group->lastRollingCode = this->readUInt16(0);
+  if(group->getRemoteAddress() != 0) {
+    uint16_t rc = pref.getUShort(group->getRemotePrefId(), 0);
+    group->lastRollingCode = max(rc, group->lastRollingCode);
+    if(rc < group->lastRollingCode) pref.putUShort(group->getRemotePrefId(), group->lastRollingCode);
+  }
+  
   pref.end();
   if(this->file.position() != startPos + this->header.groupRecordSize) {
     Serial.println("Reading to end of group record");
@@ -927,14 +929,14 @@ bool ShadeConfigFile::writeGroupRecord(SomfyGroup *group) {
   this->writeString(group->name, sizeof(group->name));
   this->writeUInt8(static_cast<uint8_t>(group->proto));
   this->writeUInt8(group->bitLength);
-  this->writeUInt16(group->lastRollingCode);
   for(uint8_t j = 0; j < SOMFY_MAX_GROUPED_SHADES; j++) {
     this->writeUInt8(group->linkedShades[j]);
   }
   this->writeUInt8(group->repeats);
   this->writeUInt8(group->sortOrder);
   this->writeBool(group->flipCommands);
-  this->writeUInt8(group->roomId, CFG_REC_END);
+  this->writeUInt8(group->roomId);
+  this->writeUInt16(group->lastRollingCode, CFG_REC_END);
   return true;
 }
 bool ShadeConfigFile::writeRepeaterRecord(SomfyShadeController *s) {

@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <LittleFS.h>
+#include <esp_task_wdt.h>
 #include "ConfigSettings.h"
 #include "Network.h"
 #include "Web.h"
@@ -36,6 +37,9 @@ void setup() {
   net.setup();  
   somfy.begin();
   //git.checkForUpdate();
+  esp_task_wdt_init(5, true); //enable panic so ESP32 restarts
+  esp_task_wdt_add(NULL); //add current thread to WDT watch
+
 }
 
 void loop() {
@@ -48,6 +52,7 @@ void loop() {
     ESP.restart();
   }
   uint32_t timing = millis();
+  
   net.loop();
   if(millis() - timing > 100) Serial.printf("Timing Net: %ldms\n", millis() - timing);
   timing = millis();
@@ -67,6 +72,8 @@ void loop() {
     net.end();
     ESP.restart();
   }
+  esp_task_wdt_reset();
+
   /*
   if(heap < oldheap) {
       Serial.print("Heap: ");

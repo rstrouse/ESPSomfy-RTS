@@ -37,7 +37,7 @@ class Network {
     bool getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel);
     bool changeAP(const uint8_t *bssid, const int32_t channel);
     //int getStrengthByMac(const char *mac);
-    int getStrengthBySSID(const char *ssid);
+    //int getStrengthBySSID(const char *ssid);
     void updateHostname();
     bool setup();
     void loop();
