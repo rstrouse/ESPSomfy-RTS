@@ -1495,3 +1495,48 @@ i.icss-bars {
             top: 0.36em;
             left: 0;
         }
+
+i.icss-hand {
+    width: .6em;
+    height: .5em;
+    border-radius: .35em .3em .5em .5em;
+    margin: .5em .1em 0 .21em;
+}
+
+    i.icss-hand:before {
+        width: .1em;
+        height: .55em;
+        background: currentColor;
+        left: .5em;
+        bottom: .3em;
+        border-radius: 80% / 20%;
+        box-shadow: -.13em -.1em 0, -.265em -.15em 0, -.4em -.11em 0;
+    }
+
+    i.icss-hand:after {
+        width: .12em;
+        height: .43em;
+        background: currentColor;
+        bottom: .25em;
+        left: -.06em;
+        border-radius: .04em;
+        transform: rotate(-16deg);
+        border-radius: .04em 70% .04em .04em / .04em 70% .04em .04em;
+    }
+i.icss-bookmark {
+    width: 1em;
+    height: 1em;
+    background-color: transparent;
+    margin: 0;
+}
+
+    i.icss-bookmark:before {
+        width: .5em;
+        height: .8em;
+        transform: translate(-50%, -50%);
+        border: .25em solid currentColor;
+        border-color: currentColor currentColor transparent currentColor;
+        border-radius: .03em;
+        top: 50%;
+        left: 50%;
+    }

@@ -58,8 +58,9 @@ somfy_commands translateSomfyCommand(const String& string) {
     else if (string.equalsIgnoreCase("Flag")) return somfy_commands::Flag;
     else if (string.equalsIgnoreCase("Sensor")) return somfy_commands::Sensor;
     else if (string.equalsIgnoreCase("Toggle")) return somfy_commands::Toggle;
-    else if (string.equalsIgnoreCase("Favorite")) return somfy_commands::Fav;
-    else if (string.startsWith("fav") || string.startsWith("FAV")) return somfy_commands::Fav;
+    else if (string.equalsIgnoreCase("Favorite")) return somfy_commands::Favorite;
+    else if (string.equalsIgnoreCase("Stop")) return somfy_commands::Stop;
+    else if (string.startsWith("fav") || string.startsWith("FAV")) return somfy_commands::Favorite;
     else if (string.startsWith("mud") || string.startsWith("MUD")) return somfy_commands::MyUpDown;
     else if (string.startsWith("md") || string.startsWith("MD")) return somfy_commands::MyDown;
     else if (string.startsWith("ud") || string.startsWith("UD")) return somfy_commands::UpDown;
@@ -107,12 +108,23 @@ String translateSomfyCommand(const somfy_commands cmd) {
         return "Sensor";
     case somfy_commands::Toggle:
         return "Toggle";
-    case somfy_commands::Fav:
+    case somfy_commands::Favorite:
         return "Favorite";
+    case somfy_commands::Stop:
+        return "Stop";
     default:
         return "Unknown(" + String((uint8_t)cmd) + ")";
     }
 }
+byte somfy_frame_t::calc80Checksum(byte b0, byte b1, byte b2) {
+  byte cs80 = 0;
+  cs80 = (((b0 & 0xF0) >> 4) ^ ((b1 & 0xF0) >> 4));
+  cs80 ^= ((b2 & 0xF0) >> 4);
+  cs80 ^= (b0 & 0x0F);
+  cs80 ^= (b1 & 0x0F);
+  return cs80;
+}
+
 void somfy_frame_t::decodeFrame(byte* frame) {
     byte decoded[10];
     decoded[0] = frame[0];
@@ -153,16 +165,22 @@ void somfy_frame_t::decodeFrame(byte* frame) {
     // We reuse this memory address so we must reset the processed
     // flag.  This will ensure we can see frames on the first beat.
     this->processed = false;
-    // Pull in the data for an 80-bit step command.
-    if(this->cmd == somfy_commands::StepDown) this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
     this->rollingCode = decoded[3] + (decoded[2] << 8);
     this->remoteAddress = (decoded[6] + (decoded[5] << 8) + (decoded[4] << 16));
     this->valid = this->checksum == checksum && this->remoteAddress > 0 && this->remoteAddress < 16777215;
     if (this->cmd != somfy_commands::Sensor && this->valid) this->valid = (this->rollingCode > 0);
-
+    // Next lets process some of the RTS extensions for 80-bit frames
+    if(this->valid && this->proto == radio_proto::RTS && this->bitLength == 80) {
+      // Do a parity checksum on the 80 bit data.
+      if((decoded[9] & 0x0F) != this->calc80Checksum(decoded[7], decoded[8], decoded[9])) this->valid = false;
+      if(this->valid) {
+        // Translate extensions for stop and favorite.
+        if(this->cmd == somfy_commands::My) this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x0F) << 4));
+        // Bit packing to get the step size prohibits translation on the byte.
+        else if(this->cmd == somfy_commands::StepDown) this->cmd = (somfy_commands)((decoded[1] >> 4) | ((decoded[8] & 0x08) << 4));
+      }
+    }
     if (this->valid) {
-        uint8_t csc80 = 0;
-        uint8_t cs80 = 0;
 
         // Check for valid command.
         switch (this->cmd) {
@@ -185,25 +203,12 @@ void somfy_frame_t::decodeFrame(byte* frame) {
             break;
         case somfy_commands::StepUp:
         case somfy_commands::StepDown:
+            // Decode the step size.
+            this->stepSize = ((decoded[8] & 0x07) << 4) | ((decoded[9] & 0xF0) >> 4);
+            break;
         case somfy_commands::Toggle:
-        case somfy_commands::Fav:
-            // These must be 80 bit commands
-            csc80 = (decoded[9] & 0x0F);
-            cs80 = (((decoded[7] & 0xF0) >> 4) ^ ((decoded[8] & 0xF0) >> 4));
-            cs80 ^= ((decoded[9] & 0xF0) >> 4);
-            cs80 ^= (decoded[7] & 0x0F);
-            cs80 ^= (decoded[8] & 0x0F);
-            //cs80 = (((decoded[7] & 0xF0) >> 4) ^ ((decoded[8] & 0xF0) >> 4) ^ ((decoded[9] & 0xF0) >> 4) ^ (decoded[7] & 0x0F) ^ (decoded[8] & 0x0F));
-            if(csc80 != cs80) this->valid = false;
-            /*
-            uint8_t ai = ((decoded[7] & 0xF0) >> 4);
-            uint8_t aj = ((decoded[8] & 0xF0) >> 4);
-            uint8_t ak = ((decoded[9] & 0xF0) >> 4);
-            uint8_t al = (decoded[7] & 0x0F);
-            uint8_t am = (decoded[8] & 0x0F);
-            uint8_t an = (decoded[9] & 0x0F);
-            cs80 = ai ^ aj ^ ak ^ al ^ am;
-            */
+        case somfy_commands::Favorite:
+        case somfy_commands::Stop:
             break;
         default:
             this->valid = false;
@@ -211,23 +216,7 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         }
     }
     if(this->valid && this->encKey == 0) this->valid = false; 
-    if (this->valid) {
-      /*
-        Serial.print("KEY:");
-        Serial.print(this->encKey);
-        Serial.print(" ADDR:");
-        Serial.print(this->remoteAddress);
-        Serial.print(" CMD:");
-        Serial.print(translateSomfyCommand(this->cmd));
-        Serial.print(" RCODE:");
-        Serial.print(this->rollingCode);
-        Serial.print(" BITS:");
-        Serial.print(this->bitLength);
-        Serial.print(" HWSYNC:");
-        Serial.println(this->hwsync);
-        */
-    }
-    else {
+    if (!this->valid) {
         Serial.print("INVALID FRAME ");
         Serial.print("KEY:");
         Serial.print(this->encKey);
@@ -267,6 +256,60 @@ void somfy_frame_t::decodeFrame(somfy_rx_t *rx) {
   this->bitLength = rx->bit_length;
   this->rssi = ELECHOUSE_cc1101.getRssi();
   this->decodeFrame(rx->payload);
+}
+void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
+  switch(this->cmd) {
+    // Step up and down commands encode the step size into the last 3 bytes.
+    case somfy_commands::StepUp:
+      if(repeat == 0) frame[1] = (static_cast<byte>(somfy_commands::StepDown) << 4) | (frame[1] & 0x0F);
+      if(this->stepSize == 0) this->stepSize = 1;
+      frame[7] = 132; // For simplicity this appears to be constant.
+      frame[8] = ((this->stepSize & 0x70) >> 4) | 0x38;
+      frame[9] = ((this->stepSize & 0x0F) << 4);
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+    case somfy_commands::StepDown:
+      if(repeat == 0) frame[1] = (static_cast<byte>(somfy_commands::StepDown) << 4) | (frame[1] & 0x0F);
+      if(this->stepSize == 0) this->stepSize = 1;
+      frame[7] = 132; // For simplicity this appears to be constant.
+      frame[8] = ((this->stepSize & 0x70) >> 4) | 0x30;
+      frame[9] = ((this->stepSize & 0x0F) << 4);
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+    case somfy_commands::Favorite:
+      if(repeat == 0) frame[1] = (static_cast<byte>(somfy_commands::My) << 4) | (frame[1] & 0x0F);
+      frame[7] = repeat > 0 ? 132 : 196;
+      frame[8] = 44;
+      frame[9] = 0x90;
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+    case somfy_commands::Stop:
+      if(repeat == 0) frame[1] = (static_cast<byte>(somfy_commands::My) << 4) | (frame[1] & 0x0F);
+      frame[7] = repeat > 0 ? 132 : 196;
+      frame[8] = 47;
+      frame[9] = 0xF0;
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+    case somfy_commands::Toggle:
+      if(repeat == 0) {
+        frame[0] = 164;
+        frame[1] |= 0xF0;
+      }
+      frame[7] = 196;
+      frame[8] = 0;
+      frame[9] = 0x10;
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+    case somfy_commands::Prog:
+      if(repeat > 0) frame[7] = 196 + (repeat * 4);
+      else frame[7] = 132;
+      frame[8] = 0;
+      frame[9] = ((repeat + 1) & 0x0F) << 4;
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+    default:
+      break;
+  }
 }
 void somfy_frame_t::encodeFrame(byte *frame) { 
   const byte btn = static_cast<byte>(cmd);
@@ -357,34 +400,7 @@ void somfy_frame_t::encodeFrame(byte *frame) {
     
   }
   else {
-    switch(this->cmd) {
-      case somfy_commands::StepUp:
-        frame[7] = 132;
-        frame[8] = 56;
-        frame[9] = 22;
-        break;
-      case somfy_commands::StepDown:
-        frame[7] = 132;
-        frame[8] = 48;
-        frame[9] = 30;
-        break;
-      case somfy_commands::Toggle:
-        frame[0] = 164;
-        // This also needs to be a command val of 15.
-        frame[1] |= 0xF0;
-        frame[7] = 196;
-        frame[8] = 0;
-        frame[9] = 25;
-        break;
-      case somfy_commands::Prog:
-        //frame[0] = 0xA6;
-        frame[7] = 196;
-        frame[8] = 0;
-        frame[9] = 25;
-        break;
-      default:
-        break;
-    }
+    if(this->bitLength == 80) this->encode80BitFrame(&frame[0], 0);
   }
   byte checksum = 0;
  
@@ -584,6 +600,7 @@ bool SomfyShadeController::begin() {
 }
 void SomfyShadeController::commit() {
   if(git.lockFS) return;
+  esp_task_wdt_reset(); // Make sure we don't reset inadvertently.
   ShadeConfigFile file;
   file.begin();
   file.save(this);
@@ -593,6 +610,7 @@ void SomfyShadeController::commit() {
 }
 void SomfyShadeController::writeBackup() {
   if(git.lockFS) return;
+  esp_task_wdt_reset(); // Make sure we don't reset inadvertently.
   ShadeConfigFile file;
   file.begin("/controller.backup", false);
   file.backup(this);
@@ -2382,7 +2400,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         else {
           Serial.println("Moving to My target");
           this->lastFrame.processed = true;
-          if(this->myTiltPos >= 0.0f && this->myTiltPos >= 100.0f) this->p_tiltTarget(this->myTiltPos);
+          if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
           if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->p_target(this->myPos);
           this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
         }
@@ -2405,6 +2423,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
       if(this->stepSize == 0) return; // Avoid divide by 0.
+      if(this->lastFrame.stepSize == 0) this->lastFrame.stepSize = 1;
       if(this->tiltType == tilt_types::integrated) {
         // With integrated tilt this is more involved than ne would think because the step command can be moving not just the tilt
         // but the lift.  So a determination needs to be made as to whether we are currently moving and it should stop.
@@ -2417,22 +2436,22 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
           // Set the tilt position.  This should stop the lift movement.
           this->p_target(this->currentPos);
           if(this->tiltTime == 0) return; // Avoid divide by 0.
-          this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+          this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize * this->lastFrame.stepSize))))));
         }
         else {
           // We only have the lift to move.
           if(this->upTime == 0) return; // Avoid divide by 0.
           this->p_tiltTarget(this->currentTiltPos);
-          this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
+          this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize * this->lastFrame.stepSize))))));
         }
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+        this->p_tiltTarget(max(0.0f, this->currentTiltPos - (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize * this->lastFrame.stepSize))))));
       }
       else if(this->currentPos > 0.0f) {
         if(this->downTime == 0 || this->stepSize == 0) return;
-        this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize))))));
+        this->p_target(max(0.0f, this->currentPos - (100.0f/(static_cast<float>(this->upTime/static_cast<float>(this->stepSize * this->lastFrame.stepSize))))));
       }
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
@@ -2445,6 +2464,8 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       // the motor must tilt in the direction first then move
       // so we have to calculate the target with this in mind.
       if(this->stepSize == 0) return; // Avoid divide by 0.
+      if(this->lastFrame.stepSize == 0) this->lastFrame.stepSize = 1;
+      
       if(this->tiltType == tilt_types::integrated) {
         // With integrated tilt this is more involved than ne would think because the step command can be moving not just the tilt
         // but the lift.  So a determination needs to be made as to whether we are currently moving and it should stop.
@@ -2457,22 +2478,22 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
           // Set the tilt position.  This should stop the lift movement.
           this->p_target(this->currentPos);
           if(this->tiltTime == 0) return; // Avoid divide by 0.
-          this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+          this->p_tiltTarget(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize * this->lastFrame.stepSize))))));
         }
         else {
           // We only have the lift to move.
           this->p_tiltTarget(this->currentTiltPos);
           if(this->downTime == 0) return; // Avoid divide by 0.
-          this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize))))));
+          this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize* this->lastFrame.stepSize))))));
         }
       }
       else if(this->tiltType == tilt_types::tiltonly) {
         if(this->tiltTime == 0 || this->stepSize == 0) return;
-        this->p_target(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize))))));
+        this->p_target(min(100.0f, this->currentTiltPos + (100.0f/(static_cast<float>(this->tiltTime/static_cast<float>(this->stepSize * this->lastFrame.stepSize))))));
       }
       else if(this->currentPos < 100.0f) {
         if(this->downTime == 0 || this->stepSize == 0) return;
-        this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize))))));
+        this->p_target(min(100.0f, this->currentPos + (100.0f/(static_cast<float>(this->downTime/static_cast<float>(this->stepSize * this->lastFrame.stepSize))))));
       }
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
@@ -2484,6 +2505,23 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       else if(this->currentPos == 0.0f) this->p_target(100);
       else this->p_target(this->lastMovement == -1 ? 100 : 0);
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
+      break;
+    case somfy_commands::Stop:
+      if(this->lastFrame.processed) return;
+      this->lastFrame.processed = true;
+      this->p_target(this->currentPos);
+      this->p_tiltTarget(this->currentTiltPos);      
+      break;
+    case somfy_commands::Favorite:
+      this->lastFrame.processed = true;
+      if(this->simMy()) {
+        this->moveToMyPosition();
+      }
+      else {
+        if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
+        if(this->myPos >= 0.0f && this->myPos <= 100.0f && this->tiltType != tilt_types::tiltonly) this->p_target(this->myPos);
+        this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
+      }
       break;
     default:
       dir = 0;
@@ -2820,7 +2858,7 @@ void SomfyShade::moveToMyPosition() {
     SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
 }
 void SomfyShade::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
-void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
+void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSize) {
   // This sendCommand function will always be called externally. sendCommand at the remote level
   // is expected to be called internally when the motor needs commanded.
   if(this->bitLength == 0) this->bitLength = somfy.transceiver.config.type;
@@ -2875,14 +2913,14 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat) {
     }
   }
   else if(cmd == somfy_commands::Toggle) {
-    if(this->bitLength != 80) SomfyRemote::sendCommand(somfy_commands::My, repeat);
+    if(this->bitLength != 80) SomfyRemote::sendCommand(somfy_commands::My, repeat, stepSize);
     else SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
   }
   else if(this->shadeType == shade_types::garage1 && cmd == somfy_commands::Prog) {
-    SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
+    SomfyRemote::sendCommand(somfy_commands::Toggle, repeat, stepSize);
   }
   else {
-    SomfyRemote::sendCommand(cmd, repeat);
+    SomfyRemote::sendCommand(cmd, repeat, stepSize);
   }
 }
 void SomfyGroup::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
@@ -3848,12 +3886,13 @@ void SomfyRemote::sendSensorCommand(int8_t isWindy, int8_t isSunny, uint8_t repe
   somfy.processFrame(this->lastFrame, true);
 }
 void SomfyRemote::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
-void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat) {
+void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSize) {
   this->lastFrame.rollingCode = this->getNextRollingCode();
   this->lastFrame.remoteAddress = this->getRemoteAddress();
   this->lastFrame.cmd = this->transformCommand(cmd);
   this->lastFrame.repeats = repeat;
   this->lastFrame.bitLength = this->bitLength;
+  this->lastFrame.stepSize = stepSize;
   // Match the encKey to the rolling code.  These keys range from 160 to 175.
   this->lastFrame.encKey = 0xA0 | static_cast<uint8_t>(this->lastFrame.rollingCode & 0x000F);
   this->lastFrame.proto = this->proto;
@@ -3924,24 +3963,10 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
   byte frm[10];
   frame.encodeFrame(frm);
   this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 2 : 12, frame.bitLength);
-  // Transform the repeat bytes
-  switch(frame.cmd) {
-    case somfy_commands::StepUp:
-    case somfy_commands::StepDown:
-      break;
-    case somfy_commands::Prog:
-      frm[7] = 132;
-      frm[9] = 63;
-      break;
-    case somfy_commands::Toggle:
-      frm[7] = 136;
-      frm[9] = 34;
-      break;
-    default:
-      frm[9] = 46;
-      break;
-  }
   for(uint8_t i = 0; i < repeat; i++) {
+    // For each 80-bit frame we need to adjust the byte encoding for the
+    // silence.
+    if(frame.bitLength == 80) frame.encode80BitFrame(&frm[0], i + 1);
     this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 7 : 6, frame.bitLength);
     esp_task_wdt_reset();
   }
@@ -4330,7 +4355,7 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
         else if (duration > tempo_synchro_sw_min && duration < tempo_synchro_sw_max && somfy_rx.cpt_synchro_hw >= 4) {
             // If we have a full hardware sync then we should look for the software sync.  If we have a software sync
             // bit and enough hardware sync bits then we should start receiving data.  It turns out that a 56 bit packet
-            // with give 4 or 14 bits of hardware sync.  An 80 bit packet give 12 or 24 bits of hw sync.  Early on
+            // with give 4 or 14 bits of hardware sync.  An 80 bit packet gives 12, 13 or 24 bits of hw sync.  Early on
             // I had some shorter and longer hw syncs but I can no longer repeat this.
             memset(somfy_rx.payload, 0x00, sizeof(somfy_rx.payload));
             somfy_rx.previous_bit = 0x00;
@@ -4339,8 +4364,10 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
             // Keep an eye on this as it is possible that we might get fewer or more synchro bits.
             if (somfy_rx.cpt_synchro_hw <= 7) somfy_rx.bit_length = 56;
             else if (somfy_rx.cpt_synchro_hw == 14) somfy_rx.bit_length = 56;
+            else if (somfy_rx.cpt_synchro_hw == 13) somfy_rx.bit_length = 80; // The RS485 device sends this sync.
             else if (somfy_rx.cpt_synchro_hw == 12) somfy_rx.bit_length = 80;
             else if (somfy_rx.cpt_synchro_hw > 17) somfy_rx.bit_length = 80;
+            else somfy_rx.bit_length = 56;
             somfy_rx.status = receiving_data;
         }
         else {
@@ -4535,6 +4562,8 @@ void Transceiver::emitFrame(somfy_frame_t *frame, somfy_rx_t *rx) {
     json->addElem("proto", static_cast<uint8_t>(frame->proto));
     json->addElem("valid", frame->valid);
     json->addElem("sync", frame->hwsync);
+    if(frame->cmd == somfy_commands::StepUp || frame->cmd == somfy_commands::StepDown)
+      json->addElem("stepSize", frame->stepSize);
     json->beginArray("pulses");
     if(rx) {
       for(uint16_t i = 0; i < rx->pulseCount; i++) {

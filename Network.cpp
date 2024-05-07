@@ -105,6 +105,7 @@ bool Network::changeAP(const uint8_t *bssid, const int32_t channel) {
   WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase, channel, bssid);
   uint8_t retries = 0;
   while(retries < 100) {
+    esp_task_wdt_reset(); // Make sure we do not reboot here.
     wl_status_t stat = WiFi.status();
     if(stat == WL_CONNECTED) {
       Serial.println("WiFi module connected");
@@ -436,6 +437,7 @@ void Network::updateHostname() {
 bool Network::connectWiFi() {
   if(settings.WIFI.ssid[0] != '\0') {
     if(WiFi.status() == WL_CONNECTED && WiFi.SSID().compareTo(settings.WIFI.ssid) == 0) {
+      // If we are connected to the target SSID then just return.
       this->disconnected = 0;
       return true;
     }
@@ -536,41 +538,6 @@ bool Network::getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel)
   WiFi.scanDelete();
   return chan > 0;
 }
-/*
-int Network::getStrengthBySSID(const char *ssid) {
-  int32_t strength = -100;
-  esp_task_wdt_delete(NULL);
-  int n = WiFi.scanNetworks(false, false, false, 300, 0, ssid);
-  esp_task_wdt_add(NULL);
-  for(int i = 0; i < n; i++) {
-    if(WiFi.SSID(i).compareTo(ssid) == 0) strength = max(WiFi.RSSI(i), strength);
-  }
-  if(strength == -100) {
-    Serial.print("Could not find network [");
-    Serial.print(ssid);
-    Serial.print("] Scanned ");
-    Serial.print(n);
-    Serial.println(" Networks...");
-    String network;
-    for(int i = 0; i < n; i++) {
-      //WiFi.getNetworkInfo(i, network, encType, RSSI, BSSID, channel, isHidden);
-      if(network.compareTo(this->ssid) == 0) Serial.print("*");
-      else Serial.print(" ");
-      Serial.print(i);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i).c_str());
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print("dBm) CH:");
-      Serial.print(WiFi.channel(i));
-      Serial.print(" MAC:");
-      Serial.print(WiFi.BSSIDstr(i).c_str());
-      Serial.println();
-    }
-  }
-  return strength;
-}
-*/
 bool Network::openSoftAP() {
   Serial.println();
   Serial.println("Turning the HotSpot On");

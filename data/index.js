@@ -2301,8 +2301,11 @@ class Somfy {
             opt.setAttribute('data-type', 'shade');
             opt.setAttribute('data-shadetype', shade.shadeType);
             opt.setAttribute('data-shadeid', shade.shadeId);
+            opt.setAttribute('data-bitlength', shade.bitLength);
             optGroup.appendChild(opt);
         }
+        let sopt = vrList.options[vrList.selectedIndex];
+        document.getElementById('divVirtualRemote').setAttribute('data-bitlength', sopt ? sopt.getAttribute('data-bitlength') : 'none');
         document.getElementById('divShadeList').innerHTML = divCfg;
         let shadeControls = document.getElementById('divShadeControls');
         shadeControls.innerHTML = divCtl;
@@ -2611,9 +2614,13 @@ class Somfy {
                 opt.setAttribute('data-address', group.remoteAddress);
                 opt.setAttribute('data-type', 'group');
                 opt.setAttribute('data-groupid', group.groupId);
+                opt.setAttribute('data-bitlength', group.bitLength);
                 optGroup.appendChild(opt);
             }
         }
+        let sopt = vrList.options[vrList.selectedIndex];
+        document.getElementById('divVirtualRemote').setAttribute('data-bitlength', sopt ? sopt.getAttribute('data-bitlength') : 'none');
+
         document.getElementById('divGroupList').innerHTML = divCfg;
         let groupControls = document.getElementById('divGroupControls');
         groupControls.innerHTML = divCtl;
@@ -2891,7 +2898,7 @@ class Somfy {
                 proto = '-V';
                 break;
         }
-        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}</span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><span>${frame.bits}${proto}</span><span>${fnFmtTime(frame.time)}</span><div class="frame-pulses">`;
+        let html = `<span>${frame.encKey}</span><span>${frame.address}</span><span>${frame.command}<sup>${frame.stepSize ? frame.stepSize : ''}</sup></span><span>${frame.rcode}</span><span>${frame.rssi}dBm</span><span>${frame.bits}${proto}</span><span>${fnFmtTime(frame.time)}</span><div class="frame-pulses">`;
         for (let i = 0; i < frame.pulses.length; i++) {
             if (i !== 0) html += ',';
             html += `${frame.pulses[i]}`;
@@ -3687,22 +3694,47 @@ class Somfy {
         return div;
     }
     sendCommand(shadeId, command, repeat, cb) {
-        console.log(`Sending Shade command ${shadeId}-${command}`);
-        let obj = { shadeId: shadeId };
-        if (isNaN(parseInt(command, 10))) obj.command = command;
-        else obj.target = parseInt(command, 10);
-        if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        let obj = {};
+        if (typeof shadeId.shadeId !== 'undefined') {
+            obj = shadeId;
+            cb = command;
+            shadeId = obj.shadeId;
+            repeat = obj.repeat;
+            command = obj.command;
+        }
+        else {
+            obj = { shadeId: shadeId };
+            if (isNaN(parseInt(command, 10))) obj.command = command;
+            else obj.target = parseInt(command, 10);
+            if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        }
         putJSON('/shadeCommand', obj, (err, shade) => {
             if (typeof cb === 'function') cb(err, shade);
         });
     }
     sendCommandRepeat(shadeId, command, repeat, cb) {
         //console.log(`Sending Shade command ${shadeId}-${command}`);
-        let obj = { shadeId: shadeId, command: command };
-        if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        let obj = {};
+        if (typeof shadeId.shadeId !== 'undefined') {
+            obj = shadeId;
+            cb = command;
+            shadeId = obj.shadeId;
+            repeat = obj.repeat;
+            command = obj.command;
+        }
+        else {
+            obj = { shadeId: shadeId, command: command };
+            if (typeof repeat === 'number') obj.repeat = parseInt(repeat);
+        }
+        putJSON('/repeatCommand', obj, (err, shade) => {
+            if (typeof cb === 'function') cb(err, shade);
+        });
+
+        /*
         putJSON(`/repeatCommand?shadeId=${shadeId}&command=${command}`, null, (err, shade) => {
             if(typeof cb === 'function') cb(err, shade);
         });
+        */
     }
     sendGroupRepeat(groupId, command, repeat, cb) {
         let obj = { groupId: groupId, command: command };
@@ -3721,7 +3753,6 @@ class Somfy {
             cmd: el.getAttribute('data-cmd')
         };
         ui.fromElement(el.parentElement.parentElement, o);
-        console.log(o);
         switch (o.type) {
             case 'shade':
                 o.shadeId = parseInt(opt.getAttribute('data-shadeId'), 10);
@@ -3744,17 +3775,17 @@ class Somfy {
                 else if (o.type === 'group')
                     somfy.sendGroupRepeat(o.groupId, o.cmd, null, fnRepeatCommand);
                 else
-                    somfy.sendCommandRepeat(o.shadeId, o.cmd, null, fnRepeatCommand);
+                    somfy.sendCommandRepeat(o, fnRepeatCommand);
             }
         }
+        o.command = o.cmd;
         if (o.cmd === 'Sensor') {
             somfy.sendSetSensor(o);
-            
         }
         else if (o.type === 'group')
             somfy.sendGroupCommand(o.groupId, o.cmd, null, (err, group) => { fnRepeatCommand(err, group); });
         else
-            somfy.sendCommand(o.shadeId, o.cmd, null, (err, shade) => { fnRepeatCommand(err, shade); });
+            somfy.sendCommand(o, (err, shade) => { fnRepeatCommand(err, shade); });
     }
     sendSetSensor(obj, cb) {
         putJSON('/setSensor', obj, (err, device) => {

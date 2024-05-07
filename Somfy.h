@@ -47,7 +47,8 @@ enum class somfy_commands : byte {
     RTWProto = 0xF, // RTW Protocol
     // Command extensions for 80 bit frames
     StepUp = 0x8B,
-    Fav = 0x90,
+    Favorite = 0xC1,
+    Stop = 0xF1
 };
 enum class group_types : byte {
   channel = 0x00
@@ -185,6 +186,8 @@ struct somfy_frame_t {
     uint16_t pulseCount = 0;
     uint8_t stepSize = 0;
     void print();
+    void encode80BitFrame(byte *frame, uint8_t repeat);
+    byte calc80Checksum(byte b0, byte b1, byte b2);
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
     void decodeFrame(somfy_rx_t *rx);
@@ -242,7 +245,7 @@ class SomfyRemote {
     void setLight(bool bHasLight);
     void setSimMy(bool bSimMy);
     virtual void sendCommand(somfy_commands cmd);
-    virtual void sendCommand(somfy_commands cmd, uint8_t repeat);
+    virtual void sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSize = 0);
     void sendSensorCommand(int8_t isWindy, int8_t isSunny, uint8_t repeat);
     void repeatFrame(uint8_t repeat);
     virtual uint16_t p_lastRollingCode(uint16_t code);
@@ -320,7 +323,7 @@ class SomfyShade : public SomfyRemote {
     void moveToTiltTarget(float target);
     void sendTiltCommand(somfy_commands cmd);
     void sendCommand(somfy_commands cmd);
-    void sendCommand(somfy_commands cmd, uint8_t repeat);
+    void sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSize = 0);
     bool linkRemote(uint32_t remoteAddress, uint16_t rollingCode = 0);
     bool unlinkRemote(uint32_t remoteAddress);
     void emitState(const char *evt = "shadeState");

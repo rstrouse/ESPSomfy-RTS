@@ -702,6 +702,12 @@ div.wait-overlay > .lds-roller {
         cursor: pointer;
     }
 
+#divVirtualRemote[data-bitlength="56"] div.vr-button.vr-80bit {
+    display:none;
+}
+#divVirtualRemote[data-bitlength="none"] div.vr-button {
+    display:none;
+}
 .shade-positioner {
     position: absolute;
     width: 100%;
@@ -804,6 +810,7 @@ div.frame-header > span {
     }
     div.frame-row > span:nth-child(3),
     div.frame-header > span:nth-child(3) {
+        white-space:nowrap;
         width: 80px;
         text-align:center;
     }

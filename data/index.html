@@ -8,9 +8,9 @@
     <meta name="apple-mobile-web-app-title" content="ESPSomfy RTS App">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="stylesheet" href="main.css?v=2.4.3b" type="text/css" />
-    <link rel="stylesheet" href="widgets.css?v=2.4.3b" type="text/css" />
-    <link rel="stylesheet" href="icons.css?v=2.4.3b" type="text/css" />
+    <link rel="stylesheet" href="main.css?v=2.4.3c" type="text/css" />
+    <link rel="stylesheet" href="widgets.css?v=2.4.3c" type="text/css" />
+    <link rel="stylesheet" href="icons.css?v=2.4.3c" type="text/css" />
     <link rel="icon" type="image/png" href="favicon.png" />
 
     <!-- iPad retina icon -->
@@ -114,7 +114,7 @@
           rel="apple-touch-startup-image">
 
 
-    <script type="text/javascript" src="index.js?v=2.4.2r"></script>
+    <script type="text/javascript" src="index.js?v=2.4.3c"></script>
 </head>
 <body>
     <div id="divContainer" class="container main" data-auth="false">
@@ -775,11 +775,11 @@
                             </div>
                         </div>
                     </div>
-                    <div id="divVirtualRemote" style="display:none;" class="subtab-content">
+                    <div id="divVirtualRemote" style="display:none;" class="subtab-content" data-bitlength="56">
                         <div class="field-group" style="margin-top:-18px;display:inline-block;width:100%;">
-                            <select id="selVRMotor" style="width:100%;">
+                            <select id="selVRMotor" style="width:100%;" onchange="document.getElementById('divVirtualRemote').setAttribute('data-bitlength', this.options[this.selectedIndex].getAttribute('data-bitlength'));">
                             </select>
-                            <label for="selVRMotor">Select a Motor</label>
+                            <label for="selVRMotor">Select a Motor or Group</label>
                         </div>
                         <div class="vr-button vr-updownmy">
                             <span>Remote Buttons</span>
@@ -789,12 +789,38 @@
                                 <div class="button-outline" data-cmd="down" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
                             </div>
                         </div>
+                        <div class="vr-button vr-stop vr-80bit">
+                            <span>Stop</span>
+                            <div>
+                                <div class="button-outline toggle-button" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="stop" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><i class="icss-hand" style=""></i></div>
+                            </div>
+                        </div>
                         <div class="vr-button vr-updownmy">
                             <span>Toggle Button</span>
                             <div>
                                 <div class="button-outline toggle-button" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="toggle" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><i class="icss-somfy-toggle" style="margin-top:-4px;"></i></div>
                             </div>
                         </div>
+                        <div class="vr-button vr-updown vr-80bit">
+                            <span>Step</span>
+                            <div style="margin-right:7px;width:470px;font-size:.8em;">
+                                <input id="vrslidStepSize" name="stepSize" type="range" min="1" max="127" step="1" style="width:100%;" data-bind="stepSize" value="1" oninput="document.getElementById('vrspanStepSize').innerText = this.value;" />
+                                <div>
+                                    <label style="color:#00bcd4;">Step Size:</label><span id="vrspanStepSize">1</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="button-outline" style="width:59px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="StepUp" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><span></span><i class="icss-somfy-up" style="margin-top:4px;"></i></div>
+                                <div class="button-outline" style="width:59px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="StepDown" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><span></span><i class="icss-somfy-down" style="margin-top:-4px;"></i></div>
+                            </div>
+                        </div>
+                        <div class="vr-button vr-favorite vr-80bit">
+                            <span>Favorite</span>
+                            <div>
+                                <div class="button-outline toggle-button" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="favorite" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><i class="icss-bookmark" style=""></i></div>
+                            </div>
+                        </div>
+
                         <div class="vr-button vr-updown">
                             <span>Up + Down</span>
                             <div>
@@ -820,33 +846,16 @@
                             </div>
                         </div>
                         <div class="vr-button vr-updown">
-                            <span>Step Up</span>
-                            <div>
-                                <div class="button-outline" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="StepUp" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><span>step </span><i class="icss-somfy-up"></i></div>
-                            </div>
-                        </div>
-                        <div class="vr-button vr-updown">
-                            <span>Step Down</span>
-                            <div>
-                                <div class="button-outline" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="StepDown" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><span>step </span><i class="icss-somfy-down"></i></div>
-                            </div>
-                        </div>
-                        <div class="vr-button vr-updown">
                             <span>Prog</span>
                             <div>
                                 <div class="button-outline" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="Prog" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><span>prog</span></div>
                             </div>
                         </div>
                         <div class="vr-button vr-updown">
-                            <span>Sun Flag On</span>
+                            <span>Sun Flag</span>
                             <div>
-                                <div class="button-outline" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="SunFlag" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><div class="button-sunflag" data-on="true" style="margin:0px;"><i class="icss-sun-c" style="background:white;"></i><i class="icss-sun-o" style="left:0px;color:white;"></i></div><span>on</span></div>
-                            </div>
-                        </div>
-                        <div class="vr-button vr-updown">
-                            <span>Sun Flag Off</span>
-                            <div>
-                                <div class="button-outline" style="width:127px;text-align:center;border-radius:33%;font-size:2em;padding:10px;" data-cmd="Flag" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><div class="button-sunflag" data-on="false" style="margin:0px;"><i class="icss-sun-c" style="background:transparent;"></i><i class="icss-sun-o" style="left:0px;color:white;"></i></div><span>off</span></div>
+                                <div class="button-outline" style="width: 59px; text-align: center; border-radius: 33%; font-size: 2em; padding: 10px; height: 52px;" data-cmd="SunFlag" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><div class="button-sunflag" data-on="true" style="margin:0px;margin-left:4px;"><i class="icss-sun-c" style="background:white;"></i><i class="icss-sun-o" style="left:0px;color:white;"></i></div></div>
+                                <div class="button-outline" style="width: 59px; text-align: center; border-radius: 33%; font-size: 2em; padding: 10px; height: 52px;" data-cmd="Flag" onmousedown="somfy.sendVRCommand(this);" ontouchstart="somfy.sendVRCommand(this);"><div class="button-sunflag" data-on="false" style="margin:0px;margin-left:4px;"><i class="icss-sun-c" style="background:transparent;"></i><i class="icss-sun-o" style="left:0px;color:white;"></i></div></div>
                             </div>
                         </div>
                         <div class="vr-button">

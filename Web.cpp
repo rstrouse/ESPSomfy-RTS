@@ -343,6 +343,7 @@ void Web::handleShadeCommand(WebServer& server) {
   HTTPMethod method = server.method();
   uint8_t shadeId = 255;
   uint8_t target = 255;
+  uint8_t stepSize = 0;
   int8_t repeat = -1;
   somfy_commands command = somfy_commands::My;
   if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
@@ -351,10 +352,11 @@ void Web::handleShadeCommand(WebServer& server) {
       if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
       else if (server.hasArg("target")) target = atoi(server.arg("target").c_str());
       if (server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
+      if(server.hasArg("stepSize")) stepSize = atoi(server.arg("stepSize").c_str());
     }
     else if (server.hasArg("plain")) {
       Serial.println("Sending Shade Command");
-      DynamicJsonDocument doc(256);
+      DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
         this->handleDeserializationError(server, err);
@@ -372,6 +374,7 @@ void Web::handleShadeCommand(WebServer& server) {
             target = obj["target"].as<uint8_t>();
         }
         if (obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+        if(obj.containsKey("stepSize")) stepSize = obj["stepSize"].as<uint8_t>();
       }
     }
     else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
@@ -382,15 +385,13 @@ void Web::handleShadeCommand(WebServer& server) {
       // Send the command to the shade.
       if (target <= 100)
           shade->moveToTarget(shade->transformPosition(target));
-      else if (repeat > 0)
-          shade->sendCommand(command, repeat);
       else
-          shade->sendCommand(command);
+          shade->sendCommand(command, repeat > 0 ? repeat : shade->repeats, stepSize);
       JsonResponse resp;
       resp.beginResponse(&server, g_content, sizeof(g_content));
-      resp.beginArray();
+      resp.beginObject();
       shade->toJSONRef(resp);
-      resp.endArray();
+      resp.endObject();
       resp.endResponse();
     }
     else {
@@ -414,7 +415,7 @@ void Web::handleRepeatCommand(WebServer& server) {
     if(server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
     if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
     if(shadeId == 255 && groupId == 255 && server.hasArg("plain")) {
-      DynamicJsonDocument doc(256);
+      DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
       if (err) {
         this->handleDeserializationError(server, err);
