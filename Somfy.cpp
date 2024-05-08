@@ -2924,11 +2924,11 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSiz
   }
 }
 void SomfyGroup::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
-void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat) {
+void SomfyGroup::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSize) {
   // This sendCommand function will always be called externally. sendCommand at the remote level
   // is expected to be called internally when the motor needs commanded.
   if(this->bitLength == 0) this->bitLength = somfy.transceiver.config.type;
-  SomfyRemote::sendCommand(cmd, repeat);
+  SomfyRemote::sendCommand(cmd, repeat, stepSize);
   
   switch(cmd) {
     case somfy_commands::My:
@@ -3273,6 +3273,8 @@ void SomfyShade::toJSONRef(JsonResponse &json) {
   json.addElem("remoteAddress", (uint32_t)this->m_remoteAddress);
   json.addElem("paired", this->paired);
   json.addElem("shadeType", static_cast<uint8_t>(this->shadeType));
+  json.addElem("flipCommands", this->flipCommands);
+  json.addElem("flipPosition", this->flipCommands);
   json.addElem("bitLength", this->bitLength);
   json.addElem("proto", static_cast<uint8_t>(this->proto));
   json.addElem("flags", this->flags);
@@ -4368,6 +4370,7 @@ void RECEIVE_ATTR Transceiver::handleReceive() {
             else if (somfy_rx.cpt_synchro_hw == 12) somfy_rx.bit_length = 80;
             else if (somfy_rx.cpt_synchro_hw > 17) somfy_rx.bit_length = 80;
             else somfy_rx.bit_length = 56;
+            //somfy_rx.bit_length = 80;
             somfy_rx.status = receiving_data;
         }
         else {

@@ -544,6 +544,7 @@ bool Network::openSoftAP() {
   WiFi.disconnect(true);
   WiFi.hostname("ESPSomfy RTS");
   WiFi.mode(WIFI_AP_STA);
+  this->_connecting = false;
   delay(100);
   WiFi.softAP("ESPSomfy RTS", "");
   Serial.println("Initializing AP for credentials modification");

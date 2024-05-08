@@ -402,7 +402,7 @@ class SomfyGroup : public SomfyRemote {
     void emitState(const char *evt = "groupState");
     void emitState(uint8_t num, const char *evt = "groupState");
     void sendCommand(somfy_commands cmd);
-    void sendCommand(somfy_commands cmd, uint8_t repeat);
+    void sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSize = 0);
     int8_t p_direction(int8_t dir);
     bool publish(const char *topic, uint8_t val, bool retain = false);
     bool publish(const char *topic, int8_t val, bool retain = false);

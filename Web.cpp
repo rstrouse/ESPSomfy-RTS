@@ -407,6 +407,7 @@ void Web::handleRepeatCommand(WebServer& server) {
   if (method == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   uint8_t shadeId = 255;
   uint8_t groupId = 255;
+  uint8_t stepSize = 0;
   int8_t repeat = -1;
   somfy_commands command = somfy_commands::My;
   if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
@@ -414,6 +415,7 @@ void Web::handleRepeatCommand(WebServer& server) {
     else if(server.hasArg("groupId")) groupId = atoi(server.arg("groupId").c_str());
     if(server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
     if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
+    if(server.hasArg("stepSize")) stepSize = atoi(server.arg("stepSize").c_str());
     if(shadeId == 255 && groupId == 255 && server.hasArg("plain")) {
       DynamicJsonDocument doc(512);
       DeserializationError err = deserializeJson(doc, server.arg("plain"));
@@ -425,6 +427,7 @@ void Web::handleRepeatCommand(WebServer& server) {
         JsonObject obj = doc.as<JsonObject>();
         if (obj.containsKey("shadeId")) shadeId = obj["shadeId"];
         if(obj.containsKey("groupId")) groupId = obj["groupId"];
+        if(obj.containsKey("stepSize")) stepSize = obj["stepSize"];
         if (obj.containsKey("command")) {
             String scmd = obj["command"];
             command = translateSomfyCommand(scmd);
@@ -443,7 +446,7 @@ void Web::handleRepeatCommand(WebServer& server) {
       if(shade->shadeType == shade_types::garage1 && command == somfy_commands::Prog) command = somfy_commands::Toggle;
       if(!shade->isLastCommand(command)) {
         // We are going to send this as a new command.
-        shade->sendCommand(command, repeat >= 0 ? repeat : shade->repeats);
+        shade->sendCommand(command, repeat >= 0 ? repeat : shade->repeats, stepSize);
       }
       else {
         shade->repeatFrame(repeat >= 0 ? repeat : shade->repeats);
@@ -463,7 +466,7 @@ void Web::handleRepeatCommand(WebServer& server) {
       }
       if(!group->isLastCommand(command)) {
         // We are going to send this as a new command.
-        group->sendCommand(command, repeat >= 0 ? repeat : group->repeats);
+        group->sendCommand(command, repeat >= 0 ? repeat : group->repeats, stepSize);
       }
       else
         group->repeatFrame(repeat >= 0 ? repeat : group->repeats);
@@ -488,6 +491,7 @@ void Web::handleGroupCommand(WebServer &server) {
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
   uint8_t groupId = 255;
+  uint8_t stepSize = 0;
   int8_t repeat = -1;
   somfy_commands command = somfy_commands::My;
   if (method == HTTP_GET || method == HTTP_PUT || method == HTTP_POST) {
@@ -495,6 +499,7 @@ void Web::handleGroupCommand(WebServer &server) {
       groupId = atoi(server.arg("groupId").c_str());
       if (server.hasArg("command")) command = translateSomfyCommand(server.arg("command"));
       if(server.hasArg("repeat")) repeat = atoi(server.arg("repeat").c_str());
+      if(server.hasArg("stepSize")) stepSize = atoi(server.arg("stepSize").c_str());
     }
     else if (server.hasArg("plain")) {
       Serial.println("Sending Group Command");
@@ -507,12 +512,16 @@ void Web::handleGroupCommand(WebServer &server) {
       else {
         JsonObject obj = doc.as<JsonObject>();
         if (obj.containsKey("groupId")) groupId = obj["groupId"];
-        else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}"));
+        else {
+          server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}"));
+          return;
+        }
         if (obj.containsKey("command")) {
           String scmd = obj["command"];
           command = translateSomfyCommand(scmd);
         }
         if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+        if(obj.containsKey("stepSize")) stepSize = obj["stepSize"].as<uint8_t>();
       }
     }
     else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
@@ -521,8 +530,7 @@ void Web::handleGroupCommand(WebServer &server) {
       Serial.print("Received:");
       Serial.println(server.arg("plain"));
       // Send the command to the group.
-      if(repeat > 0) group->sendCommand(command, repeat);
-      else group->sendCommand(command);
+      group->sendCommand(command, repeat >= 0 ? repeat : group->repeats, stepSize);
       JsonResponse resp;
       resp.beginResponse(&server, g_content, sizeof(g_content));
       resp.beginObject();
