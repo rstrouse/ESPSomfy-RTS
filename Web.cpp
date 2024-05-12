@@ -225,6 +225,7 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
     Serial.println(filename);
     server.send(500, _encoding_text, "Error opening file");
   }
+  esp_task_wdt_reset();
   server.streamFile(file, encoding);
   file.close();
 }

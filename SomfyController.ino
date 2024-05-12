@@ -37,7 +37,7 @@ void setup() {
   net.setup();  
   somfy.begin();
   //git.checkForUpdate();
-  esp_task_wdt_init(5, true); //enable panic so ESP32 restarts
+  esp_task_wdt_init(7, true); //enable panic so ESP32 restarts
   esp_task_wdt_add(NULL); //add current thread to WDT watch
 
 }

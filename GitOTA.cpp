@@ -355,7 +355,7 @@ int GitUpdater::checkInternet() {
   https.setReuse(false);
   if(https.begin(sclient, "https://github.com/rstrouse/ESPSomfy-RTS")) {
     https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    https.setTimeout(5000);
+    https.setTimeout(3000);
     int httpCode = https.sendRequest("HEAD");
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
       err = 0;
@@ -496,8 +496,9 @@ int8_t GitUpdater::downloadFile() {
           int timeouts = 0;
           while(https.connected() && (len > 0 || len == -1) && total < len) {
             size_t size = stream->available();
+            esp_task_wdt_reset();
             if(size) {
-              esp_task_wdt_reset();
+              timeouts = 0;
               if(this->cancelled && !this->lockFS) {
                 Update.abort();
                 free(buff);
