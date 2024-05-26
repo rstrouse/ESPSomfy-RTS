@@ -97,46 +97,13 @@ void Network::loop() {
   mqtt.loop();
 }
 bool Network::changeAP(const uint8_t *bssid, const int32_t channel) {
+  esp_task_wdt_reset(); // Make sure we do not reboot here.
   if(SSDP.isStarted) SSDP.end();
   mqtt.disconnect();
   sockEmit.end();
   WiFi.disconnect(false, true);
   WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase, channel, bssid);
-  uint8_t retries = 0;
-  while(retries < 100) {
-    esp_task_wdt_reset(); // Make sure we do not reboot here.
-    wl_status_t stat = WiFi.status();
-    if(stat == WL_CONNECTED) {
-      Serial.println("WiFi module connected");
-      this->ssid = WiFi.SSID();
-      this->mac = WiFi.BSSIDstr();
-      this->strength = WiFi.RSSI();
-      this->channel = WiFi.channel();
-      return true;
-    }
-    else if(stat == WL_CONNECT_FAILED) {
-      Serial.println("WiFi Module connection failed");
-      return false;
-    }
-    else if(stat == WL_NO_SSID_AVAIL) {
-        Serial.println(" Connection failed the SSID ");
-        return false;
-    }
-    else if(stat == WL_NO_SHIELD) {
-        Serial.println("Connection failed - WiFi module not found");
-        return false;
-    }
-    else if(stat == WL_IDLE_STATUS) {
-        Serial.print("*");
-    }
-    else if(stat == WL_DISCONNECTED) {
-        Serial.print("-");
-    }
-    else {
-      Serial.printf("Unknown status %d\n", stat);
-    }
-    delay(300);
-  }
+  this->connectStart = millis();
   return false;
 }
 void Network::emitSockets() {
@@ -467,7 +434,6 @@ bool Network::connectWiFi() {
     //WiFi.mode(WIFI_STA);
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
-    this->connectAttempts++;
     uint8_t bssid[6];
     int32_t channel = 0;
     if(this->getStrongestAP(settings.WIFI.ssid, bssid, &channel)) {
