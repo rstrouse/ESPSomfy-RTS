@@ -215,7 +215,7 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
   }
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
-  
+  esp_task_wdt_reset();
   // Load the index html page from the data directory.
   Serial.print("Loading file ");
   Serial.println(filename);
@@ -225,9 +225,11 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
     Serial.println(filename);
     server.send(500, _encoding_text, "Error opening file");
   }
-  esp_task_wdt_reset();
+  esp_task_wdt_delete(NULL);
   server.streamFile(file, encoding);
   file.close();
+  esp_task_wdt_add(NULL);
+  esp_task_wdt_reset();
 }
 void Web::handleController(WebServer &server) {
   webServer.sendCORSHeaders(server);

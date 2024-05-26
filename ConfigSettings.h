@@ -3,7 +3,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 #include "WResp.h"
-#define FW_VERSION "v2.4.3"
+#define FW_VERSION "v2.4.4"
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,

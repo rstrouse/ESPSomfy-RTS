@@ -56,16 +56,24 @@ void loop() {
   net.loop();
   if(millis() - timing > 100) Serial.printf("Timing Net: %ldms\n", millis() - timing);
   timing = millis();
+  esp_task_wdt_reset();
   somfy.loop();
   if(millis() - timing > 100) Serial.printf("Timing Somfy: %ldms\n", millis() - timing);
   timing = millis();
-  if(net.connected()) {
-    if(!rebootDelay.reboot) git.loop();
+  esp_task_wdt_reset();
+  if(net.connected() || net.softAPOpened) {
+    if(!rebootDelay.reboot && net.connected() && !net.softAPOpened) {
+      git.loop();
+      esp_task_wdt_reset();
+    }
     webServer.loop();
-    if(millis() - timing > 200) Serial.printf("Timing WebServer: %ldms\n", millis() - timing);
+    esp_task_wdt_reset();
+    if(millis() - timing > 100) Serial.printf("Timing WebServer: %ldms\n", millis() - timing);
+    esp_task_wdt_reset();
     timing = millis();
     sockEmit.loop();
     if(millis() - timing > 100) Serial.printf("Timing Socket: %ldms\n", millis() - timing);
+    esp_task_wdt_reset();
     timing = millis();
   }
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
@@ -73,14 +81,4 @@ void loop() {
     ESP.restart();
   }
   esp_task_wdt_reset();
-
-  /*
-  if(heap < oldheap) {
-      Serial.print("Heap: ");
-      Serial.print(oldheap);
-      Serial.print(" -> ");
-      Serial.println(heap);
-  }
-  oldheap = heap;
-  */
 }

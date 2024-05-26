@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <esp_task_wdt.h>
 #include "MQTT.h"
 #include "ConfigSettings.h"
 #include "Somfy.h"
@@ -195,6 +196,7 @@ bool MQTTClass::connect() {
       char lwtTopic[128] = "status";
       if(strlen(settings.MQTT.rootTopic) > 0)
         snprintf(lwtTopic, sizeof(lwtTopic), "%s/status", settings.MQTT.rootTopic);
+      esp_task_wdt_reset();
       if(mqttClient.connect(this->clientId, settings.MQTT.username, settings.MQTT.password, lwtTopic, 0, true, "offline")) {
         Serial.print("Successfully connected MQTT client ");
         Serial.println(this->clientId);
@@ -219,8 +221,9 @@ bool MQTTClass::connect() {
         this->subscribe("groups/+/sunFlag/set");
         this->subscribe("groups/+/sunny/set");
         this->subscribe("groups/+/windy/set");
-
         mqttClient.setCallback(MQTTClass::receive);
+        Serial.println("MQTT Startup Completed");
+        esp_task_wdt_reset();
         this->lastConnect = millis();
         return true;
       }

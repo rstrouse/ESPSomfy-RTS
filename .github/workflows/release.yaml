@@ -7,7 +7,7 @@ on:
 env:
   ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json"
   ARDUINO_CLI_VERSION: "0.x"
-  ARDUINO_ESP32_VERSION: "2.0.16"
+  ARDUINO_ESP32_VERSION: "2.0.17"
   ARDUINO_JSON_VERSION: "6.21.5"
   ESPTOOL_VERSION: "4.7"
   LITTLEFS_VERSION: "v2.5.1"
@@ -30,17 +30,17 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Checkout mklittlefs
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: earlephilhower/mklittlefs
           path: mklittlefs
           ref: ${{ env.MKLITTLEFS_VERSION }}
 
       - name: Checkout LittleFS
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: littlefs-project/littlefs
           path: mklittlefs/littlefs
@@ -55,14 +55,14 @@ jobs:
           ./mklittlefs/mklittlefs --create data --size 1441792 SomfyController.littlefs.bin
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LittleFS
           path: SomfyController.littlefs.bin
           retention-days: 5
 
       - name: Upload LittleFS
-        uses: shogo82148/actions-upload-release-asset@v1.7.2
+        uses: shogo82148/actions-upload-release-asset@v1.7.5
         with:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
@@ -120,12 +120,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: SomfyController
 
       - name: Get LittleFS
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: LittleFS
 
@@ -175,7 +175,7 @@ jobs:
             0x290000 SomfyController.littlefs.bin
 
       - name: Upload Firmware ${{ matrix.name }}
-        uses: shogo82148/actions-upload-release-asset@v1.7.2
+        uses: shogo82148/actions-upload-release-asset@v1.7.5
         with:
           github_token: ${{ github.token }}
           upload_url: ${{ steps.get_release.outputs.upload_url }}
@@ -187,7 +187,7 @@ jobs:
           zip ${{ matrix.obname }}.zip ./${{ matrix.obname }}
 
       - name: Upload Onboard ${{ matrix.name }}
-        uses: shogo82148/actions-upload-release-asset@v1.7.2
+        uses: shogo82148/actions-upload-release-asset@v1.7.5
         # env:
         #  GITHUB_TOKEN: ${{ github.token }}
         with:

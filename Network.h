@@ -16,6 +16,7 @@ class Network {
     bool ethStarted = false;
     bool wifiFallback = false;
     bool softAPOpened = false;
+    bool openingSoftAP = false;
     bool needsBroadcast = true;
     conn_types connType = conn_types::unset;
     conn_types connTarget = conn_types::unset;

@@ -10,6 +10,8 @@
 #include "Somfy.h"
 #include "Web.h"
 #include "WResp.h"
+#include "Network.h"
+
 
 
 
@@ -18,6 +20,7 @@ extern SocketEmitter sockEmit;
 extern SomfyShadeController somfy;
 extern rebootDelay_t rebootDelay;
 extern Web webServer;
+extern Network net;
 
 
 
@@ -251,7 +254,7 @@ void GitRepo::toJSON(JsonResponse &json) {
 void GitUpdater::loop() {
   if(this->status == GIT_STATUS_READY) {
     if(settings.checkForUpdate && 
-      (millis() > 60000) && // Wait a minute before checking after boot.
+      (millis() > net.connectTime + 60000) && // Wait a minute before checking after connection.
       (this->lastCheck + 86400000 < millis() || this->lastCheck == 0) && !rebootDelay.reboot) { // 1 day
       this->checkForUpdate();
     }
@@ -356,7 +359,9 @@ int GitUpdater::checkInternet() {
   if(https.begin(sclient, "https://github.com/rstrouse/ESPSomfy-RTS")) {
     https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     https.setTimeout(3000);
+    esp_task_wdt_reset();
     int httpCode = https.sendRequest("HEAD");
+    esp_task_wdt_reset();
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
       err = 0;
       Serial.printf("Internet is Available: %ldms\n", millis() - t);

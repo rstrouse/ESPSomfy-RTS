@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WebSocketsServer.h>
+#include <esp_task_wdt.h>
 #include "Sockets.h"
 #include "ConfigSettings.h"
 #include "Somfy.h"
@@ -105,10 +106,12 @@ void SocketEmitter::initClients() {
     if(num != 255) {
       if(sockServer.clientIsConnected(num)) {
         Serial.printf("Initializing Socket Client %u\n", num);
+        esp_task_wdt_reset();
         settings.emitSockets(num);
         somfy.emitState(num);
         git.emitUpdateCheck(num);
         net.emitSockets(num);
+        esp_task_wdt_reset();
       }
       this->newClients[i] = 255;
     }
