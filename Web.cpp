@@ -2171,7 +2171,8 @@ void Web::begin() {
     
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     esp_task_wdt_delete(NULL);
-    int n = WiFi.scanNetworks();
+    if(net.softAPOpened) WiFi.disconnect(false);
+    int n = WiFi.scanNetworks(false, true);
     esp_task_wdt_add(NULL);
     
     Serial.print("Scanned ");
@@ -2377,21 +2378,28 @@ void Web::begin() {
           settings.save();
           reboot = true;
         }
-        if(settings.connType == conn_types::wifi) {
-          if(obj.containsKey("ssid") && obj["ssid"].as<String>().compareTo(settings.WIFI.ssid) != 0) reboot = true;
-          if(obj.containsKey("passphrase") && obj["passphrase"].as<String>().compareTo(settings.WIFI.passphrase) != 0) reboot = true;
+        if(obj.containsKey("wifi")) {
+          JsonObject objWifi = obj["wifi"];
+          if(settings.connType == conn_types::wifi) {
+            if(objWifi.containsKey("ssid") && objWifi["ssid"].as<String>().compareTo(settings.WIFI.ssid) != 0) {
+              if(WiFi.softAPgetStationNum() == 0) reboot = true;
+            }
+            if(objWifi.containsKey("passphrase") && objWifi["passphrase"].as<String>().compareTo(settings.WIFI.passphrase) != 0) {
+              if(WiFi.softAPgetStationNum() == 0) reboot = true;
+            }
+          }
+          settings.WIFI.fromJSON(objWifi);
+          settings.WIFI.save();
         }
-        else {
+        if(obj.containsKey("ethernet"))
+        {
+          JsonObject objEth = obj["ethernet"];
           // This is an ethernet connection so if anything changes we need to reboot.
-          reboot = true;
+          if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref)
+            reboot = true;
+          settings.Ethernet.fromJSON(objEth);
+          settings.Ethernet.save();
         }
-        JsonObject objWifi = obj["wifi"];
-        JsonObject objEth = obj["ethernet"];
-        settings.WIFI.fromJSON(objWifi);
-        settings.Ethernet.fromJSON(objEth);
-      
-        settings.WIFI.save();
-        settings.Ethernet.save();
         if (reboot) {
           Serial.println("Rebooting ESP for new Network settings...");
           rebootDelay.reboot = true;

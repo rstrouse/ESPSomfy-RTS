@@ -10,8 +10,6 @@
 #include "SSDP.h"
 #include "MQTT.h"
 
-int testFallback = 5;
-
 extern ConfigSettings settings;
 extern Web webServer;
 extern SocketEmitter sockEmit;
@@ -397,13 +395,20 @@ void Network::updateHostname() {
   }
 }
 bool Network::connectWiFi() {
+  if(this->softAPOpened && WiFi.softAPgetStationNum() > 0) {
+    WiFi.disconnect(false);
+    this->_connecting = false;
+    this->connType = conn_types::unset;
+    return true;
+  }
+
   if(settings.WIFI.ssid[0] != '\0') {
     if(WiFi.status() == WL_CONNECTED && WiFi.SSID().compareTo(settings.WIFI.ssid) == 0) {
       // If we are connected to the target SSID then just return.
       this->disconnected = 0;
       return true;
     }
-    if(this->softAPOpened) Serial.printf("connectWiFi: %d\n", WiFi.softAPgetStationNum());
+    if(this->_connecting) return true;
     this->_connecting = true;
     this->connTarget = conn_types::wifi;
     this->connType = conn_types::unset;
@@ -419,6 +424,7 @@ bool Network::connectWiFi() {
     else Serial.println("Connecting to AP");
     // If the soft AP is currently opened then we do not want to kill it.
     WiFi.setSleep(false);
+    WiFi.disconnect(false);
     //WiFi.mode(WIFI_MODE_NULL);
     if(!settings.IP.dhcp) {
       if(!WiFi.config(settings.IP.ip, settings.IP.gateway, settings.IP.subnet, settings.IP.dns1, settings.IP.dns2))
@@ -517,6 +523,7 @@ bool Network::getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel)
 }
 bool Network::openSoftAP() {
   if(this->softAPOpened || this->openingSoftAP) return true;
+  WiFi.disconnect(false);
   this->openingSoftAP = true;
   Serial.println();
   Serial.println("Turning the HotSpot On");
