@@ -313,6 +313,7 @@ void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
 }
 void somfy_frame_t::encodeFrame(byte *frame) { 
   const byte btn = static_cast<byte>(cmd);
+  this->valid = true;
   frame[0] = this->encKey;              // Encryption key. Doesn't matter much
   frame[1] = (btn & 0x0F) << 4;         // Which button did you press? The 4 LSB will be the checksum
   frame[2] = this->rollingCode >> 8;    // Rolling code (big endian)
@@ -432,6 +433,7 @@ void somfy_frame_t::print() {
     Serial.print(" CS:");
     Serial.println(this->checksum);
 }
+bool somfy_frame_t::isSynonym(somfy_frame_t &frame) { return this->remoteAddress == frame.remoteAddress && this->cmd != frame.cmd && this->rollingCode == frame.rollingCode; }
 bool somfy_frame_t::isRepeat(somfy_frame_t &frame) { return this->remoteAddress == frame.remoteAddress && this->cmd == frame.cmd && this->rollingCode == frame.rollingCode; }
 void somfy_frame_t::copy(somfy_frame_t &frame) {
   if(this->isRepeat(frame)) {
@@ -440,8 +442,9 @@ void somfy_frame_t::copy(somfy_frame_t &frame) {
     this->lqi = frame.lqi;
   }
   else {
+    this->synonym = this->isSynonym(frame);
     this->valid = frame.valid;
-    this->processed = frame.processed;
+    if(!this->synonym) this->processed = frame.processed;
     this->rssi = frame.rssi;
     this->lqi = frame.lqi;
     this->cmd = frame.cmd;
@@ -2398,6 +2401,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
           this->lastFrame.await = curTime + 500;
         }
         else {
+          if(this->lastFrame.processed) return;
           Serial.println("Moving to My target");
           this->lastFrame.processed = true;
           if(this->myTiltPos >= 0.0f && this->myTiltPos <= 100.0f) this->p_tiltTarget(this->myTiltPos);
@@ -2406,6 +2410,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
         }
       }
       else {
+        if(this->lastFrame.processed) return;
         this->lastFrame.processed = true;
         if(!internal) {
           if(this->tiltType != tilt_types::tiltonly) this->p_target(this->currentPos);
@@ -2511,8 +2516,10 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       this->lastFrame.processed = true;
       this->p_target(this->currentPos);
       this->p_tiltTarget(this->currentTiltPos);      
+      this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
     case somfy_commands::Favorite:
+      if(this->lastFrame.processed) return;
       this->lastFrame.processed = true;
       if(this->simMy()) {
         this->moveToMyPosition();
@@ -3895,6 +3902,7 @@ void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSi
   this->lastFrame.repeats = repeat;
   this->lastFrame.bitLength = this->bitLength;
   this->lastFrame.stepSize = stepSize;
+  this->lastFrame.valid = true;
   // Match the encKey to the rolling code.  These keys range from 160 to 175.
   this->lastFrame.encKey = 0xA0 | static_cast<uint8_t>(this->lastFrame.rollingCode & 0x000F);
   this->lastFrame.proto = this->proto;

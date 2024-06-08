@@ -171,6 +171,7 @@ struct somfy_relay_t {
 struct somfy_frame_t {
     bool valid = false;
     bool processed = false;
+    bool synonym = false;
     radio_proto proto = radio_proto::RTS;
     int rssi = 0;
     byte lqi = 0x0;
@@ -192,6 +193,7 @@ struct somfy_frame_t {
     void decodeFrame(byte* frame);
     void decodeFrame(somfy_rx_t *rx);
     bool isRepeat(somfy_frame_t &f);
+    bool isSynonym(somfy_frame_t &f);
     void copy(somfy_frame_t &f);
 };
 
