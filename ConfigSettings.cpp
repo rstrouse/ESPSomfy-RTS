@@ -205,12 +205,12 @@ bool ConfigSettings::load() {
   pref.getString("hostname", this->hostname, sizeof(this->hostname));
   this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
   this->checkForUpdate = pref.getBool("checkForUpdate", true);
-  this->connType = static_cast<conn_types>(pref.getChar("connType", 0x00));
+  this->connType = static_cast<conn_types_t>(pref.getChar("connType", 0x00));
   //Serial.printf("Preference GFG Free Entries: %d\n", pref.freeEntries());
   pref.end();
-  if(this->connType == conn_types::unset) {
+  if(this->connType == conn_types_t::unset) {
     // We are doing this to convert the data from previous versions.
-    this->connType = conn_types::wifi;
+    this->connType = conn_types_t::wifi;
     pref.begin("WIFI");
     pref.getString("hostname", this->hostname, sizeof(this->hostname));
     this->ssdpBroadcast = pref.getBool("ssdpBroadcast", true);
@@ -261,7 +261,7 @@ bool ConfigSettings::requiresAuth() { return this->Security.type != security_typ
 bool ConfigSettings::fromJSON(JsonObject &obj) {
     if(obj.containsKey("ssdpBroadcast")) this->ssdpBroadcast = obj["ssdpBroadcast"];
     if(obj.containsKey("hostname")) this->parseValueString(obj, "hostname", this->hostname, sizeof(this->hostname));
-    if(obj.containsKey("connType")) this->connType = static_cast<conn_types>(obj["connType"].as<uint8_t>());
+    if(obj.containsKey("connType")) this->connType = static_cast<conn_types_t>(obj["connType"].as<uint8_t>());
     if(obj.containsKey("checkForUpdate")) this->checkForUpdate = obj["checkForUpdate"];
     return true;
 }
@@ -269,8 +269,8 @@ void ConfigSettings::print() {
   this->Security.print();
   Serial.printf("Connection Type: %u\n", (unsigned int) this->connType);
   this->NTP.print();
-  if(this->connType == conn_types::wifi || this->connType == conn_types::unset) this->WIFI.print();
-  if(this->connType == conn_types::ethernet || this->connType == conn_types::ethernetpref) this->Ethernet.print();
+  if(this->connType == conn_types_t::wifi || this->connType == conn_types_t::unset) this->WIFI.print();
+  if(this->connType == conn_types_t::ethernet || this->connType == conn_types_t::ethernetpref) this->Ethernet.print();
 }
 void ConfigSettings::emitSockets() {}
 void ConfigSettings::emitSockets(uint8_t num) {}

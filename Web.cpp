@@ -791,8 +791,8 @@ void Web::handleDiscovery(WebServer &server) {
   if (method == HTTP_POST || method == HTTP_GET) {
     Serial.println("Discovery Requested");
     char connType[10] = "Unknown";
-    if(net.connType == conn_types::ethernet) strcpy(connType, "Ethernet");
-    else if(net.connType == conn_types::wifi) strcpy(connType, "Wifi");
+    if(net.connType == conn_types_t::ethernet) strcpy(connType, "Ethernet");
+    else if(net.connType == conn_types_t::wifi) strcpy(connType, "Wifi");
 
     JsonResponse resp;
     resp.beginResponse(&server, g_content, sizeof(g_content));
@@ -2374,13 +2374,13 @@ void Web::begin() {
         // Parse out all the inputs.
         bool reboot = false;
         if(obj.containsKey("connType") && obj["connType"].as<uint8_t>() != static_cast<uint8_t>(settings.connType)) {
-          settings.connType = static_cast<conn_types>(obj["connType"].as<uint8_t>());
+          settings.connType = static_cast<conn_types_t>(obj["connType"].as<uint8_t>());
           settings.save();
           reboot = true;
         }
         if(obj.containsKey("wifi")) {
           JsonObject objWifi = obj["wifi"];
-          if(settings.connType == conn_types::wifi) {
+          if(settings.connType == conn_types_t::wifi) {
             if(objWifi.containsKey("ssid") && objWifi["ssid"].as<String>().compareTo(settings.WIFI.ssid) != 0) {
               if(WiFi.softAPgetStationNum() == 0) reboot = true;
             }
@@ -2395,7 +2395,7 @@ void Web::begin() {
         {
           JsonObject objEth = obj["ethernet"];
           // This is an ethernet connection so if anything changes we need to reboot.
-          if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref)
+          if(settings.connType == conn_types_t::ethernet || settings.connType == conn_types_t::ethernetpref)
             reboot = true;
           settings.Ethernet.fromJSON(objEth);
           settings.Ethernet.save();

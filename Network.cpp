@@ -34,7 +34,7 @@ bool Network::setup() {
   WiFi.persistent(false);
   WiFi.onEvent(this->networkEvent);
   if(WiFi.status() == WL_CONNECTED) WiFi.disconnect(true, true);
-  if(settings.connType == conn_types::wifi || settings.connType == conn_types::unset) {
+  if(settings.connType == conn_types_t::wifi || settings.connType == conn_types_t::unset) {
     WiFi.persistent(false);
     if(settings.hostname[0] != '\0') WiFi.setHostname(settings.hostname);
     Serial.print("WiFi Mode: ");
@@ -60,7 +60,7 @@ void Network::loop() {
     // Every 60 seconds we are going to look at wifi connectivity
     // to get around the roaming issues with ESP32.  We will try to do this in an async manner.  If
     // there is a channel that is better we will stop the wifi radio and reconnect
-    if(this->connType == conn_types::wifi && settings.WIFI.roaming && !this->softAPOpened) {
+    if(this->connType == conn_types_t::wifi && settings.WIFI.roaming && !this->softAPOpened) {
       // If we are not already scanning then we need to start a passive scan
       // and only respond if there is a better connection. 
       // 1. If there is currently a waiting scan don't do anything
@@ -71,7 +71,7 @@ void Network::loop() {
     this->lastMDNS = millis();
   }
   if(_apScanning) {
-    if(!settings.WIFI.roaming || this->connType != conn_types::wifi || this->softAPOpened) _apScanning = false;
+    if(!settings.WIFI.roaming || this->connType != conn_types_t::wifi || this->softAPOpened) _apScanning = false;
     else {
       uint16_t n = WiFi.scanComplete();
       if( n > 0) {
@@ -107,7 +107,7 @@ bool Network::changeAP(const uint8_t *bssid, const int32_t channel) {
 void Network::emitSockets() {
   this->emitHeap();
   if(this->needsBroadcast || 
-    (this->connType == conn_types::wifi && (abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel))) {
+    (this->connType == conn_types_t::wifi && (abs(abs(WiFi.RSSI()) - abs(this->lastRSSI)) > 1 || WiFi.channel() != this->lastChannel))) {
     this->emitSockets(255);
     sockEmit.loop();
     this->needsBroadcast = false;
@@ -115,7 +115,7 @@ void Network::emitSockets() {
 }
 void Network::emitSockets(uint8_t num) {
   //char buf[128];
-  if(this->connType == conn_types::ethernet) {
+  if(this->connType == conn_types_t::ethernet) {
       JsonSockEvent *json = sockEmit.beginEmit("ethernet");
       json->beginObject();
       json->addElem("connected", this->connected());
@@ -183,11 +183,11 @@ void Network::emitSockets(uint8_t num) {
   }
   this->emitHeap(num);
 }
-void Network::setConnected(conn_types connType) {
+void Network::setConnected(conn_types_t connType) {
   this->connType = connType;
   this->connectTime = millis();
   connectRetries = 0;
-  if(this->connType == conn_types::wifi) {
+  if(this->connType == conn_types_t::wifi) {
     if(this->softAPOpened && WiFi.softAPgetStationNum() == 0) {
       WiFi.softAPdisconnect(true);
       WiFi.mode(WIFI_STA);
@@ -199,7 +199,7 @@ void Network::setConnected(conn_types connType) {
     this->channel = WiFi.channel();
     this->connectAttempts++;
   }
-  else if(this->connType == conn_types::ethernet) {
+  else if(this->connType == conn_types_t::ethernet) {
     if(this->softAPOpened) {
       Serial.println("Disonnecting from SoftAP");
       WiFi.softAPdisconnect(true);
@@ -213,7 +213,7 @@ void Network::setConnected(conn_types connType) {
   //sockEmit.begin();
   if(this->connectAttempts == 1) {
     Serial.println();
-    if(this->connType == conn_types::wifi) {
+    if(this->connType == conn_types_t::wifi) {
       Serial.print("Successfully Connected to WiFi!!!!");
       Serial.print(WiFi.localIP());
       Serial.print(" (");
@@ -257,7 +257,7 @@ void Network::setConnected(conn_types connType) {
     Serial.print("Reconnected after ");
     Serial.print(1.0 * (millis() - this->connectStart)/1000);
       Serial.print("sec IP: ");
-    if(this->connType == conn_types::wifi) {
+    if(this->connType == conn_types_t::wifi) {
       Serial.print(WiFi.localIP());
       Serial.print(" ");
       Serial.print(this->mac);
@@ -327,12 +327,12 @@ bool Network::connectWired() {
       WiFi.disconnect(true);
       WiFi.mode(WIFI_OFF);
     }
-    if(this->connType != conn_types::ethernet) this->setConnected(conn_types::ethernet);
+    if(this->connType != conn_types_t::ethernet) this->setConnected(conn_types_t::ethernet);
     this->wifiFallback = false;
     return true;
   }
   else if(this->ethStarted) {
-    if(settings.connType == conn_types::ethernetpref && settings.WIFI.ssid[0] != '\0')
+    if(settings.connType == conn_types_t::ethernetpref && settings.WIFI.ssid[0] != '\0')
       return this->connectWiFi();
   }
   if(this->connectAttempts > 0) {
@@ -342,8 +342,8 @@ bool Network::connectWired() {
   else
     Serial.println("Connecting to Wired Ethernet");
   this->_connecting = true;
-  this->connTarget = conn_types::ethernet;
-  this->connType = conn_types::unset;
+  this->connTarget = conn_types_t::ethernet;
+  this->connType = conn_types_t::unset;
   if(!this->ethStarted) {
       this->ethStarted = true;
       WiFi.mode(WIFI_OFF);
@@ -357,7 +357,7 @@ bool Network::connectWired() {
       if(!ETH.begin(settings.Ethernet.phyAddress, settings.Ethernet.PWRPin, settings.Ethernet.MDCPin, settings.Ethernet.MDIOPin, settings.Ethernet.phyType, settings.Ethernet.CLKMode)) { 
           Serial.println("Ethernet Begin failed");
           this->ethStarted = false;
-          if(settings.connType == conn_types::ethernetpref) {
+          if(settings.connType == conn_types_t::ethernetpref) {
             this->wifiFallback = true;
             return connectWiFi();
           }
@@ -379,7 +379,7 @@ bool Network::connectWired() {
 }
 void Network::updateHostname() {
   if(settings.hostname[0] != '\0' && this->connected()) {
-    if(this->connType == conn_types::ethernet &&
+    if(this->connType == conn_types_t::ethernet &&
       strcmp(settings.hostname, ETH.getHostname()) != 0) {
       Serial.printf("Updating host name to %s...\n", settings.hostname);
       ETH.setHostname(settings.hostname);
@@ -398,7 +398,7 @@ bool Network::connectWiFi() {
   if(this->softAPOpened && WiFi.softAPgetStationNum() > 0) {
     WiFi.disconnect(false);
     this->_connecting = false;
-    this->connType = conn_types::unset;
+    this->connType = conn_types_t::unset;
     return true;
   }
 
@@ -410,8 +410,8 @@ bool Network::connectWiFi() {
     }
     if(this->_connecting) return true;
     this->_connecting = true;
-    this->connTarget = conn_types::wifi;
-    this->connType = conn_types::unset;
+    this->connTarget = conn_types_t::wifi;
+    this->connType = conn_types_t::unset;
     if(this->connectAttempts > 0) {
       Serial.print("Connection Lost...");
       Serial.print(this->mac);
@@ -458,16 +458,16 @@ bool Network::connect() {
     // to connect to the network.  If the connection type is set then we need to
     // finish the connection.  If it is not then we need to fall back to AP or in
     // the case where the target was originally ethernet then we need to open the softAP.
-    if(this->connType == conn_types::unset) {
+    if(this->connType == conn_types_t::unset) {
       // If we reached our timeout for the connection then we need to open the soft ap.
       if(millis() > this->connectStart + CONNECT_TIMEOUT) {
         esp_task_wdt_reset();
-        if(this->connTarget == conn_types::ethernet && settings.connType == conn_types::ethernetpref && settings.WIFI.ssid[0] != '\0')
+        if(this->connTarget == conn_types_t::ethernet && settings.connType == conn_types_t::ethernetpref && settings.WIFI.ssid[0] != '\0')
           this->connectWiFi();
         else if(this->softAPOpened) {
-          if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref)
+          if(settings.connType == conn_types_t::ethernet || settings.connType == conn_types_t::ethernetpref)
             this->connectWired();
-          else if(settings.connType == conn_types::wifi && strlen(settings.WIFI.ssid) > 0)
+          else if(settings.connType == conn_types_t::wifi && strlen(settings.WIFI.ssid) > 0)
             this->connectWiFi();
         }
         else {
@@ -479,16 +479,16 @@ bool Network::connect() {
     else
       this->setConnected(this->connTarget);
   }
-  else if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref)
+  else if(settings.connType == conn_types_t::ethernet || settings.connType == conn_types_t::ethernetpref)
     this->connectWired();
-  else if(settings.connType == conn_types::wifi && strlen(settings.WIFI.ssid) > 0)
+  else if(settings.connType == conn_types_t::wifi && strlen(settings.WIFI.ssid) > 0)
     this->connectWiFi();
   else
     this->openSoftAP();
   if(this->softAPOpened && this->connected() && WiFi.softAPgetStationNum() == 0) {
       Serial.println("Closing uneeded SoftAP");
       WiFi.softAPdisconnect(true);
-      if(this->connType == conn_types::wifi) WiFi.mode(WIFI_STA);
+      if(this->connType == conn_types_t::wifi) WiFi.mode(WIFI_STA);
   }
   return true;
 }
@@ -535,10 +535,10 @@ bool Network::openSoftAP() {
 }
 bool Network::connected() {
   if(this->connecting()) return false;
-  else if(this->connType == conn_types::unset) return false;
-  else if(this->connType == conn_types::wifi) return WiFi.status() == WL_CONNECTED;
-  else if(this->connType == conn_types::ethernet) return ETH.linkUp();
-  else return this->connType != conn_types::unset;
+  else if(this->connType == conn_types_t::unset) return false;
+  else if(this->connType == conn_types_t::wifi) return WiFi.status() == WL_CONNECTED;
+  else if(this->connType == conn_types_t::ethernet) return ETH.linkUp();
+  else return this->connType != conn_types_t::unset;
   return false;
 }
 bool Network::connecting() {
@@ -559,7 +559,7 @@ void Network::networkEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
       Serial.print("Got WiFi IP: ");
       Serial.println(WiFi.localIP());
-      net.connType = conn_types::wifi;
+      net.connType = conn_types_t::wifi;
       net.connectTime = millis();
       break;
     case ARDUINO_EVENT_WIFI_STA_LOST_IP:        Serial.println("Lost IP address and IP address is reset to 0"); break;    
@@ -569,14 +569,14 @@ void Network::networkEvent(WiFiEvent_t event) {
       Serial.print("Got Ethernet IP ");
       Serial.println(ETH.localIP());
       net.connectTime = millis();
-      net.connType = conn_types::ethernet;
+      net.connType = conn_types_t::ethernet;
       break;
     case ARDUINO_EVENT_ETH_CONNECTED:
       Serial.print("(evt) Ethernet Connected ");
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       Serial.println("(evt) Ethernet Disconnected");
-      net.connType = conn_types::unset;
+      net.connType = conn_types_t::unset;
       break;
     case ARDUINO_EVENT_ETH_START:               
       Serial.println("(evt) Ethernet Started"); 
@@ -584,7 +584,7 @@ void Network::networkEvent(WiFiEvent_t event) {
       break;
     case ARDUINO_EVENT_ETH_STOP:
       Serial.println("(evt) Ethernet Stopped");
-      net.connType = conn_types::unset;
+      net.connType = conn_types_t::unset;
       net.ethStarted = false;
       break;
     case ARDUINO_EVENT_WIFI_AP_START:

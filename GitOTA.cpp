@@ -3,9 +3,9 @@
 #include <Update.h>
 #include <HTTPClient.h>
 #include <esp_task_wdt.h>
+#include "ConfigSettings.h"
 #include "GitOTA.h"
 #include "Utils.h"
-#include "ConfigSettings.h"
 #include "Sockets.h"
 #include "Somfy.h"
 #include "Web.h"

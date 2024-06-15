@@ -2,8 +2,8 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
-#include "MQTT.h"
 #include "ConfigSettings.h"
+#include "MQTT.h"
 #include "Somfy.h"
 #include "Network.h"
 #include "Utils.h"

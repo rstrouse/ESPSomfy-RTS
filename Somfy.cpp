@@ -307,6 +307,19 @@ void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
       frame[9] = ((repeat + 1) & 0x0F) << 4;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;
+    case somfy_commands::Up:
+      frame[7] = 132;
+      frame[8] = 32;
+      frame[9] = 0x00;
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+    case somfy_commands::Down:
+      frame[7] = 132;
+      frame[8] = 44;
+      frame[9] = 0x80;
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;
+
     default:
       break;
   }
@@ -3154,7 +3167,7 @@ int8_t SomfyShade::validateJSON(JsonObject &obj) {
           (myPin != 255 && somfy.transceiver.usesPin(myPin)))
           ret = -10;
       }
-      if(settings.connType == conn_types::ethernet || settings.connType == conn_types::ethernetpref) {
+      if(settings.connType == conn_types_t::ethernet || settings.connType == conn_types_t::ethernetpref) {
         if((upPin != 255 && settings.Ethernet.usesPin(upPin)) ||
           (downPin != 255 && somfy.transceiver.usesPin(downPin)) ||
           (myPin != 255 && somfy.transceiver.usesPin(myPin)))

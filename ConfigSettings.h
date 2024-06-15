@@ -4,6 +4,14 @@
 #define configsettings_h
 #include "WResp.h"
 #define FW_VERSION "v2.4.4"
+enum class conn_types_t : byte {
+    unset = 0x00,
+    wifi = 0x01,
+    ethernet = 0x02,
+    ethernetpref = 0x03,
+    ap = 0x04
+};
+
 enum DeviceStatus {
   DS_OK = 0,
   DS_ERROR = 1,
@@ -157,20 +165,13 @@ class MQTTSettings: BaseSettings {
     void toJSON(JsonResponse &json);
     bool fromJSON(JsonObject &obj);
 };
-enum class conn_types : byte {
-    unset = 0x00,
-    wifi = 0x01,
-    ethernet = 0x02,
-    ethernetpref = 0x03,
-    ap = 0x04
-};
 class ConfigSettings: BaseSettings {
   public:
     static void printAvailHeap();
     char serverId[10] = "";
     char hostname[32] = "ESPSomfyRTS";
     char chipModel[10] = "ESP32";
-    conn_types connType = conn_types::unset;
+    conn_types_t connType = conn_types_t::unset;
     appver_t fwVersion;
     appver_t appVersion;
     bool ssdpBroadcast = true;
@@ -197,5 +198,4 @@ class ConfigSettings: BaseSettings {
     uint16_t calcNetRecSize();
     bool getAppVersion();
 };
-
 #endif

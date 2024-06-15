@@ -9,6 +9,7 @@
 
 
 [[maybe_unused]] static void SETCHARPROP(char *prop, const char *value, size_t size) {strncpy(prop, value, size); prop[size - 1] = '\0';}
+/*
 namespace util { 
   // Createa a custom to_string function.  C++ can be annoying
   // with all the trailing 0s on number formats.
@@ -23,6 +24,8 @@ namespace util {
     return str; 
   } 
 }
+*/
+
 static void _ltrim(char *str) {
   int s = 0, j, k = 0;
   int e = strlen(str);

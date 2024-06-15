@@ -614,7 +614,7 @@ bool ShadeConfigFile::readNetRecord(restore_options_t &opts) {
     uint32_t startPos = this->file.position();
     if(opts.network) {
       Serial.println("Reading network settings from file...");
-      settings.connType = static_cast<conn_types>(this->readUInt8(static_cast<uint8_t>(conn_types::unset)));
+      settings.connType = static_cast<conn_types_t>(this->readUInt8(static_cast<uint8_t>(conn_types_t::unset)));
       settings.IP.dhcp = this->readBool(true);
       char ip[24];
       this->readVarString(ip, sizeof(ip));

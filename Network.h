@@ -3,6 +3,8 @@
 #ifndef Network_h
 #define Network_h
 
+//enum class conn_types_t : byte;
+
 #define CONNECT_TIMEOUT 20000
 class Network {
   protected:
@@ -18,8 +20,8 @@ class Network {
     bool softAPOpened = false;
     bool openingSoftAP = false;
     bool needsBroadcast = true;
-    conn_types connType = conn_types::unset;
-    conn_types connTarget = conn_types::unset;
+    conn_types_t connType = conn_types_t::unset;
+    conn_types_t connTarget = conn_types_t::unset;
     bool connected();
     bool connecting();
     String ssid;
@@ -34,7 +36,7 @@ class Network {
     bool connect();
     bool connectWiFi();
     bool connectWired();
-    void setConnected(conn_types connType);
+    void setConnected(conn_types_t connType);
     bool getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel);
     bool changeAP(const uint8_t *bssid, const int32_t channel);
     //int getStrengthByMac(const char *mac);
