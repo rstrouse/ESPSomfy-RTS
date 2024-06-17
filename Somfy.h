@@ -189,6 +189,7 @@ struct somfy_frame_t {
     void print();
     void encode80BitFrame(byte *frame, uint8_t repeat);
     byte calc80Checksum(byte b0, byte b1, byte b2);
+    byte encode80Byte7(byte start, uint8_t repeat);
     void encodeFrame(byte *frame);
     void decodeFrame(byte* frame);
     void decodeFrame(somfy_rx_t *rx);

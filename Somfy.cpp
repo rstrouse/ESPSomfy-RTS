@@ -257,6 +257,10 @@ void somfy_frame_t::decodeFrame(somfy_rx_t *rx) {
   this->rssi = ELECHOUSE_cc1101.getRssi();
   this->decodeFrame(rx->payload);
 }
+byte somfy_frame_t::encode80Byte7(byte start, uint8_t repeat) {
+  while((repeat * 4) + start > 255) repeat -= 15;
+  return start + (repeat * 4);
+}
 void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
   switch(this->cmd) {
     // Step up and down commands encode the step size into the last 3 bytes.
@@ -291,35 +295,37 @@ void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;
     case somfy_commands::Toggle:
-      if(repeat == 0) {
-        frame[0] = 164;
-        frame[1] |= 0xF0;
-      }
-      frame[7] = 196;
+      frame[0] = 164;
+      frame[1] |= 0xF0;
+      frame[7] = this->encode80Byte7(196, repeat);
       frame[8] = 0;
       frame[9] = 0x10;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;
-    case somfy_commands::Prog:
-      if(repeat > 0) frame[7] = 196 + (repeat * 4);
-      else frame[7] = 132;
-      frame[8] = 0;
-      frame[9] = ((repeat + 1) & 0x0F) << 4;
-      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
-      break;
     case somfy_commands::Up:
-      frame[7] = 132;
+      frame[7] = this->encode80Byte7(196, repeat);
       frame[8] = 32;
       frame[9] = 0x00;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;
     case somfy_commands::Down:
-      frame[7] = 132;
+      frame[7] = this->encode80Byte7(196, repeat);
       frame[8] = 44;
       frame[9] = 0x80;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;
-
+    case somfy_commands::Prog:
+    case somfy_commands::UpDown:
+    case somfy_commands::MyDown:
+    case somfy_commands::MyUp:
+    case somfy_commands::MyUpDown:
+    case somfy_commands::My:
+      frame[7] = this->encode80Byte7(196, repeat);
+      frame[8] = 0x00;
+      frame[9] = 0x10;
+      frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
+      break;      
+    
     default:
       break;
   }
@@ -414,7 +420,7 @@ void somfy_frame_t::encodeFrame(byte *frame) {
     
   }
   else {
-    if(this->bitLength == 80) this->encode80BitFrame(&frame[0], 0);
+    if(this->bitLength == 80) this->encode80BitFrame(&frame[0], this->repeats);
   }
   byte checksum = 0;
  
@@ -3974,9 +3980,13 @@ void SomfyRemote::repeatFrame(uint8_t repeat) {
   somfy.transceiver.beginTransmit();
   byte frm[10];
   this->lastFrame.encodeFrame(frm);
+  this->lastFrame.repeats++;
   somfy.transceiver.sendFrame(frm, this->bitLength == 56 ? 2 : 12, this->bitLength);
   for(uint8_t i = 0; i < repeat; i++) {
+    this->lastFrame.repeats++;
+    if(this->lastFrame.bitLength == 80) this->lastFrame.encode80BitFrame(&frm[0], this->lastFrame.repeats);
     somfy.transceiver.sendFrame(frm, this->bitLength == 56 ? 7 : 6, this->bitLength);
+    esp_task_wdt_reset();
   }
   somfy.transceiver.endTransmit();
   //somfy.processFrame(this->lastFrame, true);
@@ -4170,7 +4180,7 @@ void SomfyShadeController::toJSONGroups(JsonResponse &json) {
 }
 void SomfyShadeController::toJSONRepeaters(JsonResponse &json) {
   for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
-    if(somfy.repeaters[i] != 0) json.addElem((uint8_t)somfy.repeaters[i]);
+    if(somfy.repeaters[i] != 0) json.addElem((uint32_t)somfy.repeaters[i]);
   }
 }
 void SomfyShadeController::loop() { 
