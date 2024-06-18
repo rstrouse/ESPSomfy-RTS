@@ -1270,7 +1270,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.4.4';
+    appVersion = 'v2.4.5';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1926,6 +1926,9 @@ class Somfy {
         { type: 11, name: 'Gate (left)', ico: 'icss-lgate', lift: true, fcmd: true, fpos: true },
         { type: 12, name: 'Gate (center)', ico: 'icss-cgate', lift: true, fcmd: true, fpos: true },
         { type: 13, name: 'Gate (right)', ico: 'icss-rgate', lift: true, fcmd: true, fpos: true },
+        { type: 14, name: 'Gate (1-button left)', ico: 'icss-lgate', lift: true, fcmd: true, fpos: true },
+        { type: 15, name: 'Gate (1-button center)', ico: 'icss-cgate', lift: true, fcmd: true, fpos: true },
+        { type: 16, name: 'Gate (1-button right)', ico: 'icss-rgate', lift: true, fcmd: true, fpos: true },
     ];
     init() {
         if (this.initialized) return;
@@ -3246,6 +3249,9 @@ class Somfy {
         if (obj.proto === 8 || obj.proto === 9) {
             switch (obj.shadeType) {
                 case 5: // Garage 1-button
+                case 14: // Gate left 1-button
+                case 15: // Gate center 1-button
+                case 16: // Gate right 1-button
                 case 10: // Two button dry contact
                     if (obj.proto !== 9 && obj.gpioUp === obj.gpioDown) {
                         ui.errorMessage(document.getElementById('divSomfySettings'), 'For GPIO controlled motors the up and down GPIO selections must be unique.');
@@ -4140,6 +4146,9 @@ class Somfy {
                     case 5:
                     case 9:
                     case 10:
+                    case 14:
+                    case 15:
+                    case 16:
                         return;
                 }
                 let tiltType = parseInt(shade.getAttribute('data-tilt'), 10) || 0;

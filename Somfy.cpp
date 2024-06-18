@@ -992,7 +992,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
     int8_t dir = 0;
     switch(frame.cmd) {
       case somfy_commands::My:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1) {
+        if(this->shadeType != shade_types::drycontact && !this->isToggle()) {
           digitalWrite(this->gpioUp, p_off);
           digitalWrite(this->gpioDown, p_off);
           digitalWrite(this->gpioMy, p_on);
@@ -1001,7 +1001,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         }
         break;
       case somfy_commands::Up:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
+        if(this->shadeType != shade_types::drycontact && !this->isToggle() && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioMy, p_off);
           digitalWrite(this->gpioDown, p_off);
           digitalWrite(this->gpioUp, p_on);
@@ -1011,7 +1011,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         break;
       case somfy_commands::Toggle:
       case somfy_commands::Down:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
+        if(this->shadeType != shade_types::drycontact && !this->isToggle() && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioMy, p_off);
           digitalWrite(this->gpioUp, p_off);
         }
@@ -1020,7 +1020,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         Serial.printf("UP: false, DOWN: true, MY: false\n");
         break;
       case somfy_commands::MyUp:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
+        if(this->shadeType != shade_types::drycontact && !this->isToggle() && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioDown, p_off);
           digitalWrite(this->gpioMy, p_on);
           digitalWrite(this->gpioUp, p_on);
@@ -1028,7 +1028,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         }
         break;
       case somfy_commands::MyDown:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
+        if(this->shadeType != shade_types::drycontact && !this->isToggle() && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioUp, p_off);
           digitalWrite(this->gpioMy, p_on);
           digitalWrite(this->gpioDown, p_on);
@@ -1036,7 +1036,7 @@ void SomfyShade::triggerGPIOs(somfy_frame_t &frame) {
         }
         break;
       case somfy_commands::MyUpDown:
-        if(this->shadeType != shade_types::drycontact && this->shadeType != shade_types::garage1 && this->shadeType != shade_types::drycontact2) {
+        if(this->shadeType != shade_types::drycontact && this->isToggle() && this->shadeType != shade_types::drycontact2) {
           digitalWrite(this->gpioUp, p_on);
           digitalWrite(this->gpioMy, p_on);
           digitalWrite(this->gpioDown, p_on);
@@ -1504,6 +1504,9 @@ void SomfyShade::publishDisco() {
     case shade_types::lgate:
     case shade_types::cgate:
     case shade_types::rgate:
+    case shade_types::lgate1:
+    case shade_types::cgate1:
+    case shade_types::rgate1:
     case shade_types::ldrapery:
     case shade_types::rdrapery:
     case shade_types::cdrapery:
@@ -2392,7 +2395,7 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
       break;
     case somfy_commands::My:
       if(this->shadeType == shade_types::drycontact2) return;
-      if(this->shadeType == shade_types::garage1) {
+      if(this->isToggle()) { // This is a one button device
         if(this->lastFrame.processed) return;
         this->lastFrame.processed = true;
         if(!this->isIdle()) this->p_target(this->currentPos);
@@ -2925,7 +2928,7 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSiz
     }
   }
   else if(cmd == somfy_commands::My) {
-    if(this->shadeType == shade_types::garage1 || this->shadeType == shade_types::drycontact)
+    if(this->isToggle() || this->shadeType == shade_types::drycontact)
       SomfyRemote::sendCommand(cmd, repeat);
     else if(this->shadeType == shade_types::drycontact2) return;   
     else if(this->isIdle()) {
@@ -2942,7 +2945,7 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSiz
     if(this->bitLength != 80) SomfyRemote::sendCommand(somfy_commands::My, repeat, stepSize);
     else SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
   }
-  else if(this->shadeType == shade_types::garage1 && cmd == somfy_commands::Prog) {
+  else if(this->isToggle() && cmd == somfy_commands::Prog) {
     SomfyRemote::sendCommand(somfy_commands::Toggle, repeat, stepSize);
   }
   else {
@@ -3024,8 +3027,8 @@ void SomfyShade::moveToTiltTarget(float target) {
 }
 void SomfyShade::moveToTarget(float pos, float tilt) {
   somfy_commands cmd = somfy_commands::My;
-  if(this->shadeType == shade_types::garage1) {
-    // Overload this as we cannot seek a position on a garage door.
+  if(this->isToggle()) {
+    // Overload this as we cannot seek a position on a garage door or single button device.
     this->p_target(pos);
     this->p_currentPos(pos);
     this->emitState();
@@ -3107,12 +3110,24 @@ bool SomfyShade::save() {
 }
 bool SomfyRoom::save() { somfy.commit(); return true; }
 bool SomfyGroup::save() { somfy.commit(); return true; }
+bool SomfyShade::isToggle() {
+  switch(this->shadeType) {
+    case shade_types::garage1:
+    case shade_types::lgate1:
+    case shade_types::cgate1:
+    case shade_types::rgate1:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
 bool SomfyShade::usesPin(uint8_t pin) {
   if(this->proto != radio_proto::GP_Remote && this->proto != radio_proto::GP_Relay) return false;
   if(this->gpioDown == pin) return true;
   else if(this->shadeType == shade_types::drycontact)
     return this->gpioDown == pin;
-  else if(this->shadeType == shade_types::garage1) {
+  else if(this->isToggle()) {
     if(this->proto == radio_proto::GP_Relay && this->gpioUp == pin) return true;    
   }
   else if(this->shadeType == shade_types::drycontact2) {
@@ -3164,7 +3179,9 @@ int8_t SomfyShade::validateJSON(JsonObject &obj) {
       uint8_t upPin = obj.containsKey("gpioUp") ? obj["gpioUp"].as<uint8_t>() : this->gpioUp;
       uint8_t downPin = obj.containsKey("gpioDown") ? obj["gpioDown"].as<uint8_t>() : this->gpioDown;
       uint8_t myPin = obj.containsKey("gpioMy") ? obj["gpioMy"].as<uint8_t>() : this->gpioMy;
-      if(type == shade_types::drycontact || (type == shade_types::garage1 && proto == radio_proto::GP_Remote)) upPin = myPin = 255;
+      if(type == shade_types::drycontact || 
+        ((type == shade_types::garage1 || type == shade_types::lgate1 || type == shade_types::cgate1 || type == shade_types::rgate1) 
+        && proto == radio_proto::GP_Remote)) upPin = myPin = 255;
       else if(type == shade_types::drycontact2) myPin = 255;
       if(proto == radio_proto::GP_Relay) myPin = 255;
       if(somfy.transceiver.config.enabled) {

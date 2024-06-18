@@ -67,7 +67,10 @@ enum class shade_types : byte {
   drycontact2 = 0x0A,
   lgate = 0x0B,
   cgate = 0x0C,
-  rgate = 0x0D
+  rgate = 0x0D,
+  lgate1 = 0x0E,
+  cgate1 = 0x0F,
+  rgate1 = 0x10
 };
 enum class tilt_types : byte {
   none = 0x00,
@@ -322,6 +325,7 @@ class SomfyShade : public SomfyRemote {
     void setMovement(int8_t dir);
     void setTarget(float target);
     bool isAtTarget();
+    bool isToggle();
     void moveToTarget(float pos, float tilt = -1.0f);
     void moveToTiltTarget(float target);
     void sendTiltCommand(somfy_commands cmd);

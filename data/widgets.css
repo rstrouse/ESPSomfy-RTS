@@ -150,6 +150,9 @@
 .shadectl-buttons div.button-outline {
     display: inline-block;
 }
+.shadectl-buttons[data-shadetype="14"] > .cmd-button[data-cmd="sunflag"],
+.shadectl-buttons[data-shadetype="15"] > .cmd-button[data-cmd="sunflag"],
+.shadectl-buttons[data-shadetype="16"] > .cmd-button[data-cmd="sunflag"],
 .shadectl-buttons[data-shadetype="6"] > .cmd-button[data-cmd="sunflag"],
 .shadectl-buttons[data-shadetype="5"] > .cmd-button[data-cmd="sunflag"],
 .shadectl-buttons[data-shadetype="9"] > .cmd-button[data-cmd="sunflag"],
@@ -159,6 +162,15 @@
 .shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="my"],
 .shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="up"],
 .shadectl-buttons[data-shadetype="5"] > .button-outline[data-cmd="down"],
+.shadectl-buttons[data-shadetype="14"] > .button-outline[data-cmd="my"],
+.shadectl-buttons[data-shadetype="14"] > .button-outline[data-cmd="up"],
+.shadectl-buttons[data-shadetype="14"] > .button-outline[data-cmd="down"],
+.shadectl-buttons[data-shadetype="15"] > .button-outline[data-cmd="my"],
+.shadectl-buttons[data-shadetype="15"] > .button-outline[data-cmd="up"],
+.shadectl-buttons[data-shadetype="15"] > .button-outline[data-cmd="down"],
+.shadectl-buttons[data-shadetype="16"] > .button-outline[data-cmd="my"],
+.shadectl-buttons[data-shadetype="16"] > .button-outline[data-cmd="up"],
+.shadectl-buttons[data-shadetype="16"] > .button-outline[data-cmd="down"],
 .shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="my"] {
     display: none;
 }
@@ -174,10 +186,13 @@
 .shadectl-buttons[data-shadetype="10"] > .button-outline[data-cmd="down"] i {
     top:.3em;
 }
-.shadectl-buttons:not([data-shadetype="5"]):not([data-shadetype="9"]) > .button-outline[data-cmd="toggle"] {
+.shadectl-buttons:not([data-shadetype="5"]):not([data-shadetype="9"]):not([data-shadetype="14"]):not([data-shadetype="15"]):not([data-shadetype="16"]) > .button-outline[data-cmd="toggle"] {
     display: none;
 }
 .somfyShadeCtl[data-shadetype="5"] .shadectl-mypos,
+.somfyShadeCtl[data-shadetype="14"] .shadectl-mypos,
+.somfyShadeCtl[data-shadetype="15"] .shadectl-mypos,
+.somfyShadeCtl[data-shadetype="16"] .shadectl-mypos,
 .somfyShadeCtl[data-shadetype="9"] .shadectl-mypos,
 .somfyShadeCtl[data-tilt="3"] .shadectl-mypos .my-pos,
 .somfyShadeCtl:not([data-shadetype="1"]) .shadectl-mypos .my-pos-tilt,
@@ -239,12 +254,24 @@
 #somfyShade[data-proto="8"] #divGPIOMy,
 #somfyShade[data-bitlength="56"] #divStepSettings,
 #somfyShade[data-shadetype="5"] #divStepSettings,
+#somfyShade[data-shadetype="14"] #divStepSettings,
+#somfyShade[data-shadetype="15"] #divStepSettings,
+#somfyShade[data-shadetype="16"] #divStepSettings,
 #somfyShade[data-shadetype="6"] #divStepSettings {
     display: none;
 }
 #somfyShade[data-proto="9"][data-shadetype="5"] #divGPIOUp,
 #somfyShade[data-proto="9"][data-shadetype="5"] #divGPIOMy,
 #somfyShade[data-proto="8"][data-shadetype="5"] #divGPIOMy,
+#somfyShade[data-proto="9"][data-shadetype="14"] #divGPIOUp,
+#somfyShade[data-proto="9"][data-shadetype="14"] #divGPIOMy,
+#somfyShade[data-proto="8"][data-shadetype="14"] #divGPIOMy,
+#somfyShade[data-proto="9"][data-shadetype="15"] #divGPIOUp,
+#somfyShade[data-proto="9"][data-shadetype="15"] #divGPIOMy,
+#somfyShade[data-proto="8"][data-shadetype="15"] #divGPIOMy,
+#somfyShade[data-proto="9"][data-shadetype="16"] #divGPIOUp,
+#somfyShade[data-proto="9"][data-shadetype="16"] #divGPIOMy,
+#somfyShade[data-proto="8"][data-shadetype="16"] #divGPIOMy,
 #somfyShade[data-proto="9"][data-shadetype="9"] #divGPIOUp,
 #somfyShade[data-proto="9"][data-shadetype="9"] #divGPIOMy,
 #somfyShade[data-proto="8"][data-shadetype="9"] #divGPIOUp {
