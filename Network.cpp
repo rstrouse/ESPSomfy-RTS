@@ -58,7 +58,18 @@ void Network::loop() {
     }
   }
   sockEmit.loop();
-  if(this->connected() && millis() - this->lastMDNS > 60000) {
+  if(this->softAPOpened) {
+    // If the softAP has been opened check to see if there are any clients connected.  If there is not
+    // then we need to scan for the SSID.
+    if(settings.connType == conn_types_t::wifi && strlen(settings.WIFI.ssid) > 0 && WiFi.softAPgetStationNum() == 0) {
+      // We do not have any connections to the SoftAP so we should be able to scan.  For now if we are already scanning
+      // then we will not start another scan.
+      if(!_apScanning && WiFi.scanNetworks(true, false, true, 300, 0, settings.WIFI.ssid) == -1) {
+        _apScanning = true;
+      }
+    }
+  }
+  else if(this->connected() && millis() - this->lastMDNS > 60000) {
     // Every 60 seconds we are going to look at wifi connectivity
     // to get around the roaming issues with ESP32.  We will try to do this in an async manner.  If
     // there is a channel that is better we will stop the wifi radio and reconnect
@@ -73,7 +84,7 @@ void Network::loop() {
     this->lastMDNS = millis();
   }
   if(_apScanning) {
-    if(!settings.WIFI.roaming || this->connType != conn_types_t::wifi || this->softAPOpened) _apScanning = false;
+    if(!settings.WIFI.roaming || settings.connType != conn_types_t::wifi || (this->softAPOpened && WiFi.softAPgetStationNum() != 0)) _apScanning = false;
     else {
       uint16_t n = WiFi.scanComplete();
       if( n > 0) {
@@ -82,6 +93,10 @@ void Network::loop() {
         if(this->getStrongestAP(settings.WIFI.ssid, bssid, &channel)) {
           if(memcmp(bssid, WiFi.BSSID(), sizeof(bssid)) != 0) {
             Serial.printf("Found stronger AP %d %02X:%02X:%02X:%02X:%02X:%02X\n", channel, bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+            if(this->softAPOpened) {
+              WiFi.softAPdisconnect(true);
+              WiFi.mode(WIFI_STA);
+            }
             this->changeAP(bssid, channel);
           }
         }
@@ -530,7 +545,7 @@ bool Network::openSoftAP() {
   Serial.println();
   Serial.println("Turning the HotSpot On");
   esp_task_wdt_reset(); // Make sure we do not reboot here.
-  WiFi.softAP("ESPSomfy RTS", "");
+  WiFi.softAP(strlen(settings.hostname) > 0 ? settings.hostname : "ESPSomfy RTS", "");
   Serial.println("Initializing AP for credentials modification");
   delay(200);
   return true;
