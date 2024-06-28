@@ -3691,12 +3691,36 @@ class Somfy {
         html += '<li>If the shade does not jog, press the prog button again until the shade jogs.</li>';
         html += '</ul>';
         html += `<div class="button-container">`;
-        html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.sendCommand(${shadeId}, 'prog', 1);">Prog</button>`;
+        html += `<button id="btnSendUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;">Prog</button>`;
         html += `<button id="btnMarkPaired" type="button" style="padding-left:20px;padding-right:20px;display:inline-block;" onclick="somfy.setPaired(${shadeId}, false);">Shade Unpaired</button>`;
         html += `<button id="btnStopUnpairing" type="button" style="padding-left:20px;padding-right:20px;display:inline-block" onclick="document.getElementById('divPairing').remove();">Close</button>`;
         html += `</div>`;
         div.innerHTML = html;
+        let fnRepeatProg = (err, shade) => {
+            if (this.btnTimer) {
+                clearTimeout(this.btnTimer);
+                this.btnTimer = null;
+            }
+            if (err) return;
+            if (mouseDown) {
+                somfy.sendCommandRepeat(shadeId, 'prog', null, fnRepeatProg);
+            }
+        }
         document.getElementById('somfyShade').appendChild(div);
+        let btn = document.getElementById('btnSendUnpairing');
+        btn.addEventListener('mousedown', (event) => {
+            console.log(this);
+            console.log(event);
+            console.log('mousedown');
+            somfy.sendCommand(shadeId, 'prog', null, (err, shade) => { fnRepeatProg(err, shade); });
+        }, true);
+        btn.addEventListener('touchstart', (event) => {
+            console.log(this);
+            console.log(event);
+            console.log('touchstart');
+            somfy.sendCommand(shadeId, 'prog', null, (err, shade) => { fnRepeatProg(err, shade); });
+        }, true);
+
         return div;
     }
     sendCommand(shadeId, command, repeat, cb) {

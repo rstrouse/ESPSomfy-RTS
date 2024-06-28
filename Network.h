@@ -6,6 +6,7 @@
 //enum class conn_types_t : byte;
 
 #define CONNECT_TIMEOUT 20000
+#define SSID_SCAN_INTERVAL 60000
 class Network {
   protected:
     unsigned long lastEmit = 0;
@@ -15,6 +16,7 @@ class Network {
     int linkSpeed = 0;
     bool _connecting = false;
   public:
+    unsigned long lastWifiScan = 0;
     bool ethStarted = false;
     bool wifiFallback = false;
     bool softAPOpened = false;
@@ -24,6 +26,7 @@ class Network {
     conn_types_t connTarget = conn_types_t::unset;
     bool connected();
     bool connecting();
+    conn_types_t preferredConnType();
     String ssid;
     String mac;
     int channel;

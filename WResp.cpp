@@ -21,7 +21,7 @@ void JsonSockEvent::endEvent(uint8_t num) {
   else this->server->sendTXT(num, this->buff);
 }
 void JsonSockEvent::_safecat(const char *val, bool escape) {
-  size_t len = strlen(val) + strlen(this->buff);
+  size_t len = (escape ? this->calcEscapedLength(val) : strlen(val)) + strlen(this->buff);
   if(escape) len += 2;
   if(len >= this->buffSize) {
     Serial.printf("Socket exceeded buffer size %d - %d\n", this->buffSize, len);
@@ -29,7 +29,8 @@ void JsonSockEvent::_safecat(const char *val, bool escape) {
     return;
   }
   if(escape) strcat(this->buff, "\"");
-  strcat(this->buff, val);
+  if(escape) this->escapeString(val, &this->buff[strlen(this->buff)]);
+  else strcat(this->buff, val);
   if(escape) strcat(this->buff, "\"");
 }
 void JsonResponse::beginResponse(WebServer *server, char *buff, size_t buffSize) {
@@ -52,13 +53,14 @@ void JsonResponse::send() {
     this->_headersSent = true;
 }
 void JsonResponse::_safecat(const char *val, bool escape) {
-  size_t len = strlen(val) + strlen(this->buff);
+  size_t len = (escape ? this->calcEscapedLength(val) : strlen(val)) + strlen(this->buff);
   if(escape) len += 2;
   if(len >= this->buffSize) {
     this->send();
   }
   if(escape) strcat(this->buff, "\"");
-  strcat(this->buff, val);
+  if(escape) this->escapeString(val, &this->buff[strlen(this->buff)]);
+  else strcat(this->buff, val);
   if(escape) strcat(this->buff, "\"");
 }
 
@@ -133,13 +135,70 @@ void JsonFormatter::addElem(const char *name, uint64_t lval) { sprintf(this->_nu
 void JsonFormatter::addElem(const char *name, bool bval) { strcpy(this->_numbuff, bval ? "true" : "false"); this->_appendNumber(name); }
 
 void JsonFormatter::_safecat(const char *val, bool escape) {
-  size_t len = strlen(val) + strlen(this->buff);
+  size_t len = (escape ? this->calcEscapedLength(val) : strlen(val)) + strlen(this->buff);
   if(escape) len += 2;
   if(len >= this->buffSize) {
     return;
   }
   if(escape) strcat(this->buff, "\"");
-  strcat(this->buff, val);
+  if(escape) this->escapeString(val, &this->buff[strlen(this->buff)]);
+  else strcat(this->buff, val);
   if(escape) strcat(this->buff, "\"");
 }
 void JsonFormatter::_appendNumber(const char *name) { this->appendElem(name); this->_safecat(this->_numbuff); } 
+uint32_t JsonFormatter::calcEscapedLength(const char *raw) {
+  uint32_t len = 0;
+  for(size_t i = strlen(raw); i > 0; i--) {
+    switch(raw[i]) {
+      case '"':
+      case '/':
+      case '\b':
+      case '\f':
+      case '\n':
+      case '\r':
+      case '\t':
+      case '\\':
+        len += 2;
+        break;
+      default:
+        len++;
+        break;
+    }
+  }
+  return len;
+}
+void JsonFormatter::escapeString(const char *raw, char *escaped) {
+  for(uint32_t i = 0; i < strlen(raw); i++) {
+    switch(raw[i]) {
+      case '"':
+        strcat(escaped, "\\\"");
+        break;
+      case '/':
+        strcat(escaped, "\\/");
+        break;
+      case '\b':
+        strcat(escaped, "\\b");
+        break;
+      case '\f':
+        strcat(escaped, "\\f");
+        break;
+      case '\n':
+        strcat(escaped, "\\n");
+        break;
+      case '\r':
+        strcat(escaped, "\\r");
+        break;
+      case '\t':
+        strcat(escaped, "\\t");
+        break;
+      case '\\':
+        strcat(escaped, "\\\\");
+        break;
+      default:
+        size_t len = strlen(escaped);
+        escaped[len] = raw[i];
+        escaped[len+1] = 0x00;
+        break;
+    }
+  }
+}

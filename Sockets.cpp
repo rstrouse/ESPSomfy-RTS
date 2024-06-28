@@ -43,6 +43,9 @@ bool room_t::leave(uint8_t num) {
   } 
   return true;
 }
+void room_t::clear() {
+  memset(this->clients, 255, sizeof(this->clients));
+}
 uint8_t room_t::activeClients() {
   uint8_t n = 0;
   for(uint8_t i = 0; i < sizeof(this->clients); i++) {
@@ -77,7 +80,7 @@ void SocketEmitter::begin() {
   sockServer.enableHeartbeat(20000, 10000, 3);
   sockServer.onEvent(this->wsEvent);
   Serial.println("Socket Server Started...");
-  settings.printAvailHeap();
+  //settings.printAvailHeap();
 }
 void SocketEmitter::loop() {
   this->initClients();
@@ -126,7 +129,11 @@ void SocketEmitter::delayInit(uint8_t num) {
     }
   }
 }
-void SocketEmitter::end() { sockServer.close(); }
+void SocketEmitter::end() { 
+  sockServer.close(); 
+  for(uint8_t i = 0; i < SOCK_MAX_ROOMS; i++)
+    this->rooms[i].clear();
+}
 void SocketEmitter::disconnect() { sockServer.disconnect(); }
 void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
     switch(type) {

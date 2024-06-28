@@ -12,6 +12,7 @@ struct room_t {
   bool isJoined(uint8_t num);
   bool join(uint8_t num);
   bool leave(uint8_t num);
+  void clear();
 };
 class SocketEmitter {
   protected:
