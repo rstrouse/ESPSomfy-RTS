@@ -35,8 +35,11 @@ void MQTTClass::reset() {
   this->connect();
 }
 bool MQTTClass::loop() {
-  if(settings.MQTT.enabled && !rebootDelay.reboot && !this->suspended && !mqttClient.connected())
-    this->connect();
+  if(settings.MQTT.enabled && !rebootDelay.reboot && !this->suspended && !mqttClient.connected()) {
+    esp_task_wdt_reset();
+    if(!net.connected()) this->connect();
+  }
+  esp_task_wdt_reset();
   if(settings.MQTT.enabled) mqttClient.loop();
   return true;
 }

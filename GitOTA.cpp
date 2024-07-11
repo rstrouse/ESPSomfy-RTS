@@ -252,6 +252,7 @@ void GitRepo::toJSON(JsonResponse &json) {
 #define ERR_DOWNLOAD_CONNECTION -42
 
 void GitUpdater::loop() {
+  if(!net.connected()) return;
   if(this->status == GIT_STATUS_READY) {
     if(settings.checkForUpdate && 
       (millis() > net.connectTime + 60000) && // Wait a minute before checking after connection.

@@ -161,7 +161,7 @@ void UPNPDeviceType::setChipId(uint32_t chipId) {
     (uint16_t)chipId & 0xff);    
 }
 SSDPClass::SSDPClass():sendQueue{false, INADDR_NONE, 0, nullptr, false, 0, "", response_types_t::root} {}
-SSDPClass::~SSDPClass() { end(); }
+SSDPClass::~SSDPClass() { end(); this->isStarted = false; }
 bool SSDPClass::begin() { 
   for(int i = 0; i < SSDP_QUEUE_SIZE; i++) {
     this->sendQueue[i].waiting = false;
@@ -209,6 +209,7 @@ void SSDPClass::end() {
   if(this->_server.connected()) {
     this->_sendByeBye();
     this->_server.close();
+    Serial.println("Disconnected from SSDP...");
   }
   this->isStarted = false;
   // Clear out the last notified so if the user starts us up again it will notify
@@ -216,8 +217,6 @@ void SSDPClass::end() {
   for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
     this->deviceTypes[i].lastNotified = 0;
   }
-  
-  Serial.println("Disconnected from SSDP...");
 }
 UPNPDeviceType* SSDPClass::getDeviceType(uint8_t ndx) { if(ndx < this->m_cdeviceTypes) return &this->deviceTypes[ndx];  return nullptr; }
 UPNPDeviceType* SSDPClass::findDeviceByType(char *devType) { 

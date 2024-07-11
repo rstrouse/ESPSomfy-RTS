@@ -26,6 +26,7 @@ class Network {
     conn_types_t connTarget = conn_types_t::unset;
     bool connected();
     bool connecting();
+    void clearConnecting();
     conn_types_t preferredConnType();
     String ssid;
     String mac;
@@ -33,11 +34,12 @@ class Network {
     int strength;
     int disconnected = 0;
     int connectAttempts = 0;
+    uint32_t disconnectTime = 0;
     uint32_t connectStart = 0;
     uint32_t connectTime = 0;
     bool openSoftAP();
-    bool connect();
-    bool connectWiFi();
+    bool connect(conn_types_t ctype);
+    bool connectWiFi(const uint8_t *bssid = nullptr, const int32_t channel = -1);
     bool connectWired();
     void setConnected(conn_types_t connType);
     bool getStrongestAP(const char *ssid, uint8_t *bssid, int32_t *channel);
