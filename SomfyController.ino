@@ -49,7 +49,9 @@ void loop() {
     Serial.print("Rebooting after ");
     Serial.print(rebootDelay.rebootTime);
     Serial.println("ms");
+    net.end();
     ESP.restart();
+    return;
   }
   uint32_t timing = millis();
   

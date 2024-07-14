@@ -37,13 +37,14 @@ void MQTTClass::reset() {
 bool MQTTClass::loop() {
   if(settings.MQTT.enabled && !rebootDelay.reboot && !this->suspended && !mqttClient.connected()) {
     esp_task_wdt_reset();
-    if(!net.connected()) this->connect();
+    if(!this->connected() && net.connected()) this->connect();
   }
   esp_task_wdt_reset();
   if(settings.MQTT.enabled) mqttClient.loop();
   return true;
 }
 void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
+  esp_task_wdt_reset(); // Make sure we do not reboot here.
   Serial.print("MQTT Topic:");
   Serial.print(topic);
   Serial.print(" payload:");
@@ -182,8 +183,10 @@ void MQTTClass::receive(const char *topic, byte*payload, uint32_t length) {
       }
     }
   }
+  esp_task_wdt_reset(); // Make sure we do not reboot here.
 }
 bool MQTTClass::connect() {
+  esp_task_wdt_reset(); // Make sure we do not reboot here.
   if(mqttClient.connected()) {
     if(!settings.MQTT.enabled || this->suspended)
       return this->disconnect();
@@ -278,6 +281,7 @@ bool MQTTClass::unsubscribe(const char *topic) {
 }
 bool MQTTClass::subscribe(const char *topic) {
   if(mqttClient.connected()) {
+    esp_task_wdt_reset(); // Make sure we do not reboot here.
     char top[128];
     if(strlen(settings.MQTT.rootTopic) > 0)
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
@@ -296,6 +300,7 @@ bool MQTTClass::publish(const char *topic, const char *payload, bool retain) {
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
     else
       strlcpy(top, topic, sizeof(top));
+    esp_task_wdt_reset(); // Make sure we do not reboot here.
     mqttClient.publish(top, payload, retain);
     return true;
   }
@@ -312,6 +317,7 @@ bool MQTTClass::unpublish(const char *topic) {
       snprintf(top, sizeof(top), "%s/%s", settings.MQTT.rootTopic, topic);
     else
       strlcpy(top, topic, sizeof(top));
+    esp_task_wdt_reset(); // Make sure we do not reboot here.
     mqttClient.publish(top, (const uint8_t *)"", 0, true);
     return true;
   }
@@ -326,6 +332,7 @@ bool MQTTClass::publishBuffer(const char *topic, uint8_t *data, uint16_t len, bo
   uint16_t offset = 0;
   uint16_t to_write = len;
   uint16_t buff_len;
+  esp_task_wdt_reset(); // Make sure we do not reboot here.
   mqttClient.beginPublish(topic, len, retain);
   do { 
     buff_len = to_write;
