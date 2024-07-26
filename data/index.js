@@ -1603,12 +1603,13 @@ var general = new General();
 class Wifi {
     initialized = false;
     ethBoardTypes = [{ val: 0, label: 'Custom Config' },
-    { val: 1, label: 'WT32-ETH01', clk: 0, ct: 0, addr: 1, pwr: 16, mdc: 23, mdio: 18 },
-    { val: 2, label: 'Olimex ESP32-POE', clk: 3, ct: 0, addr: 0, pwr: 12, mdc: 23, mdio: 18 },
-    { val: 3, label: 'Olimex ESP32-EVB', clk: 0, ct: 0, addr: 0, pwr: -1, mdc: 23, mdio: 18 },
-    { val: 4, label: 'LILYGO T-Internet POE', clk: 3, ct: 0, addr: 0, pwr: 16, mdc: 23, mdio: 18 },
-    { val: 5, label: 'wESP32 v7+', clk: 0, ct: 2, addr: 0, pwr: -1, mdc: 16, mdio: 17 },
-    { val: 6, label: 'wESP32 < v7', clk: 0, ct: 0, addr: 0, pwr: -1, mdc: 16, mdio: 17 }
+    { val: 7, label: 'EST-PoE-32 - Everything Smart', clk: 3, ct: 0, addr: 0, pwr: 12, mdc: 23, mdio: 18 },
+    { val: 3, label: 'ESP32-EVB - Olimex', clk: 0, ct: 0, addr: 0, pwr: -1, mdc: 23, mdio: 18 },
+    { val: 2, label: 'ESP32-POE - Olimex', clk: 3, ct: 0, addr: 0, pwr: 12, mdc: 23, mdio: 18 },
+    { val: 4, label: 'T-Internet POE - LILYGO', clk: 3, ct: 0, addr: 0, pwr: 16, mdc: 23, mdio: 18 },
+    { val: 5, label: 'wESP32 v7+ - Silicognition', clk: 0, ct: 2, addr: 0, pwr: -1, mdc: 16, mdio: 17 },
+    { val: 6, label: 'wESP32 < v7 - Silicognition', clk: 0, ct: 0, addr: 0, pwr: -1, mdc: 16, mdio: 17 },
+    { val: 1, label: 'WT32-ETH01 - Wireless Tag', clk: 0, ct: 0, addr: 1, pwr: 16, mdc: 23, mdio: 18 }
     ];
     ethClockModes = [{ val: 0, label: 'GPIO0 IN' }, { val: 1, label: 'GPIO0 OUT' }, { val: 2, label: 'GPIO16 OUT' }, { val: 3, label: 'GPIO17 OUT' }];
     ethPhyTypes = [{ val: 0, label: 'LAN8720' }, { val: 1, label: 'TLK110' }, { val: 2, label: 'RTL8201' }, { val: 3, label: 'DP83848' }, { val: 4, label: 'DM9051' }, { val: 5, label: 'KZ8081' }];
