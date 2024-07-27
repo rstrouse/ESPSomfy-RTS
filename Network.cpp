@@ -83,7 +83,8 @@ void Network::loop() {
   this->connect(ctype); // Connection timeout handled in connect function as well as the opening of the Soft AP if needed.
   if(this->connecting()) return; // If we are currently attempting to connect to something then we need to bail here.
   if(_apScanning) {
-    if((this->connected() && !settings.WIFI.roaming) ||           // We are already connected and should not be roaming.
+    if(settings.WIFI.hidden ||                                    // This user has elected to use a hidden AP.
+      (this->connected() && !settings.WIFI.roaming) ||            // We are already connected and should not be roaming.
       (this->softAPOpened && WiFi.softAPgetStationNum() != 0) ||  // The Soft AP is open and a user is connected.
       (ctype != conn_types_t::wifi)) {                            // The Ethernet link is up so we should ignore this scan.
       Serial.println("Cancelling WiFi STA Scan...");
@@ -111,7 +112,7 @@ void Network::loop() {
       }
     }
   }
-  if(!this->connecting()) {
+  if(!this->connecting() && !settings.WIFI.hidden) {
     if((this->softAPOpened && WiFi.softAPgetStationNum() == 0) ||
       (!this->connected() && ctype == conn_types_t::wifi)) {
       // If the Soft AP is opened and there are no clients connected then we need to scan for an AP.  If
@@ -152,75 +153,6 @@ void Network::loop() {
     if(SSDP.isStarted) SSDP.loop();
   }
   else if(!settings.ssdpBroadcast && SSDP.isStarted) SSDP.end();
-/*
-// ---------------------------
-  
-  if(this->softAPOpened) {
-    // If the softAP has been opened check to see if there are any clients connected.  If there is not
-    // then we need to scan for the SSID.
-    if(settings.connType == conn_types_t::wifi && strlen(settings.WIFI.ssid) > 0 && WiFi.softAPgetStationNum() == 0) {
-      // We do not have any connections to the SoftAP so we should be able to scan.  For now if we are already scanning
-      // then we will not start another scan.
-      if(!_apScanning && WiFi.scanNetworks(true, false, true, 300, 0, settings.WIFI.ssid) == -1) {
-        _apScanning = true;
-        this->lastWifiScan = millis();
-      }
-    }
-  }
-  else if(this->connected() && millis() - this->lastMDNS > 60000) {
-    // Every 60 seconds we are going to look at wifi connectivity
-    // to get around the roaming issues with ESP32.  We will try to do this in an async manner.  If
-    // there is a channel that is better we will stop the wifi radio and reconnect
-    if(this->connType == conn_types_t::wifi && settings.WIFI.roaming && !this->softAPOpened) {
-      // If we are not already scanning then we need to start a passive scan
-      // and only respond if there is a better connection. 
-      // 1. If there is currently a waiting scan don't do anything
-      if(!_apScanning && WiFi.scanNetworks(true, false, true, 300, 0, settings.WIFI.ssid) == -1) {
-        _apScanning = true;
-        this->lastWifiScan = millis();
-      }
-    }
-    this->lastMDNS = millis();
-  }
-  else {
-    //if(!this->connected() || this->connecting()) return;  
-    if(millis() - this->lastEmit > 1500) {
-      this->lastEmit = millis();
-      if(this->connected()) {
-        this->emitSockets();
-        this->lastEmit = millis();
-      }
-    }
-    sockEmit.loop();
-  }
-  if(_apScanning) {
-    if(!settings.WIFI.roaming || settings.connType != conn_types_t::wifi || (this->softAPOpened && WiFi.softAPgetStationNum() != 0)) _apScanning = false;
-    else {
-      uint16_t n = WiFi.scanComplete();
-      if( n > 0) {
-        uint8_t bssid[6];
-        int32_t channel = 0;
-        if(this->getStrongestAP(settings.WIFI.ssid, bssid, &channel)) {
-          if(memcmp(bssid, WiFi.BSSID(), sizeof(bssid)) != 0) {
-            Serial.printf("Found stronger AP %d %02X:%02X:%02X:%02X:%02X:%02X\n", channel, bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
-            if(this->softAPOpened) {
-              WiFi.softAPdisconnect(true);
-              WiFi.mode(WIFI_STA);
-            }
-            this->changeAP(bssid, channel);
-          }
-        }
-        _apScanning = false;
-      }
-    }
-  }
-  if(settings.ssdpBroadcast) {
-    if(!SSDP.isStarted) SSDP.begin();
-    if(SSDP.isStarted) SSDP.loop();
-  }
-  else if(!settings.ssdpBroadcast && SSDP.isStarted) SSDP.end();
-  mqtt.loop();
-  */
 }
 bool Network::changeAP(const uint8_t *bssid, const int32_t channel) {
   esp_task_wdt_reset(); // Make sure we do not reboot here.
@@ -245,7 +177,6 @@ void Network::emitSockets() {
   }
 }
 void Network::emitSockets(uint8_t num) {
-  //char buf[128];
   if(this->connType == conn_types_t::ethernet) {
       JsonSockEvent *json = sockEmit.beginEmit("ethernet");
       json->beginObject();
@@ -254,13 +185,6 @@ void Network::emitSockets(uint8_t num) {
       json->addElem("fullduplex", ETH.fullDuplex());
       json->endObject();
       sockEmit.endEmit(num);
-      /*
-      snprintf(buf, sizeof(buf), "{\"connected\":%s,\"speed\":%d,\"fullduplex\":%s}", this->connected() ? "true" : "false", ETH.linkSpeed(), ETH.fullDuplex() ? "true" : "false");
-      if(num == 255) 
-        sockEmit.sendToClients("ethernet", buf);
-      else
-        sockEmit.sendToClient(num, "ethernet", buf);
-      */
   }
   else {
       if(WiFi.status() == WL_CONNECTED) {
@@ -271,13 +195,6 @@ void Network::emitSockets(uint8_t num) {
         json->addElem("channel", (int32_t)this->channel);
         json->endObject();
         sockEmit.endEmit(num);
-        /*
-        snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"strength\":%d,\"channel\":%d}", WiFi.SSID().c_str(), WiFi.RSSI(), this->channel);
-        if(num == 255)
-          sockEmit.sendToClients("wifiStrength", buf);
-        else
-          sockEmit.sendToClient(num, "wifiStrength", buf);
-        */
         this->lastRSSI = WiFi.RSSI();
         this->lastChannel = WiFi.channel();
       }
@@ -297,17 +214,6 @@ void Network::emitSockets(uint8_t num) {
         json->addElem("fullduplex", false);
         json->endObject();
         sockEmit.endEmit(num);
-        /*
-
-        if(num == 255) {
-          sockEmit.sendToClients("wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
-          sockEmit.sendToClients("ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
-        }
-        else {
-          sockEmit.sendToClient(num, "wifiStrength", "{\"ssid\":\"\", \"strength\":-100,\"channel\":-1}");
-          sockEmit.sendToClient(num, "ethernet", "{\"connected\":false,\"speed\":0,\"fullduplex\":false}");
-        }
-        */
         this->lastRSSI = -100;
         this->lastChannel = -1;
       }
@@ -596,11 +502,12 @@ bool Network::connectWiFi(const uint8_t *bssid, const int32_t channel) {
     WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
     uint8_t _bssid[6];
     int32_t _channel = 0;
-    if(this->getStrongestAP(settings.WIFI.ssid, _bssid, &_channel)) {
+    if(!settings.WIFI.hidden && this->getStrongestAP(settings.WIFI.ssid, _bssid, &_channel)) {
       Serial.printf("Found strongest AP %02X:%02X:%02X:%02X:%02X:%02X CH:%d\n", _bssid[0], _bssid[1], _bssid[2], _bssid[3], _bssid[4], _bssid[5], _channel);
       WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase, _channel, _bssid);
     }
     else
+      // If the user has the hidden flag set just connect to whatever the AP gives us.
       WiFi.begin(settings.WIFI.ssid, settings.WIFI.passphrase);
   }
   this->connectStart = millis();
@@ -619,69 +526,17 @@ bool Network::connect(conn_types_t ctype) {
       this->disconnectTime = millis();
       this->openSoftAP();
     }
+    else if(this->softAPOpened && !this->openingSoftAP && 
+      (ctype == conn_types_t::wifi && this->connType != conn_types_t::wifi && settings.WIFI.hidden)) {
+      // When thge softAP is open then we need to try to connect to wifi repeatedly if the user connects to a hidden SSID.
+      this->connectWiFi();
+    }
   }
-  return true;
-  /*
-  if(this->connecting()) {
-    // If we are currently connecting it matters whether this is a wifi target or if it is an ethernet target.  The preferred
-    // connection type make the determination for us.
-
-
-    
+  else if((ctype == conn_types_t::wifi && this->connType != conn_types_t::wifi && settings.WIFI.hidden)) {
+    this->connectWiFi();
   }
   
-  if(this->connecting()) {
-    // CHECK FOR CONNECTION TIMEOUT
-    // -------------------------------------
-    // We are currently connecting and this flag is triggered while there is an attempt to connect to the network.  
-    // If the connection type is set then we need to finish the connection.  If it is not then we need to fall back to AP or in
-    // the case where the target was originally ethernetpref then we need to open the Soft AP.
-    if(this->connType == conn_types_t::unset) {
-      // If we reached our timeout for the connection then we need to fall back to wifi or open the Soft Ap.
-      if(millis() > this->connectStart + CONNECT_TIMEOUT) {
-        this->_connecting = false;
-        if(this->connTarget == conn_types_t::ethernet && 
-          settings.connType == conn_types_t::ethernetpref && settings.WIFI.ssid[0] != '\0') // We timed out with the Wired connection.
-          this->connectWiFi();
-        else if(this->softAPOpened) {
-          // Our connection has timed out and the Soft AP is already opened.  We are simply going to keep trying
-          // from the beginning until a connection can be made.
-          if(settings.connType == conn_types_t::ethernet || settings.connType == conn_types_t::ethernetpref)
-            this->connectWired();
-          else if(settings.connType == conn_types_t::wifi && strlen(settings.WIFI.ssid) > 0)
-            this->connectWiFi();
-        }
-        else {
-          // We have exhausted all attempts to connect.  Fall back to the Soft AP
-          this->openSoftAP();
-        }
-      }
-    }
-    else
-      // A connection has been established and we need to now set up the rest of our connectivity.
-      this->setConnected(this->connTarget);
-  }
-  else if(this->softAPOpened) {
-    // If the Soft AP is currently open then we will let the passive scanning or Ethernet link layer
-    // do its thing to connect or reconnect.
-    this->connType = conn_types_t::unset;
-  }
-  else if(settings.connType == conn_types_t::ethernet || settings.connType == conn_types_t::ethernetpref)
-    this->connectWired();
-  else if(settings.connType == conn_types_t::wifi && strlen(settings.WIFI.ssid) > 0)
-    this->connectWiFi();
-  else
-    // We do not currently have a connection method set.
-    this->openSoftAP();
-  if(this->softAPOpened && this->connected() && WiFi.softAPgetStationNum() == 0) {
-    // We have a connnection and the AP is still open.  Kill it.
-    Serial.println("Closing uneeded SoftAP");
-    WiFi.softAPdisconnect(true);
-    if(this->connType == conn_types_t::wifi) WiFi.mode(WIFI_STA);
-  }
-  if(this->connecting() && millis() > this->connectStart + CONNECT_TIMEOUT + 100) this->_connecting = false;
   return true;
-  */
 }
 uint32_t Network::getChipId() {
   uint32_t chipId = 0;

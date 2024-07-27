@@ -1270,7 +1270,7 @@ var security = new Security();
 
 class General {
     initialized = false; 
-    appVersion = 'v2.4.6';
+    appVersion = 'v2.4.7';
     reloadApp = false;
     init() {
         if (this.initialized) return;
@@ -1676,6 +1676,7 @@ class Wifi {
                 document.getElementById('cbHardwired').checked = settings.connType >= 2;
                 document.getElementById('cbFallbackWireless').checked = settings.connType === 3;
                 ui.toElement(pnl, settings);
+                /*
                 if (settings.connType >= 2) {
                     document.getElementById('divWiFiMode').style.display = 'none';
                     document.getElementById('divEthernetMode').style.display = '';
@@ -1688,10 +1689,13 @@ class Wifi {
                     document.getElementById('divFallbackWireless').style.display = 'none';
                     document.getElementById('divRoaming').style.display = 'inline-block';
                 }
+                */
+                ui.toElement(document.getElementById('divDHCP'), settings);
                 document.getElementById('divETHSettings').style.display = settings.ethernet.boardType === 0 ? '' : 'none';
                 document.getElementById('divStaticIP').style.display = settings.ip.dhcp ? 'none' : '';
-                ui.toElement(document.getElementById('divDHCP'), settings);
                 document.getElementById('spanCurrentIP').innerHTML = settings.ip.ip;
+                this.useEthernetClicked();
+                this.hiddenSSIDClicked();
             }
         });
 
@@ -1702,6 +1706,12 @@ class Wifi {
         document.getElementById('divEthernetMode').style.display = useEthernet ? '' : 'none';
         document.getElementById('divFallbackWireless').style.display = useEthernet ? 'inline-block' : 'none';
         document.getElementById('divRoaming').style.display = useEthernet ? 'none' : 'inline-block';
+        document.getElementById('divHiddenSSID').style.display = useEthernet ? 'none' : 'inline-block';
+    }
+    hiddenSSIDClicked() {
+        let hidden = document.getElementById('cbHiddenSSID').checked;
+        if (hidden) document.getElementById('cbRoaming').checked = false;
+        document.getElementById('cbRoaming').disabled = hidden;
     }
     async loadAPs() {
         if (document.getElementById('btnScanAPs').classList.contains('disabled')) return;

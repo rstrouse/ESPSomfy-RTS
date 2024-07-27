@@ -3,7 +3,7 @@
 #ifndef configsettings_h
 #define configsettings_h
 #include "WResp.h"
-#define FW_VERSION "v2.4.6"
+#define FW_VERSION "v2.4.7"
 enum class conn_types_t : byte {
     unset = 0x00,
     wifi = 0x01,
@@ -72,6 +72,7 @@ class WifiSettings: BaseSettings {
   public:
     WifiSettings();
     bool roaming = true;
+    bool hidden = false;
     char ssid[65] = "";
     char passphrase[65] = "";
     //bool ssdpBroadcast = true;
