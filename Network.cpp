@@ -586,7 +586,10 @@ bool Network::connected() {
   else return this->connType != conn_types_t::unset;
   return false;
 }
-bool Network::connecting() { return this->_connecting; }
+bool Network::connecting() {
+  if(this->_connecting && millis() > this->connectStart + CONNECT_TIMEOUT) this->_connecting = false; 
+  return this->_connecting; 
+}
 void Network::clearConnecting() { this->_connecting = false; }
 void Network::networkEvent(WiFiEvent_t event) {
   switch(event) {
