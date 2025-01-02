@@ -7,9 +7,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 24
+#define SHADE_HDR_VER 25
 #define SHADE_HDR_SIZE 76
-#define SHADE_REC_SIZE 276
+#define SHADE_REC_SIZE 320
 #define GROUP_REC_SIZE 200
 #define TRANS_REC_SIZE 74
 #define ROOM_REC_SIZE 29
@@ -805,6 +805,7 @@ bool ShadeConfigFile::readShadeRecord(SomfyShade *shade) {
     rem->setRemoteAddress(this->readUInt32(0));
     if(rem->getRemoteAddress() != 0) rem->lastRollingCode = pref.getUShort(rem->getRemotePrefId(), 0);
     if(this->header.version < 5 && j == 4) break; // Prior to version 5 we only supported 5 linked remotes.
+    if(this->header.version < 25 && j == 6) break; // Prior to version 25 we only supported 7 linked remotes.
   }
   shade->lastRollingCode = this->readUInt16(0);
   if(this->header.version > 7) shade->flags = this->readUInt8(0);
