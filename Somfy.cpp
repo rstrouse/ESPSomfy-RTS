@@ -467,6 +467,7 @@ void somfy_frame_t::copy(somfy_frame_t &frame) {
     this->rssi = frame.rssi;
     this->lqi = frame.lqi;
     this->cmd = frame.cmd;
+    this->stepSize = frame.stepSize;
     this->remoteAddress = frame.remoteAddress;
     this->rollingCode = frame.rollingCode;
     this->encKey = frame.encKey;
@@ -1167,13 +1168,13 @@ void SomfyShade::checkMovement() {
       if(this->settingPos) {
         if(!isAtTarget()) {
           Serial.printf("We are not at our tilt target: %.2f\n", this->tiltTarget);
-          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats); // For non-80-bit shades the Stop command will be converted to My in sendCommand 
           delay(100);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
         else
-          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->target != 100.0) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats); // For non-80-bit shades the Stop command will be converted to My in sendCommand 
       }
       this->p_direction(0);
       this->tiltStart = curTime;
@@ -1219,13 +1220,13 @@ void SomfyShade::checkMovement() {
       if(this->settingPos) {
         if(!isAtTarget()) {
           Serial.printf("We are not at our tilt target: %.2f\n", this->tiltTarget);
-          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats); // For non-80-bit shades the Stop command will be converted to My in sendCommand 
           delay(100);
           // We now need to move the tilt to the position we requested.
           this->moveToTiltTarget(this->tiltTarget);
         }
         else
-          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if(this->target != 0.0) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats); // For non-80-bit shades the Stop command will be converted to My in sendCommand 
       }
       this->p_direction(0);
       this->tiltStart = curTime;
@@ -1270,11 +1271,13 @@ void SomfyShade::checkMovement() {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
           //Serial.printf("Sending My -- tiltTarget: %.2f, tiltDirection: %d\n", this->tiltTarget, this->tiltDirection);
-          if(this->tiltTarget != 100.0f || this->currentPos != 100.0f) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if (this->bitLength != 80) // If bitLength is 80 the till movement has been started with a step command, which does not need stopping
+            if(this->tiltTarget != 100.0f || this->currentPos != 100.0f) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats);
         }
         else {
           // This is a tilt motor so let it complete if it is going to 100.
-          if(this->tiltTarget != 100.0f) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if (this->bitLength != 80) // If bitLength is 80 the till movement has been started with a step command, which does not need stopping
+            if(this->tiltTarget != 100.0f) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats);
         }
       }
       this->p_tiltDirection(0);
@@ -1320,11 +1323,12 @@ void SomfyShade::checkMovement() {
         if(this->tiltType == tilt_types::integrated) {
           // If this is an integrated tilt mechanism the we will simply let it finish.  If it is not then we will stop it.
           //Serial.printf("Sending My -- tiltTarget: %.2f, tiltDirection: %d\n", this->tiltTarget, this->tiltDirection);
-          if(this->tiltTarget != 0.0 || this->currentPos != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          if (this->bitLength != 80) // If bitLength is 80 the till movement has been started with a step command, which does not need stopping
+            if(this->tiltTarget != 0.0 || this->currentPos != 0.0) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats);
         }
         else {
           // This is a tilt motor so let it complete if it is going to 0.
-          if(this->tiltTarget != 0.0) SomfyRemote::sendCommand(somfy_commands::My, this->repeats);
+          //if(this->tiltTarget != 0.0) SomfyRemote::sendCommand(somfy_commands::Stop, this->repeats); // For non-80-bit shades the Stop command will be converted to My in sendCommand 
         }
       }
       this->p_tiltDirection(0);
@@ -1349,7 +1353,7 @@ void SomfyShade::checkMovement() {
       if(this->myPos == this->currentPos) this->p_myPos(-1);
       else this->p_myPos(this->currentPos);
     }
-    SomfyRemote::sendCommand(somfy_commands::My, SETMY_REPEATS);
+    SomfyRemote::sendCommand(somfy_commands::Favorite, SETMY_REPEATS); // For non-80-bit shades the Favorite command will be converted to My in sendCommand 
     this->settingMyPos = false;
     this->commitMyPosition();
     this->emitState();
@@ -2536,8 +2540,10 @@ void SomfyShade::processFrame(somfy_frame_t &frame, bool internal) {
     case somfy_commands::Stop:
       if(this->lastFrame.processed) return;
       this->lastFrame.processed = true;
-      this->p_target(this->currentPos);
-      this->p_tiltTarget(this->currentTiltPos);      
+      if(!internal) {
+        this->p_target(this->currentPos);
+        this->p_tiltTarget(this->currentTiltPos);
+      }
       this->emitCommand(cmd, internal ? "internal" : "remote", frame.remoteAddress);
       break;
     case somfy_commands::Favorite:
@@ -2626,6 +2632,13 @@ void SomfyShade::processInternalCommand(somfy_commands cmd, uint8_t repeat) {
         this->p_tiltTarget(this->currentTiltPos);
       }
       break;
+    case somfy_commands::Stop:
+      if(this->tiltType == tilt_types::tiltonly) {
+        this->p_target(100.0f);
+      }
+      else this->p_target(this->currentPos);
+      this->p_tiltTarget(this->currentTiltPos);
+      break;      
     case somfy_commands::StepUp:
       // With the step commands and integrated shades
       // the motor must tilt in the direction first then move
@@ -2940,8 +2953,16 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSiz
       if(this->tiltType != tilt_types::tiltonly) this->p_target(this->currentPos);
       this->p_tiltTarget(this->currentTiltPos);
     }
-  }
-  else if(cmd == somfy_commands::Toggle) {
+  } else if(cmd == somfy_commands::Stop) {
+    if(this->isToggle() || this->shadeType == shade_types::drycontact)
+      SomfyRemote::sendCommand(cmd, repeat);
+    else if(this->shadeType == shade_types::drycontact2) return;   
+    else {
+      SomfyRemote::sendCommand(cmd, repeat);
+      if(this->tiltType != tilt_types::tiltonly) this->p_target(this->currentPos);
+      this->p_tiltTarget(this->currentTiltPos);
+    }
+  } else if(cmd == somfy_commands::Toggle) {
     if(this->bitLength != 80) SomfyRemote::sendCommand(somfy_commands::My, repeat, stepSize);
     else SomfyRemote::sendCommand(somfy_commands::Toggle, repeat);
   }
@@ -2995,38 +3016,45 @@ void SomfyShade::sendTiltCommand(somfy_commands cmd) {
     SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
     this->p_tiltTarget(100.0f);
   }
-  else if(cmd == somfy_commands::My) {
+  else if(cmd == somfy_commands::My || cmd == somfy_commands::Stop) {
     SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
     this->p_tiltTarget(this->currentTiltPos);
-  }
+  } 
 }
 void SomfyShade::moveToTiltTarget(float target) {
-  somfy_commands cmd = somfy_commands::My;
-  if(target < this->currentTiltPos)
-    cmd = somfy_commands::Up;
-  else if(target > this->currentTiltPos)
-    cmd = somfy_commands::Down;
+  somfy_commands cmd = somfy_commands::Stop; //Converted to somfy_commands::My in sendCommand for non-80-bits shades
+  uint8_t step = 1;
+  if(target < this->currentTiltPos){
+      cmd = somfy_commands::StepUp; //Converted to somfy_commands::Up in sendCommand for non-80-bits shades
+      if (this->stepSize > 0) step = (this->currentTiltPos - target) * this->tiltTime / this->stepSize / 100;
+  } else if(target > this->currentTiltPos){
+      cmd = somfy_commands::StepDown; //Converted to somfy_commands::Down in sendCommand for non-80-bits shades
+      if (this->stepSize > 0) step = (target - this->currentTiltPos) * this->tiltTime / this->stepSize / 100;
+  }
   if(target >= 0.0f && target <= 100.0f) {
     // Only send a command if the lift is not moving.
     if(this->currentPos == this->target || this->tiltType == tilt_types::tiltmotor) {
-      if(cmd != somfy_commands::My) {
+      if(cmd != somfy_commands::Stop) {
         Serial.print("Moving Tilt to ");
         Serial.print(target);
         Serial.print("% from ");
         Serial.print(this->currentTiltPos);
         Serial.print("% using ");
-        Serial.println(translateSomfyCommand(cmd));
-        SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats);
+        Serial.print(translateSomfyCommand(cmd));
+        Serial.print(" stepSize");
+        Serial.println(step);
+        SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::tiltmotor ? TILT_REPEATS : this->repeats, step);
       }
       // If the blind is currently moving then the command to stop it
       // will occur on its own when the tilt target is set.
     }
     this->p_tiltTarget(target);
   }
-  if(cmd != somfy_commands::My) this->settingTiltPos = true;
+  if(cmd != somfy_commands::Stop) this->settingTiltPos = true;
 }
 void SomfyShade::moveToTarget(float pos, float tilt) {
-  somfy_commands cmd = somfy_commands::My;
+  somfy_commands cmd = somfy_commands::Stop; //Converted to somfy_commands::My in sendCommand for non-80-bits shades
+  uint8_t step = 1;
   if(this->isToggle()) {
     // Overload this as we cannot seek a position on a garage door or single button device.
     this->p_target(pos);
@@ -3039,20 +3067,28 @@ void SomfyShade::moveToTarget(float pos, float tilt) {
     this->p_myPos(-1.0f);
     this->p_currentPos(100.0f);
     pos = 100;
-    if(tilt < this->currentTiltPos) cmd = somfy_commands::Up;
-    else if(tilt > this->currentTiltPos) cmd = somfy_commands::Down;
+    if(tilt < this->currentTiltPos) {
+      cmd = somfy_commands::StepUp; //Converted to somfy_commands::Up in sendCommand for non-80-bits shades
+      if (this->stepSize > 0) step = (this->currentTiltPos - tilt) * this->tiltTime / this->stepSize / 100;
+      } else if(tilt > this->currentTiltPos) {
+      cmd = somfy_commands::StepDown; //Converted to somfy_commands::Down in sendCommand for non-80-bits shades
+      if (this->stepSize > 0) step = (tilt - this->currentTiltPos) * this->tiltTime / this->stepSize / 100;
+    }
   }
   else {
     if(pos < this->currentPos)
       cmd = somfy_commands::Up;
     else if(pos > this->currentPos)
       cmd = somfy_commands::Down;
-    else if(tilt >= 0 && tilt < this->currentTiltPos)
-      cmd = somfy_commands::Up;
-    else if(tilt >= 0 && tilt > this->currentTiltPos)
-      cmd = somfy_commands::Down;
+    else if(tilt >= 0 && tilt < this->currentTiltPos){
+      cmd = somfy_commands::StepUp; //Converted to somfy_commands::Up in sendCommand for non-80-bits shades
+      if (this->stepSize > 0) step = (this->currentTiltPos - tilt) * this->tiltTime / this->stepSize / 100;
+      } else if(tilt >= 0 && tilt > this->currentTiltPos){
+      cmd = somfy_commands::StepDown; //Converted to somfy_commands::Down in sendCommand for non-80-bits shades
+      if (this->stepSize > 0) step = (tilt - this->currentTiltPos) * this->tiltTime / this->stepSize / 100;
+    }
   }
-  if(cmd != somfy_commands::My) {
+  if(cmd != somfy_commands::Stop) {
     Serial.print("Moving to ");
     Serial.print(pos);
     Serial.print("% from ");
@@ -3064,8 +3100,10 @@ void SomfyShade::moveToTarget(float pos, float tilt) {
       Serial.print(this->currentTiltPos);
     }
     Serial.print("% using ");
-    Serial.println(translateSomfyCommand(cmd));
-    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::euromode ? TILT_REPEATS : this->repeats);
+    Serial.print(translateSomfyCommand(cmd));
+    Serial.print(" stepSize");
+    Serial.println(step);
+    SomfyRemote::sendCommand(cmd, this->tiltType == tilt_types::euromode ? TILT_REPEATS : this->repeats, step);
     this->settingPos = true;
     this->p_target(pos);
     if(tilt >= 0) {
@@ -3932,6 +3970,12 @@ void SomfyRemote::sendSensorCommand(int8_t isWindy, int8_t isSunny, uint8_t repe
 }
 void SomfyRemote::sendCommand(somfy_commands cmd) { this->sendCommand(cmd, this->repeats); }
 void SomfyRemote::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSize) {
+  if (this->bitLength != 80) {
+    if (cmd == somfy_commands::Stop) cmd = somfy_commands::My;
+    else if (cmd == somfy_commands::Favorite) cmd = somfy_commands::My;
+    else if (cmd == somfy_commands::StepUp) cmd = somfy_commands::Up;
+    else if (cmd == somfy_commands::StepDown) cmd = somfy_commands::Down;
+  }
   this->lastFrame.rollingCode = this->getNextRollingCode();
   this->lastFrame.remoteAddress = this->getRemoteAddress();
   this->lastFrame.cmd = this->transformCommand(cmd);
