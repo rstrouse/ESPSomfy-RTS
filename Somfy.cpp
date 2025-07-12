@@ -29,7 +29,7 @@ uint8_t rxmode = 0;  // Indicates whether the radio is in receive mode.  Just to
     #define RECEIVE_ATTR
 #endif
 
-#define SETMY_REPEATS 35
+#define SETMY_REPEATS 40
 #define TILT_REPEATS 15
 #define TX_QUEUE_DELAY 100
 
@@ -258,8 +258,7 @@ void somfy_frame_t::decodeFrame(somfy_rx_t *rx) {
   this->decodeFrame(rx->payload);
 }
 byte somfy_frame_t::encode80Byte7(byte start, uint8_t repeat) {
-  while((repeat * 4) + start > 255) repeat -= 15;
-  return start + (repeat * 4);
+  return start | (min((uint8_t)0xF, repeat) << 2);
 }
 void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
   switch(this->cmd) {
@@ -297,19 +296,19 @@ void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
     case somfy_commands::Toggle:
       frame[0] = 164;
       frame[1] |= 0xF0;
-      frame[7] = this->encode80Byte7(196, repeat);
+      frame[7] = this->encode80Byte7(192, repeat);
       frame[8] = 0;
       frame[9] = 0x10;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;
     case somfy_commands::Up:
-      frame[7] = this->encode80Byte7(196, repeat);
+      frame[7] = this->encode80Byte7(192, repeat);
       frame[8] = 32;
       frame[9] = 0x00;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;
     case somfy_commands::Down:
-      frame[7] = this->encode80Byte7(196, repeat);
+      frame[7] = this->encode80Byte7(192, repeat);
       frame[8] = 44;
       frame[9] = 0x80;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
@@ -320,8 +319,8 @@ void somfy_frame_t::encode80BitFrame(byte *frame, uint8_t repeat) {
     case somfy_commands::MyUp:
     case somfy_commands::MyUpDown:
     case somfy_commands::My:
-      frame[7] = this->encode80Byte7(196, repeat);
-      frame[8] = 0x00;
+      frame[7] = this->encode80Byte7(192, repeat);
+      frame[8] = repeat >> 4;
       frame[9] = 0x10;
       frame[9] |= this->calc80Checksum(frame[7], frame[8], frame[9]);
       break;      
@@ -420,7 +419,7 @@ void somfy_frame_t::encodeFrame(byte *frame) {
     
   }
   else {
-    if(this->bitLength == 80) this->encode80BitFrame(&frame[0], this->repeats);
+    if(this->bitLength == 80) this->encode80BitFrame(&frame[0], 1);
   }
   byte checksum = 0;
  
@@ -4013,10 +4012,10 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
   byte frm[10];
   frame.encodeFrame(frm);
   this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 2 : 12, frame.bitLength);
-  for(uint8_t i = 0; i < repeat; i++) {
+  for(uint8_t i = 2; i <= repeat; i++) {
     // For each 80-bit frame we need to adjust the byte encoding for the
     // silence.
-    if(frame.bitLength == 80) frame.encode80BitFrame(&frm[0], i + 1);
+    if(frame.bitLength == 80) frame.encode80BitFrame(&frm[0], i);
     this->transceiver.sendFrame(frm, frame.bitLength == 56 ? 7 : 6, frame.bitLength);
     esp_task_wdt_reset();
   }
