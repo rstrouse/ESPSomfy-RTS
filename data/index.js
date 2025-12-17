@@ -469,7 +469,9 @@ async function initSockets() {
     ui.waitMessage(document.getElementById('divContainer')).classList.add('socket-wait');
     let host = window.location.protocol === 'file:' ? hst : window.location.hostname;
     try {
-        socket = new WebSocket(`ws://${host}:8080/`);
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const port = window.location.protocol === 'https:' ? '' : ':8080';
+        socket = new WebSocket(`${protocol}//${host}${port}/`);
         socket.onmessage = (evt) => {
             if (evt.data.startsWith('42')) {
                 let ndx = evt.data.indexOf(',');
