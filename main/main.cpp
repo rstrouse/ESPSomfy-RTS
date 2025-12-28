@@ -2,7 +2,7 @@
 #include <LittleFS.h>
 #include <esp_task_wdt.h>
 #include "ConfigSettings.h"
-#include "Network.h"
+#include "Network_internal.h"
 #include "Web.h"
 #include "Sockets.h"
 #include "Utils.h"
@@ -13,13 +13,20 @@
 ConfigSettings settings;
 Web webServer;
 SocketEmitter sockEmit;
-Network net;
+Network_internal net;
 rebootDelay_t rebootDelay;
 SomfyShadeController somfy;
 MQTTClass mqtt;
 GitUpdater git;
 
 uint32_t oldheap = 0;
+
+esp_task_wdt_config_t twdt_config = {
+        .timeout_ms = 7000,
+        .idle_core_mask = (1 << CONFIG_FREERTOS_NUMBER_OF_CORES) - 1,    // Bitmask of all cores
+        .trigger_panic = true,
+    };
+
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -37,7 +44,8 @@ void setup() {
   net.setup();  
   somfy.begin();
   //git.checkForUpdate();
-  esp_task_wdt_init(7, true); //enable panic so ESP32 restarts
+  esp_task_wdt_config_t l_config;
+  esp_task_wdt_init(&twdt_config); //enable panic so ESP32 restarts
   esp_task_wdt_add(NULL); //add current thread to WDT watch
 
 }

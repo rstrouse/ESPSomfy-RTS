@@ -732,7 +732,7 @@ bool EthernetSettings::save() {
 bool EthernetSettings::load() {
   pref.begin("ETH");
   this->boardType = pref.getChar("boardType", this->boardType);
-  this->phyType = static_cast<eth_phy_type_t>(pref.getChar("phyType", ETH_PHY_LAN8720));
+  this->phyType = static_cast<eth_phy_type_t>(pref.getChar("phyType", 0));
   this->CLKMode = static_cast<eth_clock_mode_t>(pref.getChar("CLKMode", ETH_CLOCK_GPIO0_IN));
   this->phyAddress = pref.getChar("phyAddress", this->phyAddress);
   this->PWRPin = pref.getChar("PWRPin", this->PWRPin);

@@ -1954,7 +1954,7 @@ class Somfy {
         this.loadPins('input', document.getElementById('selTransRXPin'));
         //this.loadSomfy();
         ui.toElement(document.getElementById('divTransceiverSettings'), {
-            transceiver: { config: { proto: 0, SCKPin: 18, CSNPin: 5, MOSIPin: 23, MISOPin: 19, TXPin: 12, RXPin: 13, frequency: 433.42, rxBandwidth: 97.96, type: 56, deviation: 11.43, txPower: 10, enabled: false } }
+            transceiver: { config: { proto: 0, SCKPin: 6, CSNPin: 10, MOSIPin: 7, MISOPin: 2, TXPin: 5, RXPin: 13, frequency: 433.42, rxBandwidth: 97.96, type: 56, deviation: 11.43, txPower: 10, enabled: false } }
         });
         this.loadPins('out', document.getElementById('selShadeGPIOUp'));
         this.loadPins('out', document.getElementById('selShadeGPIODown'));
@@ -2795,7 +2795,7 @@ class Somfy {
         document.getElementById('divLinkedShadeList').innerHTML = divCfg;
     }
     pinMaps = [
-        { name: '', maxPins: 39, inputs: [0, 1, 6, 7, 8, 9, 10, 11, 37, 38], outputs: [3, 6, 7, 8, 9, 10, 11, 34, 35, 36, 37, 38, 39] },
+        { name: '', maxPins: 39, inputs: [], outputs: [] },
         { name: 's2', maxPins: 46, inputs: [0, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 45], outputs: [0, 19, 20, 26, 27, 28, 29, 30, 31, 32, 45, 46]},
         { name: 's3', maxPins: 48, inputs: [19, 20, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32], outputs: [19, 20, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32] },
         { name: 'c3', maxPins: 21, inputs: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20], outputs: [11, 12, 13, 14, 15, 16, 17, 21] }
@@ -2804,7 +2804,7 @@ class Somfy {
     loadPins(type, sel, opt) {
         while (sel.firstChild) sel.removeChild(sel.firstChild);
         let cm = document.getElementById('divContainer').getAttribute('data-chipmodel');
-        let pm = this.pinMaps.find(x => x.name === cm) || { name: '', maxPins: 39, inputs: [0, 1, 6, 7, 8, 9, 10, 11, 37, 38], outputs: [3, 6, 7, 8, 9, 10, 11, 34, 35, 36, 37, 38, 39] };
+        let pm = this.pinMaps.find(x => x.name === cm) || { name: '', maxPins: 39, inputs: [], outputs: [] };
         //console.log({ cm: cm, pm: pm });
         for (let i = 0; i <= pm.maxPins; i++) {
             if (type.includes('in') && pm.inputs.includes(i)) continue;

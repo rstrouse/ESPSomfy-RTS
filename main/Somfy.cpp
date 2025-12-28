@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include <WebServer.h>
 #include <esp_task_wdt.h>
+#include <esp_chip_info.h>
 #include "Utils.h"
 #include "ConfigSettings.h"
 #include "Somfy.h"
@@ -4911,11 +4912,11 @@ void transceiver_config_t::load() {
         break;
       default:
         this->TXPin = 13;
-        this->RXPin = 12;
-        this->MOSIPin = 23;
-        this->MISOPin = 19;
-        this->SCKPin = 18;
-        this->CSNPin = 5;
+        this->RXPin = 5;
+        this->MOSIPin = 2;
+        this->MISOPin = 7;
+        this->SCKPin = 6;
+        this->CSNPin = 10;
         break;
     }
     pref.begin("CC1101");

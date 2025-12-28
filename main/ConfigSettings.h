@@ -4,6 +4,16 @@
 #define configsettings_h
 #include "WResp.h"
 #define FW_VERSION "v2.4.7"
+
+#if !CONFIG_ETH_USE_ESP32_EMAC
+typedef enum {
+  ETH_CLOCK_GPIO0_IN,
+  ETH_CLOCK_GPIO0_OUT,
+  ETH_CLOCK_GPIO16_OUT,
+  ETH_CLOCK_GPIO17_OUT
+} eth_clock_mode_t;
+#endif
+
 enum class conn_types_t : byte {
     unset = 0x00,
     wifi = 0x01,
@@ -92,12 +102,12 @@ class EthernetSettings: BaseSettings {
   public:
     EthernetSettings();
     uint8_t boardType = 0; // These board types are enumerated in the ui and used to set the chip settings.
-    eth_phy_type_t phyType = ETH_PHY_LAN8720;
+    eth_phy_type_t phyType = ETH_PHY_MAX;
     eth_clock_mode_t CLKMode = ETH_CLOCK_GPIO0_IN;
-    int8_t phyAddress = ETH_PHY_ADDR;
-    int8_t PWRPin = ETH_PHY_POWER;
-    int8_t MDCPin = ETH_PHY_MDC;
-    int8_t MDIOPin = ETH_PHY_MDIO;
+    int8_t phyAddress = 0;
+    int8_t PWRPin = 0;
+    int8_t MDCPin = 0;
+    int8_t MDIOPin = 0;
     
     bool begin();
     bool fromJSON(JsonObject &obj);

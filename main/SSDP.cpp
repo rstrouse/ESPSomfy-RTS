@@ -4,6 +4,7 @@
 #include "ConfigSettings.h"
 #include "SSDP.h"
 
+esp_netif_t *get_esp_interface_netif(esp_interface_t interface);
 
 #define SSDP_PORT         1900
 #define SSDP_METHOD_SIZE  10
@@ -381,15 +382,18 @@ void SSDPClass::_parsePacket(ssdp_packet_t *pkt, AsyncUDPPacket &p) {
 IPAddress SSDPClass::localIP()
 {
     // Make sure we don't get a null IPAddress.
-    tcpip_adapter_ip_info_t ip;
+    esp_netif_ip_info_t ip;
+
     if (WiFi.getMode() == WIFI_STA) {
-        if (tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip)) {
+      esp_netif_t* netif_sta = get_esp_interface_netif(ESP_IF_WIFI_STA);
+      if (esp_netif_get_ip_info(netif_sta, &ip)) {
             return IPAddress();
-        }
+      }
     } else if (WiFi.getMode() == WIFI_OFF) {
-        if (tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_ETH, &ip)) {
+      esp_netif_t* netif_eth = get_esp_interface_netif(ESP_IF_ETH);
+      if (esp_netif_get_ip_info(netif_eth, &ip)) {
             return IPAddress();
-        }
+      }
     }
     return IPAddress(ip.ip.addr);
 }    
@@ -742,9 +746,11 @@ void SSDPClass::loop() {
 void SSDPClass::schema(Print &client) {
   IPAddress ip = this->localIP();
   uint8_t devCount = 0;
+
   for(uint8_t i = 0; i < this->m_cdeviceTypes; i++) {
-    if(this->deviceTypes[i].deviceType && strlen(this->deviceTypes[i].deviceType) > 0) devCount++;
+    if(strlen(this->deviceTypes[i].deviceType) > 0) devCount++;
   }
+
   char schema_template[strlen_P(_ssdp_schema_template)+1];
   char device_template[strlen_P(_ssdp_device_schema_template)+1];
   strcpy_P(schema_template, _ssdp_schema_template);

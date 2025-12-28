@@ -10,7 +10,9 @@
 #include "Somfy.h"
 #include "Web.h"
 #include "WResp.h"
-#include "Network.h"
+#include "Network_internal.h"
+
+#include "esp_chip_info.h"
 
 
 
@@ -20,7 +22,7 @@ extern SocketEmitter sockEmit;
 extern SomfyShadeController somfy;
 extern rebootDelay_t rebootDelay;
 extern Web webServer;
-extern Network net;
+extern Network_internal net;
 
 
 
@@ -97,7 +99,7 @@ int16_t GitRepo::getReleases(uint8_t num) {
   uint8_t ndx = 0;
   uint8_t count = min((uint8_t)GIT_MAX_RELEASES, num);
   char url[128];
-  memset(this->releases, 0x00, sizeof(GitRelease) * GIT_MAX_RELEASES);
+  //memset(this->releases, 0x00, sizeof(GitRelease) * GIT_MAX_RELEASES);
   sprintf(url, "https://api.github.com/repos/rstrouse/espsomfy-rts/releases?per_page=%d&page=1", count);
   GitRelease *main = &this->releases[GIT_MAX_RELEASES];
   main->releaseDate = Timestamp::now();

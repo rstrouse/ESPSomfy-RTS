@@ -1,13 +1,13 @@
 #include <Arduino.h>
 
-#ifndef Network_h
-#define Network_h
+#ifndef Network_internal_h
+#define Network_internal_h
 
 //enum class conn_types_t : byte;
 
 #define CONNECT_TIMEOUT 20000
 #define SSID_SCAN_INTERVAL 60000
-class Network {
+class Network_internal {
   protected:
     unsigned long lastEmit = 0;
     unsigned long lastMDNS = 0;
