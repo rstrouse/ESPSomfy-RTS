@@ -383,8 +383,6 @@ void Web::handleShadeCommand(WebServer& server) {
     else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
     SomfyShade* shade = somfy.getShadeById(shadeId);
     if (shade) {
-      Serial.print("Received:");
-      Serial.println(server.arg("plain"));
       // Send the command to the shade.
       if (target <= 100)
           shade->moveToTarget(shade->transformPosition(target));

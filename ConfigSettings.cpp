@@ -302,7 +302,13 @@ uint16_t ConfigSettings::calcNetRecSize() {
     + 5 // ETH.phyAddress
     + 5 // ETH.PWRPin
     + 5 // ETH.MDCPin
-    + 5; // ETH.MDIOPin
+    + 5 // ETH.MDIOPin
+    + 5 // ETH.MOSIPin
+    + 5 // ETH.MISOPin
+    + 5 // ETH.SCLKPin
+    + 5 // ETH.CSPin
+    + 5 // ETH.INTPin
+    + 5; // ETH.RSTPin
 }
 bool MQTTSettings::begin() {
   this->load();
@@ -685,6 +691,12 @@ bool EthernetSettings::fromJSON(JsonObject &obj) {
   if(obj.containsKey("PWRPin")) this->PWRPin = obj["PWRPin"];
   if(obj.containsKey("MDCPin")) this->MDCPin = obj["MDCPin"];
   if(obj.containsKey("MDIOPin")) this->MDIOPin = obj["MDIOPin"];
+  if(obj.containsKey("MOSIPin")) this->MOSIPin = obj["MOSIPin"];
+  if(obj.containsKey("MISOPin")) this->MISOPin = obj["MISOPin"];
+  if(obj.containsKey("SCLKPin")) this->SCLKPin = obj["SCLKPin"];
+  if(obj.containsKey("CSPin")) this->CSPin = obj["CSPin"];
+  if(obj.containsKey("INTPin")) this->INTPin = obj["INTPin"];
+  if(obj.containsKey("RSTPin")) this->RSTPin = obj["RSTPin"];
   return true;
 }
 bool EthernetSettings::toJSON(JsonObject &obj) {
@@ -695,6 +707,12 @@ bool EthernetSettings::toJSON(JsonObject &obj) {
   obj["PWRPin"] = this->PWRPin;
   obj["MDCPin"] = this->MDCPin;
   obj["MDIOPin"] = this->MDIOPin;
+  obj["MOSIPin"] = this->MOSIPin;
+  obj["MISOPin"] = this->MISOPin;
+  obj["SCLKPin"] = this->SCLKPin;
+  obj["CSPin"] = this->CSPin;
+  obj["INTPin"] = this->INTPin;
+  obj["RSTPin"] = this->RSTPin;
   return true;
 }
 void EthernetSettings::toJSON(JsonResponse &json) {
@@ -705,6 +723,12 @@ void EthernetSettings::toJSON(JsonResponse &json) {
   json.addElem("PWRPin", this->PWRPin);
   json.addElem("MDCPin", this->MDCPin);
   json.addElem("MDIOPin", this->MDIOPin);
+  json.addElem("MOSIPin", this->MOSIPin);
+  json.addElem("MISOPin", this->MISOPin);
+  json.addElem("SCLKPin", this->SCLKPin);
+  json.addElem("CSPin", this->CSPin);
+  json.addElem("INTPin", this->INTPin);
+  json.addElem("RSTPin", this->RSTPin);
 }
 
 bool EthernetSettings::usesPin(uint8_t pin) {
@@ -714,7 +738,18 @@ bool EthernetSettings::usesPin(uint8_t pin) {
   else if(this->PWRPin == pin) return true;
   else if(this->MDCPin == pin) return true;
   else if(this->MDIOPin == pin) return true;
+  else if(this->MOSIPin == pin) return true;
+  else if(this->MISOPin == pin) return true;
+  else if(this->SCLKPin == pin) return true;
+  else if(this->CSPin == pin) return true;
+  else if(this->INTPin == pin) return true;
+  else if(this->RSTPin == pin) return true;
   return false;  
+}
+bool EthernetSettings::isSPIController() {
+  // W5500 is typically phyType value 6 or higher
+  // Check if phyType is W5500 (assuming value 6, adjust if needed)
+  return static_cast<uint8_t>(this->phyType) >= 6;
 }
 bool EthernetSettings::save() {
   pref.begin("ETH");
@@ -726,6 +761,12 @@ bool EthernetSettings::save() {
   pref.putChar("PWRPin", this->PWRPin);
   pref.putChar("MDCPin", this->MDCPin);
   pref.putChar("MDIOPin", this->MDIOPin);
+  pref.putChar("MOSIPin", this->MOSIPin);
+  pref.putChar("MISOPin", this->MISOPin);
+  pref.putChar("SCLKPin", this->SCLKPin);
+  pref.putChar("CSPin", this->CSPin);
+  pref.putChar("INTPin", this->INTPin);
+  pref.putChar("RSTPin", this->RSTPin);
   pref.end();
   return true;
 }
@@ -738,12 +779,24 @@ bool EthernetSettings::load() {
   this->PWRPin = pref.getChar("PWRPin", this->PWRPin);
   this->MDCPin = pref.getChar("MDCPin", this->MDCPin);
   this->MDIOPin = pref.getChar("MDIOPin", this->MDIOPin);
+  this->MOSIPin = pref.getChar("MOSIPin", this->MOSIPin);
+  this->MISOPin = pref.getChar("MISOPin", this->MISOPin);
+  this->SCLKPin = pref.getChar("SCLKPin", this->SCLKPin);
+  this->CSPin = pref.getChar("CSPin", this->CSPin);
+  this->INTPin = pref.getChar("INTPin", this->INTPin);
+  this->RSTPin = pref.getChar("RSTPin", this->RSTPin);
   pref.end();
   return true;
 }
 void EthernetSettings::print() {
   Serial.println("Ethernet Settings");
-  Serial.printf("Board:%d PHYType:%d CLK:%d ADDR:%d PWR:%d MDC:%d MDIO:%d\n", this->boardType, this->phyType, this->CLKMode, this->phyAddress, this->PWRPin, this->MDCPin, this->MDIOPin);
+  if(this->isSPIController()) {
+    Serial.printf("Board:%d PHYType:%d (SPI) MOSI:%d MISO:%d SCLK:%d CS:%d INT:%d RST:%d\n", 
+      this->boardType, this->phyType, this->MOSIPin, this->MISOPin, this->SCLKPin, this->CSPin, this->INTPin, this->RSTPin);
+  } else {
+    Serial.printf("Board:%d PHYType:%d CLK:%d ADDR:%d PWR:%d MDC:%d MDIO:%d\n", 
+      this->boardType, this->phyType, this->CLKMode, this->phyAddress, this->PWRPin, this->MDCPin, this->MDIOPin);
+  }
 }
 void ConfigSettings::printAvailHeap() {
   Serial.print("Max Heap: ");

@@ -599,7 +599,7 @@ async function initSockets() {
                         console.log(`Initial socket did not connect try again (server was busy and timed out ${connectFailed} times)`);
                         tConnect = setTimeout(async () => { await reopenSocket(); }, timeout);
                         if (connectFailed === 5) {
-                            ui.socketError('Too many clients connected.  A maximum of 5 clients may be connected at any one time.  Close some connections to the ESP Somfy RTS device to proceed.');
+                            ui.socketError('Too many clients connected.  A maximum of 10 clients may be connected at any one time.  Close some connections to the ESP Somfy RTS device to proceed.');
                         }
                         let spanAttempts = document.getElementById('spanSocketAttempts');
                         if (spanAttempts) spanAttempts.innerHTML = connectFailed.fmt("#,##0");
@@ -1609,10 +1609,12 @@ class Wifi {
     { val: 4, label: 'T-Internet POE - LILYGO', clk: 3, ct: 0, addr: 0, pwr: 16, mdc: 23, mdio: 18 },
     { val: 5, label: 'wESP32 v7+ - Silicognition', clk: 0, ct: 2, addr: 0, pwr: -1, mdc: 16, mdio: 17 },
     { val: 6, label: 'wESP32 < v7 - Silicognition', clk: 0, ct: 0, addr: 0, pwr: -1, mdc: 16, mdio: 17 },
-    { val: 1, label: 'WT32-ETH01 - Wireless Tag', clk: 0, ct: 0, addr: 1, pwr: 16, mdc: 23, mdio: 18 }
+    { val: 1, label: 'WT32-ETH01 - Wireless Tag', clk: 0, ct: 0, addr: 1, pwr: 16, mdc: 23, mdio: 18 },
+    { val: 8, label: 'ESP32-S3 ETH POE - Waveshare', ct: 6, mosi: 11, miso: 12, sclk: 13, cs: 14, int: 10, rst: 9, isSPI: true },
+    { val: 9, label: 'W5500 Custom', ct: 6, isSPI: true }
     ];
     ethClockModes = [{ val: 0, label: 'GPIO0 IN' }, { val: 1, label: 'GPIO0 OUT' }, { val: 2, label: 'GPIO16 OUT' }, { val: 3, label: 'GPIO17 OUT' }];
-    ethPhyTypes = [{ val: 0, label: 'LAN8720' }, { val: 1, label: 'TLK110' }, { val: 2, label: 'RTL8201' }, { val: 3, label: 'DP83848' }, { val: 4, label: 'DM9051' }, { val: 5, label: 'KZ8081' }];
+    ethPhyTypes = [{ val: 0, label: 'LAN8720' }, { val: 1, label: 'TLK110' }, { val: 2, label: 'RTL8201' }, { val: 3, label: 'DP83848' }, { val: 4, label: 'DM9051' }, { val: 5, label: 'KZ8081' }, { val: 6, label: 'W5500' }];
     init() {
         document.getElementById("divNetworkStrength").innerHTML = this.displaySignal(-100);
         if (this.initialized) return;
@@ -1625,6 +1627,12 @@ class Wifi {
         this.loadETHPins(document.getElementById('selETHPWRPin'), 'power');
         this.loadETHPins(document.getElementById('selETHMDCPin'), 'mdc', 23);
         this.loadETHPins(document.getElementById('selETHMDIOPin'), 'mdio', 18);
+        this.loadETHPins(document.getElementById('selETHMOSIPin'), 'spi', 11);
+        this.loadETHPins(document.getElementById('selETHMISOPin'), 'spi', 12);
+        this.loadETHPins(document.getElementById('selETHSCLKPin'), 'spi', 13);
+        this.loadETHPins(document.getElementById('selETHCSPin'), 'spi', 14);
+        this.loadETHPins(document.getElementById('selETHINTPin'), 'spi', 10);
+        this.loadETHPins(document.getElementById('selETHRSTPin'), 'spi', 9);
         ui.toElement(document.getElementById('divNetAdapter'), {
             wifi: {ssid:'', passphrase:''},
             ethernet: { boardType: 1, wirelessFallback: false, dhcp: true, dns1: '', dns2: '', ip: '', gateway: '' }
@@ -1654,15 +1662,95 @@ class Wifi {
     onETHBoardTypeChanged(sel) {
         let type = this.ethBoardTypes.find(elem => parseInt(sel.value, 10) === elem.val);
         if (typeof type !== 'undefined') {
+            let isSPI = type.isSPI === true;
+            
             // Change the values to represent what the board type says.
-            if(typeof type.ct !== 'undefined') document.getElementById('selETHPhyType').value = type.ct;
+            if(typeof type.ct !== 'undefined') {
+                document.getElementById('selETHPhyType').value = type.ct;
+            }
             if (typeof type.clk !== 'undefined') document.getElementById('selETHClkMode').value = type.clk;
             if (typeof type.addr !== 'undefined') document.getElementById('selETHAddress').value = type.addr;
             if (typeof type.pwr !== 'undefined') document.getElementById('selETHPWRPin').value = type.pwr;
             if (typeof type.mdc !== 'undefined') document.getElementById('selETHMDCPin').value = type.mdc;
             if (typeof type.mdio !== 'undefined') document.getElementById('selETHMDIOPin').value = type.mdio;
-            document.getElementById('divETHSettings').style.display = type.val === 0 ? '' : 'none';
+            
+            // Set SPI pins if this is a SPI-based board
+            if (isSPI) {
+                if (typeof type.mosi !== 'undefined') document.getElementById('selETHMOSIPin').value = type.mosi;
+                if (typeof type.miso !== 'undefined') document.getElementById('selETHMISOPin').value = type.miso;
+                if (typeof type.sclk !== 'undefined') document.getElementById('selETHSCLKPin').value = type.sclk;
+                if (typeof type.cs !== 'undefined') document.getElementById('selETHCSPin').value = type.cs;
+                if (typeof type.int !== 'undefined') document.getElementById('selETHINTPin').value = type.int;
+                if (typeof type.rst !== 'undefined') document.getElementById('selETHRSTPin').value = type.rst;
+            }
+            
+            // Show/hide appropriate settings based on board type
+            if (type.val === 0) {
+                // Custom Config - show all settings
+                document.getElementById('divETHSettings').style.display = '';
+                // Use phyType to determine SPI/RMII visibility
+                let phyType = parseInt(document.getElementById('selETHPhyType').value, 10);
+                this.showSPISettings(phyType >= 6);
+            } else {
+                // Predefined board - show settings for SPI boards, hide for RMII
+                if (isSPI) {
+                    // For SPI boards, show settings so user can see SPI pins
+                    document.getElementById('divETHSettings').style.display = '';
+                    this.showSPISettings(true);
+                } else {
+                    // For RMII boards, hide settings as before
+                    document.getElementById('divETHSettings').style.display = 'none';
+                    this.showSPISettings(false);
+                }
+            }
         }
+    }
+    showSPISettings(showSPI) {
+        // Show/hide RMII settings (MDC, MDIO, CLK Mode, Address, Power)
+        let rmiiSettings = ['selETHMDCPin', 'selETHMDIOPin', 'selETHClkMode', 'selETHAddress', 'selETHPWRPin'];
+        let spiSettings = ['selETHMOSIPin', 'selETHMISOPin', 'selETHSCLKPin', 'selETHCSPin', 'selETHINTPin', 'selETHRSTPin'];
+        
+        rmiiSettings.forEach(id => {
+            let elem = document.getElementById(id);
+            if (elem) {
+                let fieldGroup = elem.closest('.field-group');
+                if (fieldGroup) {
+                    // Force display style to override inline styles
+                    if (showSPI) {
+                        fieldGroup.style.setProperty('display', 'none', 'important');
+                    } else {
+                        fieldGroup.style.setProperty('display', 'inline-block', 'important');
+                    }
+                }
+            }
+        });
+        
+        spiSettings.forEach(id => {
+            let elem = document.getElementById(id);
+            if (elem) {
+                let fieldGroup = elem.closest('.field-group');
+                if (fieldGroup) {
+                    // Force display style to override inline styles
+                    if (showSPI) {
+                        fieldGroup.style.setProperty('display', 'inline-block', 'important');
+                    } else {
+                        fieldGroup.style.setProperty('display', 'none', 'important');
+                    }
+                }
+            }
+        });
+        
+        // Always show PHY Type selector
+        let phyTypeElem = document.getElementById('selETHPhyType');
+        if (phyTypeElem) {
+            let fieldGroup = phyTypeElem.closest('.field-group');
+            if (fieldGroup) fieldGroup.style.display = '';
+        }
+    }
+    onETHPhyTypeChanged(sel) {
+        // W5500 is phyType value 6
+        let isSPI = parseInt(sel.value, 10) >= 6;
+        this.showSPISettings(isSPI);
     }
     onDHCPClicked(cb) { document.getElementById('divStaticIP').style.display = cb.checked ? 'none' : ''; }
     loadNetwork() {
@@ -1694,6 +1782,11 @@ class Wifi {
                 document.getElementById('divETHSettings').style.display = settings.ethernet.boardType === 0 ? '' : 'none';
                 document.getElementById('divStaticIP').style.display = settings.ip.dhcp ? 'none' : '';
                 document.getElementById('spanCurrentIP').innerHTML = settings.ip.ip;
+                
+                // Show/hide SPI settings based on phyType (W5500 is value 6)
+                let isSPI = settings.ethernet.phyType >= 6;
+                this.showSPISettings(isSPI);
+                
                 this.useEthernetClicked();
                 this.hiddenSSIDClicked();
             }

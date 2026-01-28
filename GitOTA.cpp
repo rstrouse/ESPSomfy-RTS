@@ -253,6 +253,8 @@ void GitRepo::toJSON(JsonResponse &json) {
 
 void GitUpdater::loop() {
   if(!net.connected()) return;
+  // Skip OTA check for W5500 - HTTPClient has issues without WiFi event groups
+  if(settings.Ethernet.isSPIController()) return;
   if(this->status == GIT_STATUS_READY) {
     if(settings.checkForUpdate && 
       (millis() > net.connectTime + 60000) && // Wait a minute before checking after connection.

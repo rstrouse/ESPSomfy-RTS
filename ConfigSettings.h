@@ -98,6 +98,13 @@ class EthernetSettings: BaseSettings {
     int8_t PWRPin = ETH_PHY_POWER;
     int8_t MDCPin = ETH_PHY_MDC;
     int8_t MDIOPin = ETH_PHY_MDIO;
+    // SPI pins for W5500 and other SPI-based Ethernet controllers
+    int8_t MOSIPin = -1;
+    int8_t MISOPin = -1;
+    int8_t SCLKPin = -1;
+    int8_t CSPin = -1;
+    int8_t INTPin = -1;
+    int8_t RSTPin = -1;
     
     bool begin();
     bool fromJSON(JsonObject &obj);
@@ -107,6 +114,7 @@ class EthernetSettings: BaseSettings {
     bool save();
     void print();
     bool usesPin(uint8_t pin);
+    bool isSPIController();
 };
 class IPSettings: BaseSettings {
   public:

@@ -37,12 +37,13 @@ void setup() {
   net.setup();  
   somfy.begin();
   //git.checkForUpdate();
-  esp_task_wdt_init(7, true); //enable panic so ESP32 restarts
+  esp_task_wdt_init(30, true); //enable panic so ESP32 restarts (increased to 30 seconds for W5500)
   esp_task_wdt_add(NULL); //add current thread to WDT watch
 
 }
 
 void loop() {
+  esp_task_wdt_reset();
   // put your main code here, to run repeatedly:
   //uint32_t heap = ESP.getFreeHeap();
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
@@ -53,34 +54,52 @@ void loop() {
     ESP.restart();
     return;
   }
+
   uint32_t timing = millis();
-  
+
   net.loop();
-  if(millis() - timing > 100) Serial.printf("Timing Net: %ldms\n", millis() - timing);
-  timing = millis();
+  if(millis() - timing > 100) {
+    Serial.printf("Timing Net: %ldms\n", millis() - timing);
+  }
   esp_task_wdt_reset();
+  timing = millis();
+
   somfy.loop();
-  if(millis() - timing > 100) Serial.printf("Timing Somfy: %ldms\n", millis() - timing);
-  timing = millis();
+  if(millis() - timing > 100) {
+    Serial.printf("Timing Somfy: %ldms\n", millis() - timing);
+  }
   esp_task_wdt_reset();
+  timing = millis();
+
   if(net.connected() || net.softAPOpened) {
     if(!rebootDelay.reboot && net.connected() && !net.softAPOpened) {
       git.loop();
       esp_task_wdt_reset();
     }
+
     webServer.loop();
-    esp_task_wdt_reset();
-    if(millis() - timing > 100) Serial.printf("Timing WebServer: %ldms\n", millis() - timing);
+    if(millis() - timing > 100) {
+      Serial.printf("Timing WebServer: %ldms\n", millis() - timing);
+    }
     esp_task_wdt_reset();
     timing = millis();
+
     sockEmit.loop();
-    if(millis() - timing > 100) Serial.printf("Timing Socket: %ldms\n", millis() - timing);
+    if(millis() - timing > 100) {
+      Serial.printf("Timing Socket: %ldms\n", millis() - timing);
+    }
     esp_task_wdt_reset();
-    timing = millis();
   }
+
   if(rebootDelay.reboot && millis() > rebootDelay.rebootTime) {
     net.end();
     ESP.restart();
+    return;
   }
+
+  // Final watchdog reset before end of loop
   esp_task_wdt_reset();
+
+  // Small delay to prevent tight loop from consuming too much CPU
+  delay(1);
 }

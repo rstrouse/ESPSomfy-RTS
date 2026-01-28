@@ -316,7 +316,7 @@
                             </div>
                             <div id="divETHSettings">
                                 <div class="field-group" style="width:40%;margin-right:7px;display:inline-block;">
-                                    <select id="selETHPhyType" name="ethphytype" placeholder="PHY Type" data-datatype="int" data-bind="ethernet.phyType" style="width:100%;"></select>
+                                    <select id="selETHPhyType" name="ethphytype" placeholder="PHY Type" data-datatype="int" data-bind="ethernet.phyType" style="width:100%;" onchange="wifi.onETHPhyTypeChanged(this);"></select>
                                     <label for="selETHPhyType">PHY Chip Type</label>
                                 </div>
                                 <div class="field-group" style="width:20%;display:inline-block;margin-right:7px;">
@@ -338,6 +338,30 @@
                                 <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;">
                                     <select id="selETHMDIOPin" name="mdio" placeholder="MDIO Pin" data-datatype="int" data-bind="ethernet.MDIOPin" style="width:100%;"></select>
                                     <label for="selETHMDIOPin">MDIO Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;display:none;">
+                                    <select id="selETHMOSIPin" name="mosi" placeholder="MOSI Pin" data-datatype="int" data-bind="ethernet.MOSIPin" style="width:100%;"></select>
+                                    <label for="selETHMOSIPin">MOSI Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;display:none;">
+                                    <select id="selETHMISOPin" name="miso" placeholder="MISO Pin" data-datatype="int" data-bind="ethernet.MISOPin" style="width:100%;"></select>
+                                    <label for="selETHMISOPin">MISO Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;display:none;">
+                                    <select id="selETHSCLKPin" name="sclk" placeholder="SCLK Pin" data-datatype="int" data-bind="ethernet.SCLKPin" style="width:100%;"></select>
+                                    <label for="selETHSCLKPin">SCLK Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;display:none;">
+                                    <select id="selETHCSPin" name="cs" placeholder="CS Pin" data-datatype="int" data-bind="ethernet.CSPin" style="width:100%;"></select>
+                                    <label for="selETHCSPin">CS Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;display:none;">
+                                    <select id="selETHINTPin" name="int" placeholder="INT Pin" data-datatype="int" data-bind="ethernet.INTPin" style="width:100%;"></select>
+                                    <label for="selETHINTPin">INT Pin</label>
+                                </div>
+                                <div class="field-group" style="width:25%;display:inline-block;margin-right:7px;display:none;">
+                                    <select id="selETHRSTPin" name="rst" placeholder="RST Pin" data-datatype="int" data-bind="ethernet.RSTPin" style="width:100%;"></select>
+                                    <label for="selETHRSTPin">RST Pin</label>
                                 </div>
                                 <hr />
                             </div>

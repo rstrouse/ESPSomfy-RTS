@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_netif.h>
 
 #ifndef Network_h
 #define Network_h
@@ -18,6 +19,13 @@ class Network {
   public:
     unsigned long lastWifiScan = 0;
     bool ethStarted = false;
+    // W5500 SPI Ethernet state
+    bool w5500LinkUp = false;
+    bool w5500GotIP = false;
+    IPAddress w5500IP;
+    esp_netif_t *w5500_netif = nullptr;
+    void *w5500_eth_handle = nullptr;
+    void checkW5500Link();
     bool wifiFallback = false;
     bool softAPOpened = false;
     bool openingSoftAP = false;
@@ -55,5 +63,6 @@ class Network {
     void emitHeap(uint8_t num = 255);
     uint32_t getChipId();
     static void networkEvent(WiFiEvent_t event);
+    static void w5500EventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 };
 #endif
