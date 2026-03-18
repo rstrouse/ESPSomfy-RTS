@@ -87,3 +87,5 @@ pio pkg exec -p tool-esptoolpy -- esptool.py --port COM9 read_flash 0x3F0000 0x1
 
 
 esp-coredump info_corefile    --core coredump.bin   --core-format=raw   --gdb C:\Users\oem\.platformio\packages\toolchain-xtensa-esp32\bin\xtensa-esp32-elf-gdb.exe   .pio\build\esp32dev\firmware.elf > coredump_report.txt
+
+ C:\Users\oem\.platformio\packages\framework-espidf\export.ps1
