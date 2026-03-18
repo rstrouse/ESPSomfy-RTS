@@ -1,5 +1,6 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
+#include <esp_task_wdt.h>
 #include "Somfy.h"
 #ifndef wresp_h
 #define wresp_h
@@ -51,6 +52,7 @@ class JsonFormatter {
     void addElem(const char* name, uint32_t lval);
     void addElem(const char* name, bool bval);
     void addElem(const char *name, const char *val);
+    void addElem(const char* name, uint64_t lval);
 };
 class JsonResponse : public JsonFormatter {
   protected:

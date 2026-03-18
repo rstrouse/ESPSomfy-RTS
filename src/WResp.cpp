@@ -46,6 +46,7 @@ void JsonResponse::endResponse() {
   server->sendContent("", 0);
 }
 void JsonResponse::send() {
+    esp_task_wdt_reset();
     if(!this->_headersSent) server->send_P(200, "application/json", this->buff);
     else server->sendContent(this->buff);
     //Serial.printf("Sent %d bytes %d\n", strlen(this->buff), this->buffSize);
@@ -130,8 +131,9 @@ void JsonFormatter::addElem(const char *name, uint32_t nval) { sprintf(this->_nu
 void JsonFormatter::addElem(const char *name, int16_t nval) { sprintf(this->_numbuff, "%d", nval); this->_appendNumber(name); }
 void JsonFormatter::addElem(const char *name, uint16_t nval) { sprintf(this->_numbuff, "%u", nval); this->_appendNumber(name); }
 void JsonFormatter::addElem(const char *name, int64_t lval) { sprintf(this->_numbuff, "%lld", (long long)lval); this->_appendNumber(name); }
-void JsonFormatter::addElem(const char *name, uint64_t lval) { sprintf(this->_numbuff, "%llu", (unsigned long long)lval); this->_appendNumber(name); }
 */
+void JsonFormatter::addElem(const char *name, uint64_t lval) { sprintf(this->_numbuff, "%llu", (unsigned long long)lval); this->_appendNumber(name); }
+
 void JsonFormatter::addElem(const char *name, bool bval) { strcpy(this->_numbuff, bval ? "true" : "false"); this->_appendNumber(name); }
 
 void JsonFormatter::_safecat(const char *val, bool escape) {

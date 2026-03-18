@@ -77,7 +77,7 @@ void SocketEmitter::startup() {
 }
 void SocketEmitter::begin() {
   sockServer.begin();
-  sockServer.enableHeartbeat(20000, 10000, 3);
+  sockServer.enableHeartbeat(3000, 2000, 2);
   sockServer.onEvent(this->wsEvent);
   Serial.println("Socket Server Started...");
   //settings.printAvailHeap();
@@ -90,7 +90,7 @@ JsonSockEvent *SocketEmitter::beginEmit(const char *evt) {
   this->json.beginEvent(&sockServer, evt, g_response, sizeof(g_response));
   return &this->json;
 }
-void SocketEmitter::endEmit(uint8_t num) { this->json.endEvent(num); sockServer.loop(); }
+void SocketEmitter::endEmit(uint8_t num) { this->json.endEvent(num); esp_task_wdt_reset(); sockServer.loop(); }
 void SocketEmitter::endEmitRoom(uint8_t room) {
   if(room < SOCK_MAX_ROOMS) {
     room_t *r = &this->rooms[room];

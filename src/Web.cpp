@@ -249,6 +249,7 @@ void Web::handleController(WebServer &server) {
     resp.addElem("maxGroupedShades", (uint8_t)SOMFY_MAX_GROUPED_SHADES);
     resp.addElem("maxLinkedRemotes", (uint8_t)SOMFY_MAX_LINKED_REMOTES);
     resp.addElem("startingAddress", (uint32_t)somfy.startingAddress);
+    resp.addElem("uptime", (uint64_t)millis());
     resp.beginObject("transceiver");
     somfy.transceiver.toJSON(resp);
     resp.endObject();
