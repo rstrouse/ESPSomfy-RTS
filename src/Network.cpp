@@ -691,6 +691,7 @@ void Network::emitHeap(uint8_t num) {
     json->addElem("free", freeHeap);
     json->addElem("min", minHeap);
     json->addElem("total", ESP.getHeapSize());
+    json->addElem("uptime", (uint64_t)millis());
     json->endObject();
     if(num == 255 && bTimeEmit && bValEmit) {
       sockEmit.endEmit(num);

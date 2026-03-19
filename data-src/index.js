@@ -4385,6 +4385,8 @@ class Firmware {
         if (sp) sp.innerHTML = mem.max.fmt('#,##0');
         sp = document.getElementById('spanMinMemory');
         if (sp) sp.innerHTML = mem.min.fmt('#,##0');
+        sp = document.getElementById('spanUptime');
+        if (sp) sp.innerHTML = mem.uptime / 3600000;
 
 
     }

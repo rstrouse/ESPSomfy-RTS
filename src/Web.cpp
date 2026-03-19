@@ -249,7 +249,7 @@ void Web::handleController(WebServer &server) {
     resp.addElem("maxGroupedShades", (uint8_t)SOMFY_MAX_GROUPED_SHADES);
     resp.addElem("maxLinkedRemotes", (uint8_t)SOMFY_MAX_LINKED_REMOTES);
     resp.addElem("startingAddress", (uint32_t)somfy.startingAddress);
-    resp.addElem("uptime", (uint64_t)millis());
+
     resp.beginObject("transceiver");
     somfy.transceiver.toJSON(resp);
     resp.endObject();
@@ -816,6 +816,7 @@ void Web::handleDiscovery(WebServer &server) {
     resp.addElem("free", ESP.getFreeHeap());
     resp.addElem("min", ESP.getMinFreeHeap());
     resp.addElem("total", ESP.getHeapSize());
+    resp.addElem("uptime", (uint64_t)millis());
     resp.endObject();
     resp.beginArray("rooms");
     somfy.toJSONRooms(resp);
