@@ -31,9 +31,9 @@ enum class radio_proto : byte { // Ordinal byte 0-255
 enum class somfy_commands : byte {
     Unknown0 = 0x0,
     My = 0x2,//DOWN
-    Up = 0x3,
+    Up = 0x1,
     MyUp = 0x4, //up
-    Down = 0x1,
+    Down = 0x3,
     MyDown = 0x5,
     UpDown = 0x6,
     MyUpDown = 0x7,

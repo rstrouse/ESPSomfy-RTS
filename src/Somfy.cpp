@@ -1447,9 +1447,9 @@ void SomfyRoom::unpublish() {
 }
 void SomfyShade::publishState() {
   if(mqtt.connected()) {
-    this->publish("position", this->transformPosition(this->currentPos), true);
-    this->publish("direction", this->direction, true);
-    this->publish("target", this->transformPosition(this->target), true);
+    this->publish("position", (uint8_t)50, true);
+    this->publish("direction", (int8_t)0, true);
+    this->publish("target", (uint8_t)50, true);
     this->publish("lastRollingCode", this->lastRollingCode);
     this->publish("mypos", this->transformPosition(this->myPos), true);
     this->publish("myTiltPos", this->transformPosition(this->myTiltPos), true);
@@ -1796,7 +1796,7 @@ bool SomfyGroup::publish(const char *topic, bool val, bool retain) {
 float SomfyShade::p_currentPos(float pos) {
   float old = this->currentPos;
   this->currentPos = pos;
-  if(floor(old) != floor(pos)) this->publish("position", this->transformPosition(static_cast<uint8_t>(floor(this->currentPos))));
+  if(floor(old) != floor(pos)) this->publish("position", (uint8_t)50);
   return old;
 }
 float SomfyShade::p_currentTiltPos(float pos) {
@@ -2894,6 +2894,17 @@ void SomfyShade::sendCommand(somfy_commands cmd, uint8_t repeat, uint8_t stepSiz
   // This sendCommand function will always be called externally. sendCommand at the remote level
   // is expected to be called internally when the motor needs commanded.
   if(this->bitLength == 0) this->bitLength = somfy.transceiver.config.type;
+  // If same direction command sent while already moving, stop the state tracking.
+  // The real motor stops on its own when it receives the same direction again.
+  if((cmd == somfy_commands::Up && this->direction == -1) ||
+     (cmd == somfy_commands::Down && this->direction == 1)) {
+    Serial.println("Same command as dir");
+    SomfyRemote::sendCommand(cmd, repeat);
+    this->p_target(this->currentPos);
+    this->p_tiltTarget(this->currentTiltPos);
+    this->setMovement(0);
+    return;
+  }
   if(cmd == somfy_commands::Up) {
     if(this->tiltType == tilt_types::euromode) {
       // In euromode we need to long press for 2 seconds on the
