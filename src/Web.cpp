@@ -14,6 +14,8 @@
 #include "MQTT.h"
 #include "GitOTA.h"
 #include "Network.h"
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
 extern ConfigSettings settings;
 extern SSDPClass SSDP;
@@ -40,8 +42,24 @@ static const char _encoding_json[] = "application/json";
 
 WebServer apiServer(8081);
 WebServer server(80);
+AsyncWebServer aserver(81);
 void Web::startup() {
   Serial.println("Launching web server...");
+  aserver.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+
+  aserver.on("/loginContext", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncJsonResponse *response = new AsyncJsonResponse();
+    JsonObject root = response->getRoot().to<JsonObject>();
+    root["type"] = static_cast<uint8_t>(settings.Security.type);
+    root["permissions"] = settings.Security.permissions;
+    root["serverId"] = settings.serverId;
+    root["version"] = settings.fwVersion.name;
+    root["model"] = "ESPSomfyRTS";
+    root["hostname"] = settings.hostname;    
+    response->setLength();
+    request->send(response);
+  });
+  aserver.begin();
 }
 void Web::loop() {
   server.handleClient();

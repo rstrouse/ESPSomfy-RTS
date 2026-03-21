@@ -133,12 +133,12 @@ def minify_svg(text: str) -> str:
 
 
 MINIFIERS = {
-    ".html": minify_html,
-    ".htm":  minify_html,
-    ".css":  minify_css,
+    # ".html": minify_html,
+    # ".htm":  minify_html,
+    # ".css":  minify_css,
     # ".js":   minify_js,
     # ".json": minify_json,
-    ".svg":  minify_svg,
+    # ".svg":  minify_svg,
     # ".xml":  minify_svg,  # same approach works for generic XML
 }
 
