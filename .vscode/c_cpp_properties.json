@@ -494,7 +494,6 @@
                 "PLATFORMIO=60119",
                 "ARDUINO_ESP32_DEV",
                 "CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=1",
-                "CONFIG_ESP_COREDUMP_ENABLE_TO_UART=1",
                 "CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=1",
                 "CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=1",
                 "CONFIG_ESP_TASK_WDT_PANIC=1",

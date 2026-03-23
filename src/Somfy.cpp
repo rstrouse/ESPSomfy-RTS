@@ -3590,6 +3590,7 @@ void SomfyShadeController::emitState(uint8_t num) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
     SomfyShade *shade = &this->shades[i];
     if(shade->getShadeId() == 255) continue;
+    esp_task_wdt_reset();
     shade->emitState(num);
   }
 }

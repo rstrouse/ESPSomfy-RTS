@@ -111,8 +111,11 @@ void SocketEmitter::initClients() {
         Serial.printf("Initializing Socket Client %u\n", num);
         esp_task_wdt_reset();
         settings.emitSockets(num);
+        if(!sockServer.clientIsConnected(num)) { this->newClients[i] = 255; continue; }
         somfy.emitState(num);
+        if(!sockServer.clientIsConnected(num)) { this->newClients[i] = 255; continue; }
         git.emitUpdateCheck(num);
+        if(!sockServer.clientIsConnected(num)) { this->newClients[i] = 255; continue; }
         net.emitSockets(num);
         esp_task_wdt_reset();
       }

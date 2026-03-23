@@ -1,4 +1,6 @@
 #include <WebServer.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
 #include "Somfy.h"
 #ifndef webserver_h
 #define webserver_h
@@ -42,9 +44,25 @@ class Web {
     bool createAPIPasswordToken(const IPAddress ipAddress, const char *username, const char *password, char *token);
     bool isAuthenticated(WebServer &server, bool cfg = false);
 
-    //void chunkRoomsResponse(WebServer &server, const char *elem = nullptr);
-    //void chunkShadesResponse(WebServer &server, const char *elem = nullptr);
-    //void chunkGroupsResponse(WebServer &server, const char *elem = nullptr);
-    //void chunkGroupResponse(WebServer &server, SomfyGroup *, const char *prefix = nullptr);
+    // Async API handler overloads (port 8082)
+    void handleDiscovery(AsyncWebServerRequest *request);
+    void handleGetRooms(AsyncWebServerRequest *request);
+    void handleGetShades(AsyncWebServerRequest *request);
+    void handleGetGroups(AsyncWebServerRequest *request);
+    void handleController(AsyncWebServerRequest *request);
+    void handleRoom(AsyncWebServerRequest *request);
+    void handleShade(AsyncWebServerRequest *request);
+    void handleGroup(AsyncWebServerRequest *request);
+    void handleLogin(AsyncWebServerRequest *request, JsonVariant &json);
+    void handleShadeCommand(AsyncWebServerRequest *request, JsonVariant &json);
+    void handleGroupCommand(AsyncWebServerRequest *request, JsonVariant &json);
+    void handleTiltCommand(AsyncWebServerRequest *request, JsonVariant &json);
+    void handleRepeatCommand(AsyncWebServerRequest *request, JsonVariant &json);
+    void handleSetPositions(AsyncWebServerRequest *request, JsonVariant &json);
+    void handleSetSensor(AsyncWebServerRequest *request, JsonVariant &json);
+    void handleDownloadFirmware(AsyncWebServerRequest *request);
+    void handleBackup(AsyncWebServerRequest *request);
+    void handleReboot(AsyncWebServerRequest *request);
+    void handleNotFound(AsyncWebServerRequest *request);
 };
 #endif

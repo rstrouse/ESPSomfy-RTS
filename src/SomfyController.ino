@@ -47,6 +47,18 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
   Serial.println("Startup/Boot....");
+  esp_core_dump_summary_t summary;
+  if (esp_core_dump_get_summary(&summary) == ESP_OK) {
+    Serial.println("*** Previous crash coredump found ***");
+    Serial.printf("  Task: %s\n", summary.exc_task);
+    Serial.printf("  PC: 0x%08x\n", summary.exc_pc);
+    Serial.printf("  Cause: %d\n", summary.ex_info.exc_cause);
+    Serial.printf("  Backtrace:");
+    for (int i = 0; i < summary.exc_bt_info.depth; i++) {
+      Serial.printf(" 0x%08x", summary.exc_bt_info.bt[i]);
+    }
+    Serial.println();
+  }
   Serial.println("Mounting File System...");
 
 

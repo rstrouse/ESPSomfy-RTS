@@ -16,6 +16,7 @@
 #include "Network.h"
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
 
 extern ConfigSettings settings;
 extern SSDPClass SSDP;
@@ -29,6 +30,7 @@ extern Network net;
 //#define WEB_MAX_RESPONSE 34768
 #define WEB_MAX_RESPONSE 4096
 static char g_content[WEB_MAX_RESPONSE];
+static char g_async_content[WEB_MAX_RESPONSE];
 
 
 // General responses
@@ -40,9 +42,10 @@ static const char _encoding_text[] = "text/plain";
 static const char _encoding_html[] = "text/html";
 static const char _encoding_json[] = "application/json";
 
-WebServer apiServer(8081);
+WebServer apiServer(8082);
 WebServer server(80);
 AsyncWebServer aserver(81);
+AsyncWebServer asyncApiServer(8081);
 void Web::startup() {
   Serial.println("Launching web server...");
   aserver.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
@@ -60,6 +63,8 @@ void Web::startup() {
     request->send(response);
   });
   aserver.begin();
+  asyncApiServer.begin();
+  Serial.println("Async API server started on port 8082");
 }
 void Web::loop() {
   server.handleClient();
@@ -1075,6 +1080,741 @@ void Web::handleReboot(WebServer &server) {
     server.send(201, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
   }
 }
+// =====================================================
+// Async API Handlers (port 8082)
+// =====================================================
+// Helper: get a query param as String, or empty if missing
+static String asyncParam(AsyncWebServerRequest *request, const char *name) {
+  if(request->hasParam(name)) return request->getParam(name)->value();
+  return String();
+}
+static bool asyncHasParam(AsyncWebServerRequest *request, const char *name) {
+  return request->hasParam(name);
+}
+
+// -- Serialization helpers (accept JsonFormatter& so both sync and async can use them) --
+static void serializeRoom(SomfyRoom *room, JsonFormatter &json) {
+  json.addElem("roomId", room->roomId);
+  json.addElem("name", room->name);
+  json.addElem("sortOrder", room->sortOrder);
+}
+static void serializeShadeRef(SomfyShade *shade, JsonFormatter &json) {
+  json.addElem("shadeId", shade->getShadeId());
+  json.addElem("roomId", shade->roomId);
+  json.addElem("name", shade->name);
+  json.addElem("remoteAddress", (uint32_t)shade->getRemoteAddress());
+  json.addElem("paired", shade->paired);
+  json.addElem("shadeType", static_cast<uint8_t>(shade->shadeType));
+  json.addElem("flipCommands", shade->flipCommands);
+  json.addElem("flipPosition", shade->flipCommands);
+  json.addElem("bitLength", shade->bitLength);
+  json.addElem("proto", static_cast<uint8_t>(shade->proto));
+  json.addElem("flags", shade->flags);
+  json.addElem("sunSensor", shade->hasSunSensor());
+  json.addElem("hasLight", shade->hasLight());
+  json.addElem("repeats", shade->repeats);
+}
+static void serializeShade(SomfyShade *shade, JsonFormatter &json) {
+  json.addElem("shadeId", shade->getShadeId());
+  json.addElem("roomId", shade->roomId);
+  json.addElem("name", shade->name);
+  json.addElem("remoteAddress", (uint32_t)shade->getRemoteAddress());
+  json.addElem("upTime", (uint32_t)shade->upTime);
+  json.addElem("downTime", (uint32_t)shade->downTime);
+  json.addElem("paired", shade->paired);
+  json.addElem("lastRollingCode", (uint32_t)shade->lastRollingCode);
+  json.addElem("position", shade->transformPosition(shade->currentPos));
+  json.addElem("tiltType", static_cast<uint8_t>(shade->tiltType));
+  json.addElem("tiltPosition", shade->transformPosition(shade->currentTiltPos));
+  json.addElem("tiltDirection", shade->tiltDirection);
+  json.addElem("tiltTime", (uint32_t)shade->tiltTime);
+  json.addElem("stepSize", (uint32_t)shade->stepSize);
+  json.addElem("tiltTarget", shade->transformPosition(shade->tiltTarget));
+  json.addElem("target", shade->transformPosition(shade->target));
+  json.addElem("myPos", shade->transformPosition(shade->myPos));
+  json.addElem("myTiltPos", shade->transformPosition(shade->myTiltPos));
+  json.addElem("direction", shade->direction);
+  json.addElem("shadeType", static_cast<uint8_t>(shade->shadeType));
+  json.addElem("bitLength", shade->bitLength);
+  json.addElem("proto", static_cast<uint8_t>(shade->proto));
+  json.addElem("flags", shade->flags);
+  json.addElem("flipCommands", shade->flipCommands);
+  json.addElem("flipPosition", shade->flipPosition);
+  json.addElem("inGroup", shade->isInGroup());
+  json.addElem("sunSensor", shade->hasSunSensor());
+  json.addElem("light", shade->hasLight());
+  json.addElem("repeats", shade->repeats);
+  json.addElem("sortOrder", shade->sortOrder);
+  json.addElem("gpioUp", shade->gpioUp);
+  json.addElem("gpioDown", shade->gpioDown);
+  json.addElem("gpioMy", shade->gpioMy);
+  json.addElem("gpioLLTrigger", ((shade->gpioFlags & (uint8_t)gpio_flags_t::LowLevelTrigger) == 0) ? false : true);
+  json.addElem("simMy", shade->simMy());
+  json.beginArray("linkedRemotes");
+  for(uint8_t i = 0; i < SOMFY_MAX_LINKED_REMOTES; i++) {
+    SomfyLinkedRemote &lremote = shade->linkedRemotes[i];
+    if(lremote.getRemoteAddress() != 0) {
+      json.beginObject();
+      json.addElem("remoteAddress", (uint32_t)lremote.getRemoteAddress());
+      json.addElem("lastRollingCode", (uint32_t)lremote.lastRollingCode);
+      json.endObject();
+    }
+  }
+  json.endArray();
+}
+static void serializeGroupRef(SomfyGroup *group, JsonFormatter &json) {
+  group->updateFlags();
+  json.addElem("groupId", group->getGroupId());
+  json.addElem("roomId", group->roomId);
+  json.addElem("name", group->name);
+  json.addElem("remoteAddress", (uint32_t)group->getRemoteAddress());
+  json.addElem("lastRollingCode", (uint32_t)group->lastRollingCode);
+  json.addElem("bitLength", group->bitLength);
+  json.addElem("proto", static_cast<uint8_t>(group->proto));
+  json.addElem("sunSensor", group->hasSunSensor());
+  json.addElem("flipCommands", group->flipCommands);
+  json.addElem("flags", group->flags);
+  json.addElem("repeats", group->repeats);
+  json.addElem("sortOrder", group->sortOrder);
+}
+static void serializeGroup(SomfyGroup *group, JsonFormatter &json) {
+  serializeGroupRef(group, json);
+  json.beginArray("linkedShades");
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPED_SHADES; i++) {
+    uint8_t shadeId = group->linkedShades[i];
+    if(shadeId > 0 && shadeId < 255) {
+      SomfyShade *shade = somfy.getShadeById(shadeId);
+      if(shade) {
+        json.beginObject();
+        serializeShadeRef(shade, json);
+        json.endObject();
+      }
+    }
+  }
+  json.endArray();
+}
+static void serializeRooms(JsonFormatter &json) {
+  for(uint8_t i = 0; i < SOMFY_MAX_ROOMS; i++) {
+    SomfyRoom *room = &somfy.rooms[i];
+    if(room->roomId != 0) {
+      json.beginObject();
+      serializeRoom(room, json);
+      json.endObject();
+    }
+  }
+}
+static void serializeShades(JsonFormatter &json) {
+  for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
+    SomfyShade &shade = somfy.shades[i];
+    if(shade.getShadeId() != 255) {
+      json.beginObject();
+      serializeShade(&shade, json);
+      json.endObject();
+    }
+  }
+}
+static void serializeGroups(JsonFormatter &json) {
+  for(uint8_t i = 0; i < SOMFY_MAX_GROUPS; i++) {
+    SomfyGroup &group = somfy.groups[i];
+    if(group.getGroupId() != 255) {
+      json.beginObject();
+      serializeGroup(&group, json);
+      json.endObject();
+    }
+  }
+}
+static void serializeRepeaters(JsonFormatter &json) {
+  for(uint8_t i = 0; i < SOMFY_MAX_REPEATERS; i++) {
+    if(somfy.repeaters[i] != 0) json.addElem((uint32_t)somfy.repeaters[i]);
+  }
+}
+static void serializeTransceiverConfig(JsonFormatter &json) {
+  auto &cfg = somfy.transceiver.config;
+  json.addElem("type", cfg.type);
+  json.addElem("TXPin", cfg.TXPin);
+  json.addElem("RXPin", cfg.RXPin);
+  json.addElem("SCKPin", cfg.SCKPin);
+  json.addElem("MOSIPin", cfg.MOSIPin);
+  json.addElem("MISOPin", cfg.MISOPin);
+  json.addElem("CSNPin", cfg.CSNPin);
+  json.addElem("rxBandwidth", cfg.rxBandwidth);
+  json.addElem("frequency", cfg.frequency);
+  json.addElem("deviation", cfg.deviation);
+  json.addElem("txPower", cfg.txPower);
+  json.addElem("proto", static_cast<uint8_t>(cfg.proto));
+  json.addElem("enabled", cfg.enabled);
+  json.addElem("radioInit", cfg.radioInit);
+}
+static void serializeAppVersion(JsonFormatter &json, appver_t &ver) {
+  json.addElem("name", ver.name);
+  json.addElem("major", ver.major);
+  json.addElem("minor", ver.minor);
+  json.addElem("build", ver.build);
+  json.addElem("suffix", ver.suffix);
+}
+static void serializeGitVersion(JsonFormatter &json) {
+  json.addElem("available", git.updateAvailable);
+  json.addElem("status", git.status);
+  json.addElem("error", (int32_t)git.error);
+  json.addElem("cancelled", git.cancelled);
+  json.addElem("checkForUpdate", settings.checkForUpdate);
+  json.addElem("inetAvailable", git.inetAvailable);
+  json.beginObject("fwVersion");
+  serializeAppVersion(json, settings.fwVersion);
+  json.endObject();
+  json.beginObject("appVersion");
+  serializeAppVersion(json, settings.appVersion);
+  json.endObject();
+  json.beginObject("latest");
+  serializeAppVersion(json, git.latest);
+  json.endObject();
+}
+static void serializeGitRelease(GitRelease *rel, JsonFormatter &json) {
+  Timestamp ts;
+  char buff[20];
+  sprintf(buff, "%llu", rel->id);
+  json.addElem("id", buff);
+  json.addElem("name", rel->name);
+  json.addElem("date", ts.getISOTime(rel->releaseDate));
+  json.addElem("draft", rel->draft);
+  json.addElem("preRelease", rel->preRelease);
+  json.addElem("main", rel->main);
+  json.addElem("hasFS", rel->hasFS);
+  json.addElem("hwVersions", rel->hwVersions);
+  json.beginObject("version");
+  serializeAppVersion(json, rel->version);
+  json.endObject();
+}
+
+// -- Async handler implementations --
+void Web::handleDiscovery(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
+    Serial.println("Async Discovery Requested");
+    char connType[10] = "Unknown";
+    if(net.connType == conn_types_t::ethernet) strcpy(connType, "Ethernet");
+    else if(net.connType == conn_types_t::wifi) strcpy(connType, "Wifi");
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginObject();
+    resp.addElem("serverId", settings.serverId);
+    resp.addElem("version", settings.fwVersion.name);
+    resp.addElem("latest", git.latest.name);
+    resp.addElem("model", "ESPSomfyRTS");
+    resp.addElem("hostname", settings.hostname);
+    resp.addElem("authType", static_cast<uint8_t>(settings.Security.type));
+    resp.addElem("permissions", settings.Security.permissions);
+    resp.addElem("chipModel", settings.chipModel);
+    resp.addElem("connType", connType);
+    resp.addElem("checkForUpdate", settings.checkForUpdate);
+    resp.beginObject("memory");
+    resp.addElem("max", ESP.getMaxAllocHeap());
+    resp.addElem("free", ESP.getFreeHeap());
+    resp.addElem("min", ESP.getMinFreeHeap());
+    resp.addElem("total", ESP.getHeapSize());
+    resp.addElem("uptime", (uint64_t)millis());
+    resp.endObject();
+    resp.beginArray("rooms");
+    serializeRooms(resp);
+    resp.endArray();
+    resp.beginArray("shades");
+    serializeShades(resp);
+    resp.endArray();
+    resp.beginArray("groups");
+    serializeGroups(resp);
+    resp.endArray();
+    resp.endObject();
+    resp.endResponse();
+    net.needsBroadcast = true;
+  }
+  else
+    request->send(500, _encoding_text, "Invalid http method");
+}
+void Web::handleGetRooms(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginArray();
+    serializeRooms(resp);
+    resp.endArray();
+    resp.endResponse();
+  }
+  else request->send(404, _encoding_text, _response_404);
+}
+void Web::handleGetShades(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginArray();
+    serializeShades(resp);
+    resp.endArray();
+    resp.endResponse();
+  }
+  else request->send(404, _encoding_text, _response_404);
+}
+void Web::handleGetGroups(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginArray();
+    serializeGroups(resp);
+    resp.endArray();
+    resp.endResponse();
+  }
+  else request->send(404, _encoding_text, _response_404);
+}
+void Web::handleController(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
+    settings.printAvailHeap();
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginObject();
+    resp.addElem("maxRooms", (uint8_t)SOMFY_MAX_ROOMS);
+    resp.addElem("maxShades", (uint8_t)SOMFY_MAX_SHADES);
+    resp.addElem("maxGroups", (uint8_t)SOMFY_MAX_GROUPS);
+    resp.addElem("maxGroupedShades", (uint8_t)SOMFY_MAX_GROUPED_SHADES);
+    resp.addElem("maxLinkedRemotes", (uint8_t)SOMFY_MAX_LINKED_REMOTES);
+    resp.addElem("startingAddress", (uint32_t)somfy.startingAddress);
+    resp.beginObject("transceiver");
+    resp.beginObject("config");
+    serializeTransceiverConfig(resp);
+    resp.endObject();
+    resp.endObject();
+    resp.beginObject("version");
+    serializeGitVersion(resp);
+    resp.endObject();
+    resp.beginArray("rooms");
+    serializeRooms(resp);
+    resp.endArray();
+    resp.beginArray("shades");
+    serializeShades(resp);
+    resp.endArray();
+    resp.beginArray("groups");
+    serializeGroups(resp);
+    resp.endArray();
+    resp.beginArray("repeaters");
+    serializeRepeaters(resp);
+    resp.endArray();
+    resp.endObject();
+    resp.endResponse();
+  }
+  else request->send(404, _encoding_text, _response_404);
+}
+void Web::handleLogin(AsyncWebServerRequest *request, JsonVariant &json) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  char token[65];
+  memset(&token, 0x00, sizeof(token));
+  this->createAPIToken(request->client()->remoteIP(), token);
+  if(settings.Security.type == security_types::None) {
+    snprintf(g_async_content, sizeof(g_async_content),
+      "{\"type\":%u,\"apiKey\":\"%s\",\"msg\":\"Success\",\"success\":true}",
+      static_cast<uint8_t>(settings.Security.type), token);
+    request->send(200, _encoding_json, g_async_content);
+    return;
+  }
+  char username[33] = "";
+  char password[33] = "";
+  char pin[5] = "";
+  // Try query params first
+  if(asyncHasParam(request, "username")) strlcpy(username, asyncParam(request, "username").c_str(), sizeof(username));
+  if(asyncHasParam(request, "password")) strlcpy(password, asyncParam(request, "password").c_str(), sizeof(password));
+  if(asyncHasParam(request, "pin")) strlcpy(pin, asyncParam(request, "pin").c_str(), sizeof(pin));
+  // Override from JSON body if present
+  if(!json.isNull()) {
+    JsonObject obj = json.as<JsonObject>();
+    if(obj.containsKey("username")) strlcpy(username, obj["username"], sizeof(username));
+    if(obj.containsKey("password")) strlcpy(password, obj["password"], sizeof(password));
+    if(obj.containsKey("pin")) strlcpy(pin, obj["pin"], sizeof(pin));
+  }
+  bool success = false;
+  if(settings.Security.type == security_types::PinEntry) {
+    char ptok[65];
+    memset(ptok, 0x00, sizeof(ptok));
+    this->createAPIPinToken(request->client()->remoteIP(), pin, ptok);
+    if(String(ptok) == String(token)) success = true;
+  }
+  else if(settings.Security.type == security_types::Password) {
+    char ptok[65];
+    memset(ptok, 0x00, sizeof(ptok));
+    this->createAPIPasswordToken(request->client()->remoteIP(), username, password, ptok);
+    if(String(ptok) == String(token)) success = true;
+  }
+  if(success) {
+    snprintf(g_async_content, sizeof(g_async_content),
+      "{\"type\":%u,\"apiKey\":\"%s\",\"msg\":\"Success\",\"success\":true}",
+      static_cast<uint8_t>(settings.Security.type), token);
+    request->send(200, _encoding_json, g_async_content);
+  }
+  else {
+    snprintf(g_async_content, sizeof(g_async_content),
+      "{\"type\":%u,\"msg\":\"Invalid credentials\",\"success\":false}",
+      static_cast<uint8_t>(settings.Security.type));
+    request->send(401, _encoding_json, g_async_content);
+  }
+}
+void Web::handleShadeCommand(AsyncWebServerRequest *request, JsonVariant &json) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  uint8_t shadeId = 255;
+  uint8_t target = 255;
+  uint8_t stepSize = 0;
+  int8_t repeat = -1;
+  somfy_commands command = somfy_commands::My;
+  // Try query params
+  if(asyncHasParam(request, "shadeId")) {
+    shadeId = asyncParam(request, "shadeId").toInt();
+    if(asyncHasParam(request, "command")) command = translateSomfyCommand(asyncParam(request, "command"));
+    else if(asyncHasParam(request, "target")) target = asyncParam(request, "target").toInt();
+    if(asyncHasParam(request, "repeat")) repeat = asyncParam(request, "repeat").toInt();
+    if(asyncHasParam(request, "stepSize")) stepSize = asyncParam(request, "stepSize").toInt();
+  }
+  else if(!json.isNull()) {
+    JsonObject obj = json.as<JsonObject>();
+    if(obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+    else { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}")); return; }
+    if(obj.containsKey("command")) { String scmd = obj["command"]; command = translateSomfyCommand(scmd); }
+    else if(obj.containsKey("target")) target = obj["target"].as<uint8_t>();
+    if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+    if(obj.containsKey("stepSize")) stepSize = obj["stepSize"].as<uint8_t>();
+  }
+  else { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}")); return; }
+  SomfyShade *shade = somfy.getShadeById(shadeId);
+  if(shade) {
+    if(target <= 100) shade->moveToTarget(shade->transformPosition(target));
+    else shade->sendCommand(command, repeat > 0 ? repeat : shade->repeats, stepSize);
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginObject();
+    serializeShadeRef(shade, resp);
+    resp.endObject();
+    resp.endResponse();
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+}
+void Web::handleGroupCommand(AsyncWebServerRequest *request, JsonVariant &json) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  uint8_t groupId = 255;
+  uint8_t stepSize = 0;
+  int8_t repeat = -1;
+  somfy_commands command = somfy_commands::My;
+  if(asyncHasParam(request, "groupId")) {
+    groupId = asyncParam(request, "groupId").toInt();
+    if(asyncHasParam(request, "command")) command = translateSomfyCommand(asyncParam(request, "command"));
+    if(asyncHasParam(request, "repeat")) repeat = asyncParam(request, "repeat").toInt();
+    if(asyncHasParam(request, "stepSize")) stepSize = asyncParam(request, "stepSize").toInt();
+  }
+  else if(!json.isNull()) {
+    JsonObject obj = json.as<JsonObject>();
+    if(obj.containsKey("groupId")) groupId = obj["groupId"];
+    else { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group id was supplied.\"}")); return; }
+    if(obj.containsKey("command")) { String scmd = obj["command"]; command = translateSomfyCommand(scmd); }
+    if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+    if(obj.containsKey("stepSize")) stepSize = obj["stepSize"].as<uint8_t>();
+  }
+  else { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}")); return; }
+  SomfyGroup *group = somfy.getGroupById(groupId);
+  if(group) {
+    group->sendCommand(command, repeat >= 0 ? repeat : group->repeats, stepSize);
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginObject();
+    serializeGroupRef(group, resp);
+    resp.endObject();
+    resp.endResponse();
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group with the specified id not found.\"}"));
+}
+void Web::handleTiltCommand(AsyncWebServerRequest *request, JsonVariant &json) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  uint8_t shadeId = 255;
+  uint8_t target = 255;
+  somfy_commands command = somfy_commands::My;
+  if(asyncHasParam(request, "shadeId")) {
+    shadeId = asyncParam(request, "shadeId").toInt();
+    if(asyncHasParam(request, "command")) command = translateSomfyCommand(asyncParam(request, "command"));
+    else if(asyncHasParam(request, "target")) target = asyncParam(request, "target").toInt();
+  }
+  else if(!json.isNull()) {
+    JsonObject obj = json.as<JsonObject>();
+    if(obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+    else { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade id was supplied.\"}")); return; }
+    if(obj.containsKey("command")) { String scmd = obj["command"]; command = translateSomfyCommand(scmd); }
+    else if(obj.containsKey("target")) target = obj["target"].as<uint8_t>();
+  }
+  else { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}")); return; }
+  SomfyShade *shade = somfy.getShadeById(shadeId);
+  if(shade) {
+    if(target <= 100) shade->moveToTiltTarget(shade->transformPosition(target));
+    else shade->sendTiltCommand(command);
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginObject();
+    serializeShadeRef(shade, resp);
+    resp.endObject();
+    resp.endResponse();
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade with the specified id not found.\"}"));
+}
+void Web::handleRepeatCommand(AsyncWebServerRequest *request, JsonVariant &json) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  uint8_t shadeId = 255;
+  uint8_t groupId = 255;
+  uint8_t stepSize = 0;
+  int8_t repeat = -1;
+  somfy_commands command = somfy_commands::My;
+  if(asyncHasParam(request, "shadeId")) shadeId = asyncParam(request, "shadeId").toInt();
+  else if(asyncHasParam(request, "groupId")) groupId = asyncParam(request, "groupId").toInt();
+  if(asyncHasParam(request, "command")) command = translateSomfyCommand(asyncParam(request, "command"));
+  if(asyncHasParam(request, "repeat")) repeat = asyncParam(request, "repeat").toInt();
+  if(asyncHasParam(request, "stepSize")) stepSize = asyncParam(request, "stepSize").toInt();
+  if(shadeId == 255 && groupId == 255 && !json.isNull()) {
+    JsonObject obj = json.as<JsonObject>();
+    if(obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+    if(obj.containsKey("groupId")) groupId = obj["groupId"];
+    if(obj.containsKey("stepSize")) stepSize = obj["stepSize"];
+    if(obj.containsKey("command")) { String scmd = obj["command"]; command = translateSomfyCommand(scmd); }
+    if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+  }
+  if(shadeId != 255) {
+    SomfyShade *shade = somfy.getShadeById(shadeId);
+    if(!shade) { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade reference could not be found.\"}")); return; }
+    if(shade->shadeType == shade_types::garage1 && command == somfy_commands::Prog) command = somfy_commands::Toggle;
+    if(!shade->isLastCommand(command)) shade->sendCommand(command, repeat >= 0 ? repeat : shade->repeats, stepSize);
+    else shade->repeatFrame(repeat >= 0 ? repeat : shade->repeats);
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginArray();
+    serializeShadeRef(shade, resp);
+    resp.endArray();
+    resp.endResponse();
+  }
+  else if(groupId != 255) {
+    SomfyGroup *group = somfy.getGroupById(groupId);
+    if(!group) { request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group reference could not be found.\"}")); return; }
+    if(!group->isLastCommand(command)) group->sendCommand(command, repeat >= 0 ? repeat : group->repeats, stepSize);
+    else group->repeatFrame(repeat >= 0 ? repeat : group->repeats);
+    AsyncJsonResp resp;
+    resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+    resp.beginObject();
+    serializeGroupRef(group, resp);
+    resp.endObject();
+    resp.endResponse();
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
+void Web::handleRoom(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(request->method() == HTTP_GET) {
+    if(asyncHasParam(request, "roomId")) {
+      int roomId = asyncParam(request, "roomId").toInt();
+      SomfyRoom *room = somfy.getRoomById(roomId);
+      if(room) {
+        AsyncJsonResp resp;
+        resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+        resp.beginObject();
+        serializeRoom(room, resp);
+        resp.endObject();
+        resp.endResponse();
+      }
+      else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Room Id not found.\"}"));
+    }
+    else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid room id.\"}"));
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
+void Web::handleShade(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(request->method() == HTTP_GET) {
+    if(asyncHasParam(request, "shadeId")) {
+      int shadeId = asyncParam(request, "shadeId").toInt();
+      SomfyShade *shade = somfy.getShadeById(shadeId);
+      if(shade) {
+        AsyncJsonResp resp;
+        resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+        resp.beginObject();
+        serializeShade(shade, resp);
+        resp.endObject();
+        resp.endResponse();
+      }
+      else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Shade Id not found.\"}"));
+    }
+    else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid shade id.\"}"));
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
+void Web::handleGroup(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(request->method() == HTTP_GET) {
+    if(asyncHasParam(request, "groupId")) {
+      int groupId = asyncParam(request, "groupId").toInt();
+      SomfyGroup *group = somfy.getGroupById(groupId);
+      if(group) {
+        AsyncJsonResp resp;
+        resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+        resp.beginObject();
+        serializeGroup(group, resp);
+        resp.endObject();
+        resp.endResponse();
+      }
+      else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Group Id not found.\"}"));
+    }
+    else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"You must supply a valid group id.\"}"));
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
+}
+void Web::handleSetPositions(AsyncWebServerRequest *request, JsonVariant &json) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  uint8_t shadeId = asyncHasParam(request, "shadeId") ? asyncParam(request, "shadeId").toInt() : 255;
+  int8_t pos = asyncHasParam(request, "position") ? asyncParam(request, "position").toInt() : -1;
+  int8_t tiltPos = asyncHasParam(request, "tiltPosition") ? asyncParam(request, "tiltPosition").toInt() : -1;
+  if(!json.isNull()) {
+    JsonObject obj = json.as<JsonObject>();
+    if(obj.containsKey("shadeId")) shadeId = obj["shadeId"];
+    if(obj.containsKey("position")) pos = obj["position"];
+    if(obj.containsKey("tiltPosition")) tiltPos = obj["tiltPosition"];
+  }
+  if(shadeId != 255) {
+    SomfyShade *shade = somfy.getShadeById(shadeId);
+    if(shade) {
+      if(pos >= 0) shade->target = shade->currentPos = pos;
+      if(tiltPos >= 0 && shade->tiltType != tilt_types::none) shade->tiltTarget = shade->currentTiltPos = tiltPos;
+      shade->emitState();
+      AsyncJsonResp resp;
+      resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+      resp.beginObject();
+      serializeShade(shade, resp);
+      resp.endObject();
+      resp.endResponse();
+    }
+    else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"An invalid shadeId was provided\"}"));
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"shadeId was not provided\"}"));
+}
+void Web::handleSetSensor(AsyncWebServerRequest *request, JsonVariant &json) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  uint8_t shadeId = asyncHasParam(request, "shadeId") ? asyncParam(request, "shadeId").toInt() : 255;
+  uint8_t groupId = asyncHasParam(request, "groupId") ? asyncParam(request, "groupId").toInt() : 255;
+  int8_t sunny = asyncHasParam(request, "sunny") ? (toBoolean(asyncParam(request, "sunny").c_str(), false) ? 1 : 0) : -1;
+  int8_t windy = asyncHasParam(request, "windy") ? asyncParam(request, "windy").toInt() : -1;
+  int8_t repeat = asyncHasParam(request, "repeat") ? asyncParam(request, "repeat").toInt() : -1;
+  if(!json.isNull()) {
+    JsonObject obj = json.as<JsonObject>();
+    if(obj.containsKey("shadeId")) shadeId = obj["shadeId"].as<uint8_t>();
+    if(obj.containsKey("groupId")) groupId = obj["groupId"].as<uint8_t>();
+    if(obj.containsKey("sunny")) {
+      if(obj["sunny"].is<bool>()) sunny = obj["sunny"].as<bool>() ? 1 : 0;
+      else sunny = obj["sunny"].as<int8_t>();
+    }
+    if(obj.containsKey("windy")) {
+      if(obj["windy"].is<bool>()) windy = obj["windy"].as<bool>() ? 1 : 0;
+      else windy = obj["windy"].as<int8_t>();
+    }
+    if(obj.containsKey("repeat")) repeat = obj["repeat"].as<uint8_t>();
+  }
+  if(shadeId != 255) {
+    SomfyShade *shade = somfy.getShadeById(shadeId);
+    if(shade) {
+      shade->sendSensorCommand(windy, sunny, repeat >= 0 ? (uint8_t)repeat : shade->repeats);
+      shade->emitState();
+      AsyncJsonResp resp;
+      resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+      resp.beginObject();
+      serializeShade(shade, resp);
+      resp.endObject();
+      resp.endResponse();
+    }
+    else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"An invalid shadeId was provided\"}"));
+  }
+  else if(groupId != 255) {
+    SomfyGroup *group = somfy.getGroupById(groupId);
+    if(group) {
+      group->sendSensorCommand(windy, sunny, repeat >= 0 ? (uint8_t)repeat : group->repeats);
+      group->emitState();
+      AsyncJsonResp resp;
+      resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+      resp.beginObject();
+      serializeGroup(group, resp);
+      resp.endObject();
+      resp.endResponse();
+    }
+    else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"An invalid groupId was provided\"}"));
+  }
+  else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"shadeId was not provided\"}"));
+}
+void Web::handleDownloadFirmware(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  GitRepo repo;
+  GitRelease *rel = nullptr;
+  int8_t err = repo.getReleases();
+  Serial.println("Async downloadFirmware called...");
+  if(err == 0) {
+    if(asyncHasParam(request, "ver")) {
+      String ver = asyncParam(request, "ver");
+      if(ver == "latest") rel = &repo.releases[0];
+      else if(ver == "main") rel = &repo.releases[GIT_MAX_RELEASES];
+      else {
+        for(uint8_t i = 0; i < GIT_MAX_RELEASES; i++) {
+          if(repo.releases[i].id == 0) continue;
+          if(strcmp(repo.releases[i].name, ver.c_str()) == 0) { rel = &repo.releases[i]; break; }
+        }
+      }
+      if(rel) {
+        AsyncJsonResp resp;
+        resp.beginResponse(request, g_async_content, sizeof(g_async_content));
+        resp.beginObject();
+        serializeGitRelease(rel, resp);
+        resp.endObject();
+        resp.endResponse();
+        strcpy(git.targetRelease, rel->name);
+        git.status = GIT_AWAITING_UPDATE;
+      }
+      else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release not found in repo.\"}"));
+    }
+    else request->send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Release version not supplied.\"}"));
+  }
+  else request->send(err, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error communicating with Github.\"}"));
+}
+void Web::handleBackup(AsyncWebServerRequest *request) {
+  bool attach = false;
+  if(asyncHasParam(request, "attach")) attach = toBoolean(asyncParam(request, "attach").c_str(), false);
+  Serial.println("Async saving current shade information");
+  somfy.writeBackup();
+  if(somfy.backupData.length() == 0) {
+    request->send(500, _encoding_text, "backup failed");
+    return;
+  }
+  if(attach) {
+    char filename[120];
+    Timestamp ts;
+    char *iso = ts.getISOTime();
+    for(uint8_t i = 0; i < strlen(iso); i++) {
+      if(iso[i] == '.') { iso[i] = '\0'; break; }
+      if(iso[i] == ':') iso[i] = '_';
+    }
+    snprintf(filename, sizeof(filename), "attachment; filename=\"ESPSomfyRTS %s.backup\"", iso);
+    AsyncWebServerResponse *response = request->beginResponse(200, _encoding_text, somfy.backupData);
+    response->addHeader("Content-Disposition", filename);
+    response->addHeader("Access-Control-Expose-Headers", "Content-Disposition");
+    request->send(response);
+  }
+  else {
+    request->send(200, _encoding_text, somfy.backupData);
+  }
+}
+void Web::handleReboot(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(request->method() == HTTP_POST || request->method() == HTTP_PUT) {
+    Serial.println("Async Rebooting ESP...");
+    rebootDelay.reboot = true;
+    rebootDelay.rebootTime = millis() + 500;
+    request->send(200, _encoding_json, "{\"status\":\"OK\",\"desc\":\"Successfully started reboot\"}");
+  }
+  else request->send(201, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method\"}");
+}
+void Web::handleNotFound(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  snprintf(g_async_content, sizeof(g_async_content), "404 Service Not Found: %s", request->url().c_str());
+  request->send(404, _encoding_text, g_async_content);
+}
+
 void Web::begin() {
   Serial.println("Creating Web MicroServices...");
   server.enableCORS(true);
@@ -1102,7 +1842,52 @@ void Web::begin() {
   apiServer.on("/downloadFirmware", []() { webServer.handleDownloadFirmware(apiServer); });
   apiServer.on("/backup", []() { webServer.handleBackup(apiServer); });
   apiServer.on("/reboot", []() { webServer.handleReboot(apiServer); });
-  
+
+  // Async API Server (port 8082)
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "*");
+  // GET endpoints
+  asyncApiServer.on("/discovery", WebRequestMethodComposite(HTTP_GET) | HTTP_POST, [](AsyncWebServerRequest *r) { webServer.handleDiscovery(r); });
+  asyncApiServer.on("/rooms", WebRequestMethodComposite(HTTP_GET) | HTTP_POST, [](AsyncWebServerRequest *r) { webServer.handleGetRooms(r); });
+  asyncApiServer.on("/shades", WebRequestMethodComposite(HTTP_GET) | HTTP_POST, [](AsyncWebServerRequest *r) { webServer.handleGetShades(r); });
+  asyncApiServer.on("/groups", WebRequestMethodComposite(HTTP_GET) | HTTP_POST, [](AsyncWebServerRequest *r) { webServer.handleGetGroups(r); });
+  asyncApiServer.on("/controller", WebRequestMethodComposite(HTTP_GET) | HTTP_POST, [](AsyncWebServerRequest *r) { webServer.handleController(r); });
+  asyncApiServer.on("/room", HTTP_GET, [](AsyncWebServerRequest *r) { webServer.handleRoom(r); });
+  asyncApiServer.on("/shade", HTTP_GET, [](AsyncWebServerRequest *r) { webServer.handleShade(r); });
+  asyncApiServer.on("/group", HTTP_GET, [](AsyncWebServerRequest *r) { webServer.handleGroup(r); });
+  asyncApiServer.on("/downloadFirmware", WebRequestMethodComposite(HTTP_GET) | HTTP_POST, [](AsyncWebServerRequest *r) { webServer.handleDownloadFirmware(r); });
+  asyncApiServer.on("/backup", WebRequestMethodComposite(HTTP_GET) | HTTP_POST, [](AsyncWebServerRequest *r) { webServer.handleBackup(r); });
+  asyncApiServer.on("/reboot", WebRequestMethodComposite(HTTP_POST) | HTTP_PUT, [](AsyncWebServerRequest *r) { webServer.handleReboot(r); });
+  // JSON body endpoints
+  asyncApiServer.addHandler(new AsyncCallbackJsonWebHandler("/shadeCommand",
+    [](AsyncWebServerRequest *r, JsonVariant &j) { webServer.handleShadeCommand(r, j); }));
+  asyncApiServer.addHandler(new AsyncCallbackJsonWebHandler("/groupCommand",
+    [](AsyncWebServerRequest *r, JsonVariant &j) { webServer.handleGroupCommand(r, j); }));
+  asyncApiServer.addHandler(new AsyncCallbackJsonWebHandler("/tiltCommand",
+    [](AsyncWebServerRequest *r, JsonVariant &j) { webServer.handleTiltCommand(r, j); }));
+  asyncApiServer.addHandler(new AsyncCallbackJsonWebHandler("/repeatCommand",
+    [](AsyncWebServerRequest *r, JsonVariant &j) { webServer.handleRepeatCommand(r, j); }));
+  asyncApiServer.addHandler(new AsyncCallbackJsonWebHandler("/setPositions",
+    [](AsyncWebServerRequest *r, JsonVariant &j) { webServer.handleSetPositions(r, j); }));
+  asyncApiServer.addHandler(new AsyncCallbackJsonWebHandler("/setSensor",
+    [](AsyncWebServerRequest *r, JsonVariant &j) { webServer.handleSetSensor(r, j); }));
+  asyncApiServer.addHandler(new AsyncCallbackJsonWebHandler("/login",
+    [](AsyncWebServerRequest *r, JsonVariant &j) { webServer.handleLogin(r, j); }));
+  // GET fallback for command endpoints (query params)
+  asyncApiServer.on("/shadeCommand", HTTP_GET, [](AsyncWebServerRequest *r) { JsonVariant v; webServer.handleShadeCommand(r, v); });
+  asyncApiServer.on("/groupCommand", HTTP_GET, [](AsyncWebServerRequest *r) { JsonVariant v; webServer.handleGroupCommand(r, v); });
+  asyncApiServer.on("/tiltCommand", HTTP_GET, [](AsyncWebServerRequest *r) { JsonVariant v; webServer.handleTiltCommand(r, v); });
+  asyncApiServer.on("/repeatCommand", HTTP_GET, [](AsyncWebServerRequest *r) { JsonVariant v; webServer.handleRepeatCommand(r, v); });
+  asyncApiServer.on("/setPositions", HTTP_GET, [](AsyncWebServerRequest *r) { JsonVariant v; webServer.handleSetPositions(r, v); });
+  asyncApiServer.on("/setSensor", HTTP_GET, [](AsyncWebServerRequest *r) { JsonVariant v; webServer.handleSetSensor(r, v); });
+  asyncApiServer.on("/login", HTTP_GET, [](AsyncWebServerRequest *r) { JsonVariant v; webServer.handleLogin(r, v); });
+  // OPTIONS preflight + not found
+  asyncApiServer.onNotFound([](AsyncWebServerRequest *r) {
+    if(r->method() == HTTP_OPTIONS) { r->send(200); return; }
+    webServer.handleNotFound(r);
+  });
+
   // Web Interface
   server.on("/tiltCommand", []() { webServer.handleTiltCommand(server); });
   server.on("/repeatCommand", []() { webServer.handleRepeatCommand(server); });

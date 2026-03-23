@@ -11,3 +11,5 @@ SomfyController.ino.esp32s2.bin
 .pio/
 data/
 build/
+coredump_report.txt
+coredump.bin
