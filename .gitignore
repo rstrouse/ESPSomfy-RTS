@@ -13,3 +13,4 @@ data/
 build/
 coredump_report.txt
 coredump.bin
+logs/

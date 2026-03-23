@@ -1,5 +1,5 @@
 #include "WResp.h"
-void JsonSockEvent::beginEvent(WebSocketsServer *server, const char *evt, char *buff, size_t buffSize) {
+void JsonSockEvent::beginEvent(AsyncWebSocket *server, const char *evt, char *buff, size_t buffSize) {
   this->server = server;
   this->buff = buff;
   this->buffSize = buffSize;
@@ -15,10 +15,10 @@ void JsonSockEvent::closeEvent() {
   this->_nocomma = true;
   this->_closed = true;
 }
-void JsonSockEvent::endEvent(uint8_t num) {
+void JsonSockEvent::endEvent(uint32_t clientId) {
   this->closeEvent();
-  if(num == 255) this->server->broadcastTXT(this->buff);
-  else this->server->sendTXT(num, this->buff);
+  if(clientId == 0) this->server->textAll(this->buff);
+  else this->server->text(clientId, this->buff);
 }
 void JsonSockEvent::_safecat(const char *val, bool escape) {
   size_t len = (escape ? this->calcEscapedLength(val) : strlen(val)) + strlen(this->buff);

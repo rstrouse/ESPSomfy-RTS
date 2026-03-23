@@ -1,5 +1,4 @@
 #include <WebServer.h>
-#include <WebSocketsServer.h>
 #include <esp_task_wdt.h>
 #include <ESPAsyncWebServer.h>
 #include "Somfy.h"
@@ -78,9 +77,9 @@ class JsonSockEvent : public JsonFormatter {
     bool _closed = false;
     void _safecat(const char *val, bool escape = false) override;
   public:
-    WebSocketsServer *server = nullptr;
-    void beginEvent(WebSocketsServer *server, const char *evt, char *buff, size_t buffSize);
-    void endEvent(uint8_t clientNum = 255);
+    AsyncWebSocket *server = nullptr;
+    void beginEvent(AsyncWebSocket *server, const char *evt, char *buff, size_t buffSize);
+    void endEvent(uint32_t clientId = 0);
     void closeEvent();
 };
 #endif

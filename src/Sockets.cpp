@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <WebSocketsServer.h>
 #include <esp_task_wdt.h>
 #include "Sockets.h"
 #include "ConfigSettings.h"
@@ -14,33 +13,56 @@ extern SomfyShadeController somfy;
 extern SocketEmitter sockEmit;
 extern GitUpdater git;
 
+AsyncWebServer wsServer(8080);
+AsyncWebSocket ws("/");
 
-WebSocketsServer sockServer = WebSocketsServer(8080);
+#define MAX_WS_CLIENTS 5
+static uint32_t clientMap[MAX_WS_CLIENTS] = {0,0,0,0,0};
+
+static uint8_t mapClientId(uint32_t asyncId) {
+  for(uint8_t i = 0; i < MAX_WS_CLIENTS; i++)
+    if(clientMap[i] == asyncId) return i;
+  return 255;
+}
+static uint32_t getAsyncId(uint8_t slot) {
+  if(slot < MAX_WS_CLIENTS) return clientMap[slot];
+  return 0;
+}
+static uint8_t addClient(uint32_t asyncId) {
+  for(uint8_t i = 0; i < MAX_WS_CLIENTS; i++) {
+    if(clientMap[i] == 0) { clientMap[i] = asyncId; return i; }
+  }
+  return 255;
+}
+static void removeClient(uint32_t asyncId) {
+  for(uint8_t i = 0; i < MAX_WS_CLIENTS; i++)
+    if(clientMap[i] == asyncId) clientMap[i] = 0;
+}
 
 #define MAX_SOCK_RESPONSE 2048
 static char g_response[MAX_SOCK_RESPONSE];
 
 bool room_t::isJoined(uint8_t num) {
-  for(uint8_t i = 0; i < sizeof(this->clients); i++) { 
-    if(this->clients[i] == num) return true; 
-  } 
-  return false; 
+  for(uint8_t i = 0; i < sizeof(this->clients); i++) {
+    if(this->clients[i] == num) return true;
+  }
+  return false;
 }
 bool room_t::join(uint8_t num) {
-  if(this->isJoined(num)) return true; 
-  for(uint8_t i = 0; i < sizeof(this->clients); i++) { 
-    if(this->clients[i] == 255) { 
-      this->clients[i] = num; 
-      return true; 
-    } 
+  if(this->isJoined(num)) return true;
+  for(uint8_t i = 0; i < sizeof(this->clients); i++) {
+    if(this->clients[i] == 255) {
+      this->clients[i] = num;
+      return true;
+    }
   }
-  return false;  
+  return false;
 }
-bool room_t::leave(uint8_t num) { 
-  if(!this->isJoined(num)) return false; 
-  for(uint8_t i = 0; i < sizeof(this->clients); i++) { 
-    if(this->clients[i] == num) this->clients[i] = 255; 
-  } 
+bool room_t::leave(uint8_t num) {
+  if(!this->isJoined(num)) return false;
+  for(uint8_t i = 0; i < sizeof(this->clients); i++) {
+    if(this->clients[i] == num) this->clients[i] = 255;
+  }
   return true;
 }
 void room_t::clear() {
@@ -53,49 +75,44 @@ uint8_t room_t::activeClients() {
   }
   return n;
 }
-/*********************************************************************
- * ClientSocketEvent class members
- ********************************************************************/
-/*
-void ClientSocketEvent::prepareMessage(const char *evt, const char *payload) {
-  if(strlen(payload) + 5 >= sizeof(this->msg)) Serial.printf("Socket buffer overflow %d > 2048\n", strlen(payload) + 5 + strlen(evt));
-    snprintf(this->msg, sizeof(this->msg), "42[%s,%s]", evt, payload);
-}
-void ClientSocketEvent::prepareMessage(const char *evt, JsonDocument &doc) {
-  memset(this->msg, 0x00, sizeof(this->msg));
-  snprintf(this->msg, sizeof(this->msg), "42[%s,", evt);
-  serializeJson(doc, &this->msg[strlen(this->msg)], sizeof(this->msg) - strlen(this->msg) - 2);
-  strcat(this->msg, "]");
-}
-*/
 
 /*********************************************************************
  * SocketEmitter class members
  ********************************************************************/
 void SocketEmitter::startup() {
-  
+
 }
 void SocketEmitter::begin() {
-  sockServer.begin();
-  sockServer.enableHeartbeat(3000, 2000, 2);
-  sockServer.onEvent(this->wsEvent);
+  ws.onEvent(SocketEmitter::wsEvent);
+  wsServer.addHandler(&ws);
+  wsServer.begin();
   Serial.println("Socket Server Started...");
-  //settings.printAvailHeap();
 }
 void SocketEmitter::loop() {
+  ws.cleanupClients();
   this->initClients();
-  sockServer.loop();  
 }
 JsonSockEvent *SocketEmitter::beginEmit(const char *evt) {
-  this->json.beginEvent(&sockServer, evt, g_response, sizeof(g_response));
+  this->json.beginEvent(&ws, evt, g_response, sizeof(g_response));
   return &this->json;
 }
-void SocketEmitter::endEmit(uint8_t num) { this->json.endEvent(num); esp_task_wdt_reset(); sockServer.loop(); }
+void SocketEmitter::endEmit(uint8_t num) {
+  if(num == 255) {
+    this->json.endEvent(0);
+  } else {
+    uint32_t asyncId = getAsyncId(num);
+    this->json.endEvent(asyncId);
+  }
+  esp_task_wdt_reset();
+}
 void SocketEmitter::endEmitRoom(uint8_t room) {
   if(room < SOCK_MAX_ROOMS) {
     room_t *r = &this->rooms[room];
     for(uint8_t i = 0; i < sizeof(r->clients); i++) {
-      if(r->clients[i] != 255) this->json.endEvent(r->clients[i]);
+      if(r->clients[i] != 255) {
+        uint32_t asyncId = getAsyncId(r->clients[i]);
+        if(asyncId != 0) this->json.endEvent(asyncId);
+      }
     }
   }
 }
@@ -105,18 +122,19 @@ uint8_t SocketEmitter::activeClients(uint8_t room) {
 }
 void SocketEmitter::initClients() {
   for(uint8_t i = 0; i < sizeof(this->newClients); i++) {
-    uint8_t num = this->newClients[i];
-    if(num != 255) {
-      if(sockServer.clientIsConnected(num)) {
-        Serial.printf("Initializing Socket Client %u\n", num);
+    uint8_t slot = this->newClients[i];
+    if(slot != 255) {
+      uint32_t asyncId = getAsyncId(slot);
+      if(asyncId != 0 && ws.hasClient(asyncId)) {
+        Serial.printf("Initializing Socket Client %u (asyncId=%lu)\n", slot, asyncId);
         esp_task_wdt_reset();
-        settings.emitSockets(num);
-        if(!sockServer.clientIsConnected(num)) { this->newClients[i] = 255; continue; }
-        somfy.emitState(num);
-        if(!sockServer.clientIsConnected(num)) { this->newClients[i] = 255; continue; }
-        git.emitUpdateCheck(num);
-        if(!sockServer.clientIsConnected(num)) { this->newClients[i] = 255; continue; }
-        net.emitSockets(num);
+        settings.emitSockets(slot);
+        if(!ws.hasClient(asyncId)) { this->newClients[i] = 255; continue; }
+        somfy.emitState(slot);
+        if(!ws.hasClient(asyncId)) { this->newClients[i] = 255; continue; }
+        git.emitUpdateCheck(slot);
+        if(!ws.hasClient(asyncId)) { this->newClients[i] = 255; continue; }
+        net.emitSockets(slot);
         esp_task_wdt_reset();
       }
       this->newClients[i] = 255;
@@ -132,75 +150,72 @@ void SocketEmitter::delayInit(uint8_t num) {
     }
   }
 }
-void SocketEmitter::end() { 
-  sockServer.close(); 
+void SocketEmitter::end() {
+  ws.closeAll();
+  wsServer.end();
   for(uint8_t i = 0; i < SOCK_MAX_ROOMS; i++)
     this->rooms[i].clear();
+  memset(clientMap, 0, sizeof(clientMap));
 }
-void SocketEmitter::disconnect() { sockServer.disconnect(); }
-void SocketEmitter::wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
-    switch(type) {
-        case WStype_ERROR:
-            if(length > 0)
-              Serial.printf("Socket Error: %s\n", payload);
-            else
-              Serial.println("Socket Error: \n");
-            break;
-        case WStype_DISCONNECTED:
-            if(length > 0)
-              Serial.printf("Socket [%u] Disconnected!\n [%s]", num, payload);
-            else
-              Serial.printf("Socket [%u] Disconnected!\n", num);
-            for(uint8_t i = 0; i < SOCK_MAX_ROOMS; i++) {
-              sockEmit.rooms[i].leave(num);
-            }
-            break;
-        case WStype_CONNECTED:
-            {
-                IPAddress ip = sockServer.remoteIP(num);
-                Serial.printf("Socket [%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-                // Send all the current shade settings to the client.
-                sockServer.sendTXT(num, "Connected");
-                //sockServer.loop();
-                sockEmit.delayInit(num);
-            }
-            break;
-        case WStype_TEXT:
-            if(strncmp((char *)payload, "join:", 5) == 0) {
-              // In this instance the client wants to join a room.  Let's do some
-              // work to get the ordinal of the room that the client wants to join.
-              uint8_t roomNum = atoi((char *)&payload[5]);
-              Serial.printf("Client %u joining room %u\n", num, roomNum);
-              if(roomNum < SOCK_MAX_ROOMS) sockEmit.rooms[roomNum].join(num);
-            }
-            else if(strncmp((char *)payload, "leave:", 6) == 0) {
-              uint8_t roomNum = atoi((char *)&payload[6]);
-              Serial.printf("Client %u leaving room %u\n", num, roomNum);
-              if(roomNum < SOCK_MAX_ROOMS) sockEmit.rooms[roomNum].leave(num);
-            }
-            else {
-              Serial.printf("Socket [%u] text: %s\n", num, payload);
-            }
-            // send message to client
-            // webSocket.sendTXT(num, "message here");
-
-            // send data to all connected clients
-            // sockServer.broadcastTXT("message here");
-            break;
-        case WStype_BIN:
-            Serial.printf("[%u] get binary length: %u\n", num, length);
-            //hexdump(payload, length);
-
-            // send message to client
-            // sockServer.sendBIN(num, payload, length);
-            break;
-        case WStype_PONG:
-            //Serial.printf("Pong from %u\n", num);
-            break;
-        case WStype_PING:
-            //Serial.printf("Ping from %u\n", num);
-            break;
-        default:
-            break;
-    }  
+void SocketEmitter::disconnect() {
+  ws.closeAll();
+  memset(clientMap, 0, sizeof(clientMap));
+}
+void SocketEmitter::wsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  uint32_t asyncId = client->id();
+  switch(type) {
+    case WS_EVT_CONNECT:
+      {
+        uint8_t slot = addClient(asyncId);
+        if(slot == 255) {
+          Serial.printf("Socket: No free client slots, closing %lu\n", asyncId);
+          client->close();
+          return;
+        }
+        IPAddress ip = client->remoteIP();
+        Serial.printf("Socket [%lu] Connected from %d.%d.%d.%d (slot %u)\n", asyncId, ip[0], ip[1], ip[2], ip[3], slot);
+        client->text("Connected");
+        client->setCloseClientOnQueueFull(false);
+        sockEmit.delayInit(slot);
+      }
+      break;
+    case WS_EVT_DISCONNECT:
+      {
+        uint8_t slot = mapClientId(asyncId);
+        Serial.printf("Socket [%lu] Disconnected (slot %u)\n", asyncId, slot);
+        if(slot != 255) {
+          for(uint8_t i = 0; i < SOCK_MAX_ROOMS; i++)
+            sockEmit.rooms[i].leave(slot);
+        }
+        removeClient(asyncId);
+      }
+      break;
+    case WS_EVT_DATA:
+      {
+        AwsFrameInfo *info = (AwsFrameInfo*)arg;
+        if(info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+          uint8_t slot = mapClientId(asyncId);
+          data[len] = 0;
+          if(strncmp((char*)data, "join:", 5) == 0) {
+            uint8_t roomNum = atoi((char*)&data[5]);
+            Serial.printf("Client %u joining room %u\n", slot, roomNum);
+            if(roomNum < SOCK_MAX_ROOMS && slot != 255) sockEmit.rooms[roomNum].join(slot);
+          }
+          else if(strncmp((char*)data, "leave:", 6) == 0) {
+            uint8_t roomNum = atoi((char*)&data[6]);
+            Serial.printf("Client %u leaving room %u\n", slot, roomNum);
+            if(roomNum < SOCK_MAX_ROOMS && slot != 255) sockEmit.rooms[roomNum].leave(slot);
+          }
+          else {
+            Serial.printf("Socket [%lu] text: %s\n", asyncId, data);
+          }
+        }
+      }
+      break;
+    case WS_EVT_ERROR:
+      Serial.printf("Socket [%lu] Error\n", asyncId);
+      break;
+    case WS_EVT_PONG:
+      break;
+  }
 }

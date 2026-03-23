@@ -1,4 +1,4 @@
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 #include "WResp.h"
 #ifndef sockets_h
 #define sockets_h
@@ -21,7 +21,6 @@ class SocketEmitter {
     void delayInit(uint8_t num);
   public:
     JsonSockEvent json;
-    //ClientSocketEvent evt;
     room_t rooms[SOCK_MAX_ROOMS];
     uint8_t activeClients(uint8_t room);
     void initClients();
@@ -33,6 +32,6 @@ class SocketEmitter {
     JsonSockEvent * beginEmit(const char *evt);
     void endEmit(uint8_t num = 255);
     void endEmitRoom(uint8_t num);
-    static void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
+    static void wsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
 };
 #endif
