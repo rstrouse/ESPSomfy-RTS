@@ -14,7 +14,7 @@
             "name": "PIO Debug",
             "executable": "c:/Users/oem/Documents/PlatformIO/Projects/ESPSomfy-RTS/.pio/build/esp32dev/firmware.elf",
             "projectEnvName": "esp32devdbg",
-            "toolchainBinDir": "C:/Users/oem/.platformio/packages/toolchain-riscv32-esp/bin",
+            "toolchainBinDir": "C:/Users/oem/.platformio/packages/toolchain-xtensa-esp32/bin",
             "internalConsoleOptions": "openOnSessionStart",
             "preLaunchTask": {
                 "type": "PlatformIO",
@@ -27,7 +27,7 @@
             "name": "PIO Debug (skip Pre-Debug)",
             "executable": "c:/Users/oem/Documents/PlatformIO/Projects/ESPSomfy-RTS/.pio/build/esp32dev/firmware.elf",
             "projectEnvName": "esp32devdbg",
-            "toolchainBinDir": "C:/Users/oem/.platformio/packages/toolchain-riscv32-esp/bin",
+            "toolchainBinDir": "C:/Users/oem/.platformio/packages/toolchain-xtensa-esp32/bin",
             "internalConsoleOptions": "openOnSessionStart"
         },
         {
@@ -36,7 +36,7 @@
             "name": "PIO Debug (without uploading)",
             "executable": "c:/Users/oem/Documents/PlatformIO/Projects/ESPSomfy-RTS/.pio/build/esp32dev/firmware.elf",
             "projectEnvName": "esp32devdbg",
-            "toolchainBinDir": "C:/Users/oem/.platformio/packages/toolchain-riscv32-esp/bin",
+            "toolchainBinDir": "C:/Users/oem/.platformio/packages/toolchain-xtensa-esp32/bin",
             "internalConsoleOptions": "openOnSessionStart",
             "loadMode": "manual"
         }
