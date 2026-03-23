@@ -43,8 +43,9 @@ class Web {
     bool createAPIPinToken(const IPAddress ipAddress, const char *pin, char *token);
     bool createAPIPasswordToken(const IPAddress ipAddress, const char *username, const char *password, char *token);
     bool isAuthenticated(WebServer &server, bool cfg = false);
+    bool isAuthenticated(AsyncWebServerRequest *request, bool cfg = false);
 
-    // Async API handler overloads (port 8082)
+    // Async API handler overloads (port 8081)
     void handleDiscovery(AsyncWebServerRequest *request);
     void handleGetRooms(AsyncWebServerRequest *request);
     void handleGetShades(AsyncWebServerRequest *request);

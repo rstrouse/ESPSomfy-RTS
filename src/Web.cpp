@@ -44,13 +44,13 @@ static const char _encoding_json[] = "application/json";
 
 WebServer apiServer(8082);
 WebServer server(80);
-AsyncWebServer aserver(81);
+AsyncWebServer asyncServer(81);
 AsyncWebServer asyncApiServer(8081);
 void Web::startup() {
   Serial.println("Launching web server...");
-  aserver.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+  asyncServer.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
-  aserver.on("/loginContext", HTTP_GET, [](AsyncWebServerRequest *request) {
+  asyncServer.on("/loginContext", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncJsonResponse *response = new AsyncJsonResponse();
     JsonObject root = response->getRoot().to<JsonObject>();
     root["type"] = static_cast<uint8_t>(settings.Security.type);
@@ -62,9 +62,9 @@ void Web::startup() {
     response->setLength();
     request->send(response);
   });
-  aserver.begin();
+  asyncServer.begin();
   asyncApiServer.begin();
-  Serial.println("Async API server started on port 8082");
+  Serial.println("Async API server started on port 8081");
 }
 void Web::loop() {
   server.handleClient();
@@ -117,6 +117,28 @@ bool Web::isAuthenticated(WebServer &server, bool cfg) {
     // Send a 401
     Serial.println("Not authenticated...");
     server.send(401, "Unauthorized API Key");
+    return false;
+  }
+  return true;
+}
+bool Web::isAuthenticated(AsyncWebServerRequest *request, bool cfg) {
+  Serial.println("Checking async authentication");
+  if(settings.Security.type == security_types::None) return true;
+  else if(!cfg && (settings.Security.permissions & static_cast<uint8_t>(security_permissions::ConfigOnly)) == 0x01) return true;
+  else if(request->hasHeader("apikey")) {
+    Serial.println("Checking API Key...");
+    char token[65];
+    memset(token, 0x00, sizeof(token));
+    this->createAPIToken(request->client()->remoteIP(), token);
+    if(String(token) != request->getHeader("apikey")->value()) {
+      request->send(401, _encoding_text, "Unauthorized API Key");
+      return false;
+    }
+    // Key is valid
+  }
+  else {
+    Serial.println("Not authenticated...");
+    request->send(401, _encoding_text, "Unauthorized API Key");
     return false;
   }
   return true;
@@ -1330,6 +1352,7 @@ void Web::handleDiscovery(AsyncWebServerRequest *request) {
     request->send(500, _encoding_text, "Invalid http method");
 }
 void Web::handleGetRooms(AsyncWebServerRequest *request) {
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
     AsyncJsonResp resp;
     resp.beginResponse(request, g_async_content, sizeof(g_async_content));
@@ -1341,6 +1364,7 @@ void Web::handleGetRooms(AsyncWebServerRequest *request) {
   else request->send(404, _encoding_text, _response_404);
 }
 void Web::handleGetShades(AsyncWebServerRequest *request) {
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
     AsyncJsonResp resp;
     resp.beginResponse(request, g_async_content, sizeof(g_async_content));
@@ -1352,6 +1376,7 @@ void Web::handleGetShades(AsyncWebServerRequest *request) {
   else request->send(404, _encoding_text, _response_404);
 }
 void Web::handleGetGroups(AsyncWebServerRequest *request) {
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
     AsyncJsonResp resp;
     resp.beginResponse(request, g_async_content, sizeof(g_async_content));
@@ -1363,6 +1388,7 @@ void Web::handleGetGroups(AsyncWebServerRequest *request) {
   else request->send(404, _encoding_text, _response_404);
 }
 void Web::handleController(AsyncWebServerRequest *request) {
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_POST || request->method() == HTTP_GET) {
     settings.printAvailHeap();
     AsyncJsonResp resp;
@@ -1453,6 +1479,7 @@ void Web::handleLogin(AsyncWebServerRequest *request, JsonVariant &json) {
 }
 void Web::handleShadeCommand(AsyncWebServerRequest *request, JsonVariant &json) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   uint8_t shadeId = 255;
   uint8_t target = 255;
   uint8_t stepSize = 0;
@@ -1491,6 +1518,7 @@ void Web::handleShadeCommand(AsyncWebServerRequest *request, JsonVariant &json) 
 }
 void Web::handleGroupCommand(AsyncWebServerRequest *request, JsonVariant &json) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   uint8_t groupId = 255;
   uint8_t stepSize = 0;
   int8_t repeat = -1;
@@ -1524,6 +1552,7 @@ void Web::handleGroupCommand(AsyncWebServerRequest *request, JsonVariant &json) 
 }
 void Web::handleTiltCommand(AsyncWebServerRequest *request, JsonVariant &json) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   uint8_t shadeId = 255;
   uint8_t target = 255;
   somfy_commands command = somfy_commands::My;
@@ -1555,6 +1584,7 @@ void Web::handleTiltCommand(AsyncWebServerRequest *request, JsonVariant &json) {
 }
 void Web::handleRepeatCommand(AsyncWebServerRequest *request, JsonVariant &json) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   uint8_t shadeId = 255;
   uint8_t groupId = 255;
   uint8_t stepSize = 0;
@@ -1602,6 +1632,7 @@ void Web::handleRepeatCommand(AsyncWebServerRequest *request, JsonVariant &json)
 }
 void Web::handleRoom(AsyncWebServerRequest *request) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_GET) {
     if(asyncHasParam(request, "roomId")) {
       int roomId = asyncParam(request, "roomId").toInt();
@@ -1622,6 +1653,7 @@ void Web::handleRoom(AsyncWebServerRequest *request) {
 }
 void Web::handleShade(AsyncWebServerRequest *request) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_GET) {
     if(asyncHasParam(request, "shadeId")) {
       int shadeId = asyncParam(request, "shadeId").toInt();
@@ -1642,6 +1674,7 @@ void Web::handleShade(AsyncWebServerRequest *request) {
 }
 void Web::handleGroup(AsyncWebServerRequest *request) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_GET) {
     if(asyncHasParam(request, "groupId")) {
       int groupId = asyncParam(request, "groupId").toInt();
@@ -1662,6 +1695,7 @@ void Web::handleGroup(AsyncWebServerRequest *request) {
 }
 void Web::handleSetPositions(AsyncWebServerRequest *request, JsonVariant &json) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   uint8_t shadeId = asyncHasParam(request, "shadeId") ? asyncParam(request, "shadeId").toInt() : 255;
   int8_t pos = asyncHasParam(request, "position") ? asyncParam(request, "position").toInt() : -1;
   int8_t tiltPos = asyncHasParam(request, "tiltPosition") ? asyncParam(request, "tiltPosition").toInt() : -1;
@@ -1690,6 +1724,7 @@ void Web::handleSetPositions(AsyncWebServerRequest *request, JsonVariant &json) 
 }
 void Web::handleSetSensor(AsyncWebServerRequest *request, JsonVariant &json) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   uint8_t shadeId = asyncHasParam(request, "shadeId") ? asyncParam(request, "shadeId").toInt() : 255;
   uint8_t groupId = asyncHasParam(request, "groupId") ? asyncParam(request, "groupId").toInt() : 255;
   int8_t sunny = asyncHasParam(request, "sunny") ? (toBoolean(asyncParam(request, "sunny").c_str(), false) ? 1 : 0) : -1;
@@ -1741,6 +1776,7 @@ void Web::handleSetSensor(AsyncWebServerRequest *request, JsonVariant &json) {
 }
 void Web::handleDownloadFirmware(AsyncWebServerRequest *request) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   GitRepo repo;
   GitRelease *rel = nullptr;
   int8_t err = repo.getReleases();
@@ -1773,6 +1809,7 @@ void Web::handleDownloadFirmware(AsyncWebServerRequest *request) {
   else request->send(err, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error communicating with Github.\"}"));
 }
 void Web::handleBackup(AsyncWebServerRequest *request) {
+  if(!this->isAuthenticated(request)) return;
   bool attach = false;
   if(asyncHasParam(request, "attach")) attach = toBoolean(asyncParam(request, "attach").c_str(), false);
   Serial.println("Async saving current shade information");
@@ -1801,6 +1838,7 @@ void Web::handleBackup(AsyncWebServerRequest *request) {
 }
 void Web::handleReboot(AsyncWebServerRequest *request) {
   if(request->method() == HTTP_OPTIONS) { request->send(200); return; }
+  if(!this->isAuthenticated(request)) return;
   if(request->method() == HTTP_POST || request->method() == HTTP_PUT) {
     Serial.println("Async Rebooting ESP...");
     rebootDelay.reboot = true;
