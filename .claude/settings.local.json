@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(~/.platformio/penv/Scripts/platformio.exe run:*)",
-      "Bash(grep -n \"emitSockets\" \"c:/Users/oem/Documents/PlatformIO/Projects/ESPSomfy-RTS/src\"/*.cpp)"
-    ]
-  }
-}
