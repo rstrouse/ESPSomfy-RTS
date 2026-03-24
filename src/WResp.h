@@ -1,9 +1,9 @@
-#include <WebServer.h>
-#include <esp_task_wdt.h>
 #include <ESPAsyncWebServer.h>
 #include "Somfy.h"
 #ifndef wresp_h
 #define wresp_h
+
+class WebServer;
 
 class JsonFormatter {
   protected:
@@ -66,6 +66,7 @@ class JsonResponse : public JsonFormatter {
 class AsyncJsonResp : public JsonFormatter {
   protected:
     void _safecat(const char *val, bool escape = false) override;
+    AsyncWebServerRequest *_request = nullptr;
     AsyncResponseStream *_stream = nullptr;
   public:
     void beginResponse(AsyncWebServerRequest *request, char *buff, size_t buffSize);

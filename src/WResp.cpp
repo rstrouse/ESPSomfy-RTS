@@ -1,4 +1,6 @@
 #include "WResp.h"
+#include <WebServer.h>
+#include <esp_task_wdt.h>
 void JsonSockEvent::beginEvent(AsyncWebSocket *server, const char *evt, char *buff, size_t buffSize) {
   this->server = server;
   this->buff = buff;
@@ -69,6 +71,7 @@ void JsonResponse::_safecat(const char *val, bool escape) {
 }
 
 void AsyncJsonResp::beginResponse(AsyncWebServerRequest *request, char *buff, size_t buffSize) {
+  this->_request = request;
   this->buff = buff;
   this->buffSize = buffSize;
   this->buff[0] = 0x00;
@@ -78,6 +81,9 @@ void AsyncJsonResp::beginResponse(AsyncWebServerRequest *request, char *buff, si
 }
 void AsyncJsonResp::endResponse() {
   if(strlen(this->buff)) this->flush();
+  if(this->_request && this->_stream) {
+    this->_request->send(this->_stream);
+  }
 }
 void AsyncJsonResp::flush() {
   if(this->_stream && strlen(this->buff) > 0) {
