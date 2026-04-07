@@ -156,9 +156,9 @@ void somfy_frame_t::decodeFrame(byte* frame) {
         this->proto = radio_proto::RTV;
         this->cmd = (somfy_commands)(this->encKey - 148);
       }
-      else if(this->encKey > 133) {
+      else if(this->encKey > 132) {
         this->proto = radio_proto::RTW;
-        this->cmd = (somfy_commands)(this->encKey - 133);
+        this->cmd = (somfy_commands)(this->encKey - 132);
       }
     }
     else this->proto = radio_proto::RTS;
