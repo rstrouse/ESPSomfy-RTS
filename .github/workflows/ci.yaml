@@ -124,6 +124,8 @@ jobs:
           arduino-cli lib install PubSubClient@${{ env.PUB_SUB_CLIENT_VERSION }}
           arduino-cli lib install SmartRC-CC1101-Driver-Lib@${{ env.SMARTRC_CC1101_VERSION }}
           arduino-cli lib install WebSockets@${{ env.WEB_SOCKET_VERSION }}
+          arduino-cli lib install "ESP Async WebServer"
+          arduino-cli lib install AsyncTCP
 
       - name: Build ${{ matrix.name }}
         run: |

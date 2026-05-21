@@ -1,4 +1,5 @@
 #include "WResp.h"
+#include "Web.h"
 void JsonSockEvent::beginEvent(WebSocketsServer *server, const char *evt, char *buff, size_t buffSize) {
   this->server = server;
   this->buff = buff;
@@ -33,22 +34,22 @@ void JsonSockEvent::_safecat(const char *val, bool escape) {
   else strcat(this->buff, val);
   if(escape) strcat(this->buff, "\"");
 }
-void JsonResponse::beginResponse(WebServer *server, char *buff, size_t buffSize) {
+void JsonResponse::beginResponse(WebRequestCompat *server, char *buff, size_t buffSize) {
   this->server = server;
   this->buff = buff;
   this->buffSize = buffSize;
   this->buff[0] = 0x00;
   this->_nocomma = true;
-  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
+  this->_headersSent = false;
+  this->response = server->beginResponseStream("application/json");
 }
 void JsonResponse::endResponse() {
   if(strlen(buff)) this->send();
-  server->sendContent("", 0);
+  server->send(this->response);
+  this->response = nullptr;
 }
 void JsonResponse::send() {
-    if(!this->_headersSent) server->send_P(200, "application/json", this->buff);
-    else server->sendContent(this->buff);
-    //Serial.printf("Sent %d bytes %d\n", strlen(this->buff), this->buffSize);
+    if(this->response != nullptr) this->response->print(this->buff);
     this->buff[0] = 0x00;
     this->_headersSent = true;
 }

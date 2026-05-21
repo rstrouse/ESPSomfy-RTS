@@ -719,6 +719,7 @@ class UIBinder {
         return val;
     }
     toElement(el, val) {
+        if (!el) return;
         let flds = el.querySelectorAll('*[data-bind]');
         flds.forEach((fld) => {
             let prop = fld.getAttribute('data-bind');
@@ -1673,8 +1674,10 @@ class Wifi {
                 ui.serviceError(err);
             }
             else {
-                document.getElementById('cbHardwired').checked = settings.connType >= 2;
-                document.getElementById('cbFallbackWireless').checked = settings.connType === 3;
+                let cbHardwired = document.getElementById('cbHardwired');
+                let cbFallbackWireless = document.getElementById('cbFallbackWireless');
+                if (cbHardwired) cbHardwired.checked = settings.connType >= 2;
+                if (cbFallbackWireless) cbFallbackWireless.checked = settings.connType === 3;
                 ui.toElement(pnl, settings);
                 /*
                 if (settings.connType >= 2) {
@@ -1691,9 +1694,12 @@ class Wifi {
                 }
                 */
                 ui.toElement(document.getElementById('divDHCP'), settings);
-                document.getElementById('divETHSettings').style.display = settings.ethernet.boardType === 0 ? '' : 'none';
-                document.getElementById('divStaticIP').style.display = settings.ip.dhcp ? 'none' : '';
-                document.getElementById('spanCurrentIP').innerHTML = settings.ip.ip;
+                let divETHSettings = document.getElementById('divETHSettings');
+                let divStaticIP = document.getElementById('divStaticIP');
+                let spanCurrentIP = document.getElementById('spanCurrentIP');
+                if (divETHSettings) divETHSettings.style.display = settings.ethernet.boardType === 0 ? '' : 'none';
+                if (divStaticIP) divStaticIP.style.display = settings.ip.dhcp ? 'none' : '';
+                if (spanCurrentIP) spanCurrentIP.innerHTML = settings.ip.ip;
                 this.useEthernetClicked();
                 this.hiddenSSIDClicked();
             }
@@ -4230,7 +4236,8 @@ class MQTT {
             else {
                 console.log(settings);
                 ui.toElement(document.getElementById('divMQTT'), { mqtt: settings });
-                document.getElementById('divDiscoveryTopic').style.display = settings.pubDisco ? '' : 'none';
+                let divDiscoveryTopic = document.getElementById('divDiscoveryTopic');
+                if (divDiscoveryTopic) divDiscoveryTopic.style.display = settings.pubDisco ? '' : 'none';
             }
         });
     }
@@ -4800,4 +4807,3 @@ class Firmware {
     }
 }
 var firmware = new Firmware();
-
