@@ -4,6 +4,7 @@
 #include <esp_task_wdt.h>
 #include "ConfigSettings.h"
 #include "Network.h"
+#include "Somfy.h"
 #include "Web.h"
 #include "Sockets.h"
 #include "Utils.h"

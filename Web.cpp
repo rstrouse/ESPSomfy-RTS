@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
 #include <Update.h>
 #include <esp_task_wdt.h>
@@ -37,19 +37,182 @@ static const char _response_404[] = "404: Service Not Found";
 static const char _encoding_text[] = "text/plain";
 static const char _encoding_html[] = "text/html";
 static const char _encoding_json[] = "application/json";
+static constexpr size_t WEB_MAX_BODY_SIZE = 4096;
 
-WebServer apiServer(8081);
-WebServer server(80);
+AsyncWebServer apiServer(8081);
+AsyncWebServer server(80);
+
+static std::vector<std::pair<AsyncWebServerRequest *, AsyncRequestContext *>> g_requestContexts;
+
+IPAddress WebClientCompat::remoteIP() const {
+  return this->request != nullptr ? this->request->client()->remoteIP() : IPAddress();
+}
+
+void WebClientCompat::bind(AsyncWebServerRequest *request) {
+  this->request = request;
+}
+
+WebRequestCompat::WebRequestCompat(AsyncWebServerRequest *request) : request(request), requestClient(request) {}
+
+AsyncRequestContext *WebRequestCompat::ctx() const {
+  return Web::findRequestContext(this->request);
+}
+
+HTTPMethod WebRequestCompat::method() const {
+  return static_cast<HTTPMethod>(this->request->method());
+}
+
+bool WebRequestCompat::hasArg(const char *name) const {
+  if(strcmp(name, "plain") == 0) return this->ctx() != nullptr && this->ctx()->body.length() > 0;
+  return this->request->hasParam(name, true) || this->request->hasParam(name);
+}
+
+String WebRequestCompat::arg(const char *name) const {
+  if(strcmp(name, "plain") == 0) return this->ctx() != nullptr ? this->ctx()->body : String();
+  if(this->request->hasParam(name, true)) return this->request->getParam(name, true)->value();
+  if(this->request->hasParam(name)) return this->request->getParam(name)->value();
+  return String();
+}
+
+bool WebRequestCompat::hasHeader(const char *name) const {
+  return this->request->hasHeader(name);
+}
+
+String WebRequestCompat::header(const char *name) const {
+  const AsyncWebHeader *hdr = this->request->getHeader(name);
+  return hdr != nullptr ? hdr->value() : String();
+}
+
+void WebRequestCompat::sendHeader(const char *name, const char *value) {
+  Web::ensureRequestContext(this->request)->headers.emplace_back(name, value);
+}
+
+void WebRequestCompat::sendHeader(const char *name, const String &value) {
+  Web::ensureRequestContext(this->request)->headers.emplace_back(name, value);
+}
+
+void WebRequestCompat::sendHeader(const String &name, const String &value) {
+  Web::ensureRequestContext(this->request)->headers.emplace_back(name, value);
+}
+
+void WebRequestCompat::sendHeader(const __FlashStringHelper *name, const __FlashStringHelper *value) {
+  this->sendHeader(String(name), String(value));
+}
+
+void WebRequestCompat::sendHeader(const __FlashStringHelper *name, const char *value) {
+  this->sendHeader(String(name), String(value != nullptr ? value : ""));
+}
+
+void WebRequestCompat::addPendingHeaders(AsyncWebServerResponse *response) {
+  AsyncRequestContext *requestContext = this->ctx();
+  if(requestContext == nullptr) return;
+  for(const auto &header : requestContext->headers) response->addHeader(header.first, header.second);
+}
+
+void WebRequestCompat::clearContext() {
+  Web::releaseRequestContext(this->request);
+}
+
+void WebRequestCompat::send(int code) {
+  AsyncWebServerResponse *response = this->request->beginResponse(code, _encoding_text, "");
+  this->addPendingHeaders(response);
+  this->request->send(response);
+  this->clearContext();
+}
+
+void WebRequestCompat::send(int code, const char *body) {
+  this->send(code, _encoding_text, body);
+}
+
+void WebRequestCompat::send(int code, const char *contentType, const char *content) {
+  AsyncWebServerResponse *response = this->request->beginResponse(code, contentType, content != nullptr ? content : "");
+  this->addPendingHeaders(response);
+  this->request->send(response);
+  this->clearContext();
+}
+
+void WebRequestCompat::send(int code, const char *contentType, const String &content) {
+  AsyncWebServerResponse *response = this->request->beginResponse(code, contentType, content);
+  this->addPendingHeaders(response);
+  this->request->send(response);
+  this->clearContext();
+}
+
+void WebRequestCompat::send(AsyncWebServerResponse *response) {
+  this->addPendingHeaders(response);
+  this->request->send(response);
+  this->clearContext();
+}
+
+AsyncResponseStream *WebRequestCompat::beginResponseStream(const char *contentType) {
+  return this->request->beginResponseStream(contentType);
+}
+
+String WebRequestCompat::uri() const {
+  return this->request->url();
+}
+
+WebClientCompat &WebRequestCompat::client() {
+  return this->requestClient;
+}
+
+AsyncWebServerRequest *WebRequestCompat::raw() const {
+  return this->request;
+}
+
+AsyncRequestContext *Web::ensureRequestContext(AsyncWebServerRequest *request) {
+  for(auto &entry : g_requestContexts) {
+    if(entry.first == request) return entry.second;
+  }
+  AsyncRequestContext *ctx = new AsyncRequestContext();
+  g_requestContexts.emplace_back(request, ctx);
+  return ctx;
+}
+
+AsyncRequestContext *Web::findRequestContext(AsyncWebServerRequest *request) {
+  for(auto &entry : g_requestContexts) {
+    if(entry.first == request) return entry.second;
+  }
+  return nullptr;
+}
+
+void Web::releaseRequestContext(AsyncWebServerRequest *request) {
+  for(auto it = g_requestContexts.begin(); it != g_requestContexts.end(); ++it) {
+    if(it->first == request) {
+      delete it->second;
+      g_requestContexts.erase(it);
+      return;
+    }
+  }
+}
+
+void Web::collectBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  AsyncRequestContext *ctx = Web::ensureRequestContext(request);
+  if(index == 0) {
+    ctx->body = "";
+    ctx->bodyEnabled = false;
+
+    if(total == 0 || total > WEB_MAX_BODY_SIZE) return;
+    if(request->method() != HTTP_POST && request->method() != HTTP_PUT && request->method() != HTTP_PATCH) return;
+
+    const String contentType = request->contentType();
+    if(contentType.startsWith("multipart/")) return;
+    if(contentType.equalsIgnoreCase(_encoding_json) || contentType.startsWith("text/plain")) {
+      ctx->body.reserve(total);
+      ctx->bodyEnabled = true;
+    }
+  }
+  if(!ctx->bodyEnabled) return;
+  ctx->body.concat(reinterpret_cast<const char *>(data), len);
+}
+
 void Web::startup() {
   Serial.println("Launching web server...");
 }
 void Web::loop() {
-  server.handleClient();
-  delay(1);
-  apiServer.handleClient();
   delay(1);
 }
-void Web::sendCORSHeaders(WebServer &server) { 
+void Web::sendCORSHeaders(WebRequestCompat &server) {
     //server.sendHeader(F("Connection"), F("Keep-Alive")); 
     //server.sendHeader(F("Keep-Alive"), F("timeout=5, max=1000"));
     //server.sendHeader(F("Access-Control-Allow-Origin"), F("*"));
@@ -57,13 +220,14 @@ void Web::sendCORSHeaders(WebServer &server) {
     //server.sendHeader(F("Access-Control-Allow-Methods"), F("PUT,POST,GET,OPTIONS"));
     //server.sendHeader(F("Access-Control-Allow-Headers"), F("*"));
 }
-void Web::sendCacheHeaders(uint32_t seconds) {
-  server.sendHeader(F("Cache-Control"), F("public, max-age=604800, immutable"));
+void Web::sendCacheHeaders(WebRequestCompat &server, uint32_t seconds) {
+  snprintf(g_content, sizeof(g_content), "public, max-age=%lu, immutable", static_cast<unsigned long>(seconds));
+  server.sendHeader("Cache-Control", g_content);
 }
 void Web::end() {
   //server.end();
 }
-void Web::handleDeserializationError(WebServer &server, DeserializationError &err) {
+void Web::handleDeserializationError(WebRequestCompat &server, DeserializationError &err) {
     switch (err.code()) {
     case DeserializationError::InvalidInput:
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid JSON payload\"}"));
@@ -76,7 +240,7 @@ void Web::handleDeserializationError(WebServer &server, DeserializationError &er
       break;
     }
 }
-bool Web::isAuthenticated(WebServer &server, bool cfg) {
+bool Web::isAuthenticated(WebRequestCompat &server, bool cfg) {
   Serial.println("Checking authentication");
   if(settings.Security.type == security_types::None) return true;
   else if(!cfg && (settings.Security.permissions & static_cast<uint8_t>(security_permissions::ConfigOnly)) == 0x01) return true;
@@ -129,14 +293,14 @@ bool Web::createAPIToken(const IPAddress ipAddress, char *token) {
     else createAPIToken(ipAddress.toString().c_str(), token);
     return true;
 }
-void Web::handleLogout(WebServer &server) {
+void Web::handleLogout(WebRequestCompat &server) {
   Serial.println("Logging out of webserver");
   server.sendHeader("Location", "/");
   server.sendHeader("Cache-Control", "no-cache");
   server.sendHeader("Set-Cookie", "ESPSOMFYID=0");
   server.send(301);
 }
-void Web::handleLogin(WebServer &server) {
+void Web::handleLogin(WebRequestCompat &server) {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     StaticJsonDocument<256> doc;
@@ -208,7 +372,7 @@ void Web::handleLogin(WebServer &server) {
     server.send(200, _encoding_json, g_content);
     return;
 }
-void Web::handleStreamFile(WebServer &server, const char *filename, const char *encoding) {
+void Web::handleStreamFile(WebRequestCompat &server, const char *filename, const char *encoding) {
   if(git.lockFS) {
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Filesystem update in progress\"}"));
     return;
@@ -219,19 +383,21 @@ void Web::handleStreamFile(WebServer &server, const char *filename, const char *
   // Load the index html page from the data directory.
   Serial.print("Loading file ");
   Serial.println(filename);
-  File file = LittleFS.open(filename, "r");
-  if (!file) {
+  if (!LittleFS.exists(filename)) {
     Serial.print("Error opening");
     Serial.println(filename);
     server.send(500, _encoding_text, "Error opening file");
+    esp_task_wdt_add(NULL);
+    esp_task_wdt_reset();
+    return;
   }
   esp_task_wdt_delete(NULL);
-  server.streamFile(file, encoding);
-  file.close();
+  AsyncWebServerResponse *response = server.raw()->beginResponse(LittleFS, filename, encoding);
+  server.send(response);
   esp_task_wdt_add(NULL);
   esp_task_wdt_reset();
 }
-void Web::handleController(WebServer &server) {
+void Web::handleController(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -269,7 +435,7 @@ void Web::handleController(WebServer &server) {
   }
   else server.send(404, _encoding_text, _response_404);
 }
-void Web::handleLoginContext(WebServer &server) {
+void Web::handleLoginContext(WebRequestCompat &server) {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     JsonResponse resp;
@@ -284,7 +450,7 @@ void Web::handleLoginContext(WebServer &server) {
     resp.endObject();
     resp.endResponse();
 }
-void Web::handleGetRepeaters(WebServer &server) {
+void Web::handleGetRepeaters(WebRequestCompat &server) {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -298,7 +464,7 @@ void Web::handleGetRepeaters(WebServer &server) {
     }
     else server.send(404, _encoding_text, _response_404);
 }
-void Web::handleGetRooms(WebServer &server) {
+void Web::handleGetRooms(WebRequestCompat &server) {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -312,7 +478,7 @@ void Web::handleGetRooms(WebServer &server) {
     }
     else server.send(404, _encoding_text, _response_404);
 }
-void Web::handleGetShades(WebServer &server) {
+void Web::handleGetShades(WebRequestCompat &server) {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -326,7 +492,7 @@ void Web::handleGetShades(WebServer &server) {
     }
     else server.send(404, _encoding_text, _response_404);
 }
-void Web::handleGetGroups(WebServer &server) {
+void Web::handleGetGroups(WebRequestCompat &server) {
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -340,7 +506,7 @@ void Web::handleGetGroups(WebServer &server) {
     }
     else server.send(404, _encoding_text, _response_404);
 }
-void Web::handleShadeCommand(WebServer& server) {
+void Web::handleShadeCommand(WebRequestCompat& server) {
   webServer.sendCORSHeaders(server);
   if (server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -404,7 +570,7 @@ void Web::handleShadeCommand(WebServer& server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
-void Web::handleRepeatCommand(WebServer& server) {
+void Web::handleRepeatCommand(WebRequestCompat& server) {
   webServer.sendCORSHeaders(server);
   HTTPMethod method = server.method();
   if (method == HTTP_OPTIONS) { server.send(200, "OK"); return; }
@@ -489,7 +655,7 @@ void Web::handleRepeatCommand(WebServer& server) {
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
   }
 }
-void Web::handleGroupCommand(WebServer &server) {
+void Web::handleGroupCommand(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -548,7 +714,7 @@ void Web::handleGroupCommand(WebServer &server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
-void Web::handleTiltCommand(WebServer &server) {
+void Web::handleTiltCommand(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -606,7 +772,7 @@ void Web::handleTiltCommand(WebServer &server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
-void Web::handleRoom(WebServer &server) {
+void Web::handleRoom(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -668,7 +834,7 @@ void Web::handleRoom(WebServer &server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
-void Web::handleShade(WebServer &server) {
+void Web::handleShade(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -730,7 +896,7 @@ void Web::handleShade(WebServer &server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
-void Web::handleGroup(WebServer &server) {
+void Web::handleGroup(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -786,8 +952,8 @@ void Web::handleGroup(WebServer &server) {
   else
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
 }
-void Web::handleDiscovery(WebServer &server) {
-  HTTPMethod method = apiServer.method();
+void Web::handleDiscovery(WebRequestCompat &server) {
+  HTTPMethod method = server.method();
   if (method == HTTP_POST || method == HTTP_GET) {
     Serial.println("Discovery Requested");
     char connType[10] = "Unknown";
@@ -829,7 +995,7 @@ void Web::handleDiscovery(WebServer &server) {
   else
     server.send(500, _encoding_text, "Invalid http method");
 }
-void Web::handleBackup(WebServer &server, bool attach) {
+void Web::handleBackup(WebRequestCompat &server, bool attach) {
   webServer.sendCORSHeaders(server);
   if(server.hasArg("attach")) attach = toBoolean(server.arg("attach").c_str(), attach);
   if(attach) {
@@ -855,16 +1021,15 @@ void Web::handleBackup(WebServer &server, bool attach) {
   }
   Serial.println("Saving current shade information");
   somfy.writeBackup();
-  File file = LittleFS.open("/controller.backup", "r");
-  if (!file) {
+  if (!LittleFS.exists("/controller.backup")) {
     Serial.println("Error opening shades.cfg");
     server.send(500, _encoding_text, "shades.cfg");
     return;
   }
-  server.streamFile(file, _encoding_text);
-  file.close();
+  AsyncWebServerResponse *response = server.raw()->beginResponse(LittleFS, "/controller.backup", _encoding_text);
+  server.send(response);
 }
-void Web::handleSetPositions(WebServer &server) {
+void Web::handleSetPositions(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   uint8_t shadeId = (server.hasArg("shadeId")) ? atoi(server.arg("shadeId").c_str()) : 255;
@@ -904,7 +1069,7 @@ void Web::handleSetPositions(WebServer &server) {
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"shadeId was not provided\"}"));
   }
 }
-void Web::handleSetSensor(WebServer &server) {
+void Web::handleSetSensor(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   uint8_t shadeId = (server.hasArg("shadeId")) ? atoi(server.arg("shadeId").c_str()) : 255;
@@ -973,7 +1138,7 @@ void Web::handleSetSensor(WebServer &server) {
     server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"shadeId was not provided\"}"));
   }
 }
-void Web::handleDownloadFirmware(WebServer &server) {
+void Web::handleDownloadFirmware(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   GitRepo repo;
@@ -1014,7 +1179,7 @@ void Web::handleDownloadFirmware(WebServer &server) {
       server.send(err, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error communicating with Github.\"}"));
   }
 }
-void Web::handleNotFound(WebServer &server) {
+void Web::handleNotFound(WebRequestCompat &server) {
     HTTPMethod method = server.method();
     Serial.printf("Request %s 404-%d ", server.uri().c_str(), method);
     switch (method) {
@@ -1041,7 +1206,7 @@ void Web::handleNotFound(WebServer &server) {
     snprintf(g_content, sizeof(g_content), "404 Service Not Found: %s", server.uri().c_str());
     server.send(404, _encoding_text, g_content);
 }
-void Web::handleReboot(WebServer &server) {
+void Web::handleReboot(WebRequestCompat &server) {
   webServer.sendCORSHeaders(server);
   if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
   HTTPMethod method = server.method();
@@ -1057,46 +1222,45 @@ void Web::handleReboot(WebServer &server) {
 }
 void Web::begin() {
   Serial.println("Creating Web MicroServices...");
-  server.enableCORS(true);
-  const char *keys[1] = {"apikey"};
-  server.collectHeaders(keys, 1);
   // API Server Handlers
-  apiServer.collectHeaders(keys, 1);  
-  apiServer.enableCORS(true);
-  apiServer.on("/discovery", []() { webServer.handleDiscovery(apiServer); });
-  apiServer.on("/rooms", []() {webServer.handleGetRooms(apiServer); });
-  apiServer.on("/shades", []() { webServer.handleGetShades(apiServer); });
-  apiServer.on("/groups", []() { webServer.handleGetGroups(apiServer); });
-  apiServer.on("/login", []() { webServer.handleLogin(apiServer); });
-  apiServer.onNotFound([]() { webServer.handleNotFound(apiServer); });
-  apiServer.on("/controller", []() { webServer.handleController(apiServer); });
-  apiServer.on("/shadeCommand", []() { webServer.handleShadeCommand(apiServer); });
-  apiServer.on("/groupCommand", []() { webServer.handleGroupCommand(apiServer); });
-  apiServer.on("/tiltCommand", []() { webServer.handleTiltCommand(apiServer); });
-  apiServer.on("/repeatCommand", []() { webServer.handleRepeatCommand(apiServer); });
-  apiServer.on("/room", HTTP_GET, [] () { webServer.handleRoom(apiServer); });
-  apiServer.on("/shade", HTTP_GET, [] () { webServer.handleShade(apiServer); });
-  apiServer.on("/group", HTTP_GET, [] () { webServer.handleGroup(apiServer); });
-  apiServer.on("/setPositions", []() { webServer.handleSetPositions(apiServer); });
-  apiServer.on("/setSensor", []() { webServer.handleSetSensor(apiServer); });
-  apiServer.on("/downloadFirmware", []() { webServer.handleDownloadFirmware(apiServer); });
-  apiServer.on("/backup", []() { webServer.handleBackup(apiServer); });
-  apiServer.on("/reboot", []() { webServer.handleReboot(apiServer); });
+  apiServer.on("/discovery", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleDiscovery(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/rooms", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request);webServer.handleGetRooms(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/shades", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleGetShades(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/groups", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleGetGroups(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/login", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleLogin(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.onNotFound([](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleNotFound(apiServer); });
+  apiServer.on("/controller", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleController(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/shadeCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleShadeCommand(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/groupCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleGroupCommand(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/tiltCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleTiltCommand(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/repeatCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleRepeatCommand(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/room", HTTP_GET, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleRoom(apiServer); }, nullptr, Web::collectBody);
+  apiServer.on("/shade", HTTP_GET, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleShade(apiServer); }, nullptr, Web::collectBody);
+  apiServer.on("/group", HTTP_GET, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleGroup(apiServer); }, nullptr, Web::collectBody);
+  apiServer.on("/setPositions", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleSetPositions(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/setSensor", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleSetSensor(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/downloadFirmware", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleDownloadFirmware(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/backup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleBackup(apiServer);  }, nullptr, Web::collectBody);
+  apiServer.on("/reboot", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat apiServer(request); webServer.handleReboot(apiServer);  }, nullptr, Web::collectBody);
   
   // Web Interface
-  server.on("/tiltCommand", []() { webServer.handleTiltCommand(server); });
-  server.on("/repeatCommand", []() { webServer.handleRepeatCommand(server); });
-  server.on("/shadeCommand", []() { webServer.handleShadeCommand(server); });
-  server.on("/groupCommand", []() { webServer.handleGroupCommand(server); });
-  server.on("/setPositions", []() { webServer.handleSetPositions(server); });
-  server.on("/setSensor", []() { webServer.handleSetSensor(server); });
-  server.on("/upnp.xml", []() { SSDP.schema(server.client()); });
-  server.on("/", []() { webServer.handleStreamFile(server, "/index.html", _encoding_html); });
-  server.on("/login", []() { webServer.handleLogin(server); });
-  server.on("/loginContext", []() { webServer.handleLoginContext(server); });
-  server.on("/shades.cfg", []() { webServer.handleStreamFile(server, "/shades.cfg", _encoding_text); });
-  server.on("/shades.tmp", []() { webServer.handleStreamFile(server, "/shades.tmp", _encoding_text); });
-  server.on("/getReleases", []() {
+  server.on("/tiltCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleTiltCommand(server);  }, nullptr, Web::collectBody);
+  server.on("/repeatCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleRepeatCommand(server);  }, nullptr, Web::collectBody);
+  server.on("/shadeCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleShadeCommand(server);  }, nullptr, Web::collectBody);
+  server.on("/groupCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleGroupCommand(server);  }, nullptr, Web::collectBody);
+  server.on("/setPositions", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleSetPositions(server);  }, nullptr, Web::collectBody);
+  server.on("/setSensor", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleSetSensor(server);  }, nullptr, Web::collectBody);
+  server.on("/upnp.xml", HTTP_ANY, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("text/xml");
+    SSDP.schema(*response);
+    request->send(response);
+  });
+  server.on("/", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleStreamFile(server, "/index.html", _encoding_html);  });
+  server.on("/login", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleLogin(server);  }, nullptr, Web::collectBody);
+  server.on("/loginContext", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleLoginContext(server);  });
+  server.on("/shades.cfg", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleStreamFile(server, "/shades.cfg", _encoding_text);  });
+  server.on("/shades.tmp", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleStreamFile(server, "/shades.tmp", _encoding_text);  });
+  server.on("/getReleases", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     GitRepo repo;
@@ -1108,9 +1272,9 @@ void Web::begin() {
     repo.toJSON(resp);
     resp.endObject();
     resp.endResponse();
-  });
-  server.on("/downloadFirmware", []() { webServer.handleDownloadFirmware(server); });
-  server.on("/cancelFirmware", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/downloadFirmware", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleDownloadFirmware(server);  }, nullptr, Web::collectBody);
+  server.on("/cancelFirmware", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     // If we are currently downloading the filesystem we cannot cancel.
@@ -1127,9 +1291,9 @@ void Web::begin() {
     else {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Cannot cancel during filesystem update.\"}"));
     }
-  });
-  server.on("/backup", []() { webServer.handleBackup(server, true); });
-  server.on("/restore", HTTP_POST, []() {
+   }, nullptr, Web::collectBody);
+  server.on("/backup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleBackup(server, true);  }, nullptr, Web::collectBody);
+  server.on("/restore", HTTP_POST, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     server.sendHeader("Connection", "close");
     if(webServer.uploadSuccess) {
@@ -1157,45 +1321,41 @@ void Web::begin() {
       rebootDelay.reboot = true;
       rebootDelay.rebootTime = millis() + 1000;
     }
-    }, []() {
+    }, [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+      (void)request;
       esp_task_wdt_reset();
-      HTTPUpload& upload = server.upload();
-      if (upload.status == UPLOAD_FILE_START) {
+      if (index == 0) {
         webServer.uploadSuccess = false;
-        Serial.printf("Restore: %s\n", upload.filename.c_str());
-        // Begin by opening a new temporary file.
+        Serial.printf("Restore: %s\n", filename.c_str());
         File fup = LittleFS.open("/shades.tmp", "w");
         fup.close();
       }
-      else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (len > 0) {
         File fup = LittleFS.open("/shades.tmp", "a");
-        //upload.buf[upload.currentSize] = 0x00;
-        //Serial.print((char *)upload.buf);
-        fup.write(upload.buf, upload.currentSize);
+        fup.write(data, len);
         fup.close();
       }
-      else if (upload.status == UPLOAD_FILE_END) {
+      if (final) {
         webServer.uploadSuccess = true;
       }
-
-    });
-  server.on("/index.js", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/index.js", "text/javascript"); });
-  server.on("/main.css", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/main.css", "text/css"); });
-  server.on("/widgets.css", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/widgets.css", "text/css"); });
-  server.on("/icons.css", []() {  webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icons.css", "text/css"); });
-  server.on("/favicon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/favicon.png", "image/png"); });
-  server.on("/icon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icon.png", "image/png"); });
-  server.on("/icon.svg", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/icon.svg", "image/svg+xml"); });
-  server.on("/apple-icon.png", []() { webServer.sendCacheHeaders(604800); webServer.handleStreamFile(server, "/apple-icon.png", "image/png"); });
-  server.onNotFound([]() { webServer.handleNotFound(server); });
-  server.on("/controller", []() { webServer.handleController(server); });
-  server.on("/rooms", []() { webServer.handleGetRooms(server); });
-  server.on("/shades", []() { webServer.handleGetShades(server); });
-  server.on("/groups", []() { webServer.handleGetGroups(server); });
-  server.on("/room", []() { webServer.handleRoom(server); });
-  server.on("/shade", []() { webServer.handleShade(server); });
-  server.on("/group", []() { webServer.handleGroup(server); });
-  server.on("/getNextRoom", []() {
+     });
+  server.on("/index.js", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/index.js", "text/javascript");  });
+  server.on("/main.css", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/main.css", "text/css");  });
+  server.on("/widgets.css", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/widgets.css", "text/css");  });
+  server.on("/icons.css", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);  webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/icons.css", "text/css");  });
+  server.on("/favicon.png", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/favicon.png", "image/png");  });
+  server.on("/icon.png", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/icon.png", "image/png");  });
+  server.on("/icon.svg", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/icon.svg", "image/svg+xml");  });
+  server.on("/apple-icon.png", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.sendCacheHeaders(server, 604800); webServer.handleStreamFile(server, "/apple-icon.png", "image/png");  });
+  server.onNotFound([](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleNotFound(server); });
+  server.on("/controller", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleController(server);  }, nullptr, Web::collectBody);
+  server.on("/rooms", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleGetRooms(server);  }, nullptr, Web::collectBody);
+  server.on("/shades", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleGetShades(server);  }, nullptr, Web::collectBody);
+  server.on("/groups", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleGetGroups(server);  }, nullptr, Web::collectBody);
+  server.on("/room", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleRoom(server);  }, nullptr, Web::collectBody);
+  server.on("/shade", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleShade(server);  }, nullptr, Web::collectBody);
+  server.on("/group", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleGroup(server);  }, nullptr, Web::collectBody);
+  server.on("/getNextRoom", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     JsonResponse resp;
@@ -1204,8 +1364,8 @@ void Web::begin() {
     resp.addElem("roomId", somfy.getNextRoomId());
     resp.endObject();
     resp.endResponse();
-  });
-  server.on("/getNextShade", []() {
+   });
+  server.on("/getNextShade", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     uint8_t shadeId = somfy.getNextShadeId();
@@ -1219,8 +1379,8 @@ void Web::begin() {
     resp.addElem("proto", static_cast<uint8_t>(somfy.transceiver.config.proto));
     resp.endObject();
     resp.endResponse();
-    });
-  server.on("/getNextGroup", []() {
+     });
+  server.on("/getNextGroup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     uint8_t groupId = somfy.getNextGroupId();
     JsonResponse resp;
@@ -1232,8 +1392,8 @@ void Web::begin() {
     resp.addElem("proto", static_cast<uint8_t>(somfy.transceiver.config.proto));
     resp.endObject();
     resp.endResponse();
-    });
-  server.on("/addRoom", []() {
+     });
+  server.on("/addRoom", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     SomfyRoom * room = nullptr;
@@ -1273,8 +1433,8 @@ void Web::begin() {
     else {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error saving Somfy Room.\"}"));
     }
-    });
-  server.on("/addShade", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/addShade", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     SomfyShade* shade = nullptr;
@@ -1315,8 +1475,8 @@ void Web::begin() {
     else {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error saving Somfy Shade.\"}"));
     }
-    });
-  server.on("/addGroup", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/addGroup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
     SomfyGroup * group = nullptr;
@@ -1356,8 +1516,8 @@ void Web::begin() {
     else {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Error saving Somfy Group.\"}"));
     }
-    });
-  server.on("/groupOptions", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/groupOptions", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1399,8 +1559,8 @@ void Web::begin() {
       }
     }
     
-    });
-  server.on("/saveRoom", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/saveRoom", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1435,9 +1595,9 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No room object supplied.\"}"));
     }
-  });
+   }, nullptr, Web::collectBody);
 
-  server.on("/saveShade", []() {
+  server.on("/saveShade", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1478,8 +1638,8 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No shade object supplied.\"}"));
     }
-  });
-  server.on("/saveGroup", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/saveGroup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1514,8 +1674,8 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No group object supplied.\"}"));
     }
-    });
-  server.on("/setMyPosition", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/setMyPosition", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1564,8 +1724,8 @@ void Web::begin() {
     }
     else 
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Invalid Http method\"}"));
-    });
-  server.on("/setRollingCode", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/setRollingCode", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1605,8 +1765,8 @@ void Web::begin() {
         resp.endResponse();
       }
     }
-  });
-  server.on("/setPaired", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/setPaired", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     uint8_t shadeId = 255;
@@ -1643,8 +1803,8 @@ void Web::begin() {
       resp.endObject();
       resp.endResponse();
     }
-  });
-  server.on("/unpairShade", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/unpairShade", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1685,8 +1845,8 @@ void Web::begin() {
         resp.endResponse();
       }
     }
-    });
-  server.on("/linkRepeater", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/linkRepeater", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1721,8 +1881,8 @@ void Web::begin() {
         resp.endResponse();
       }
     }
-  });
-  server.on("/unlinkRepeater", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/unlinkRepeater", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1757,9 +1917,9 @@ void Web::begin() {
         resp.endResponse();
       }
     }
-  });
+   }, nullptr, Web::collectBody);
   
-  server.on("/unlinkRemote", []() {
+  server.on("/unlinkRemote", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1797,8 +1957,8 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No remote object supplied.\"}"));
     }
-    });
-  server.on("/linkRemote", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/linkRemote", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1838,8 +1998,8 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No remote object supplied.\"}"));
     }
-    });
-  server.on("/linkToGroup", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/linkToGroup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1885,8 +2045,8 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No linking object supplied.\"}"));
     }
-  });
-  server.on("/unlinkFromGroup", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/unlinkFromGroup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1941,8 +2101,8 @@ void Web::begin() {
       }
       else server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No unlinking object supplied.\"}"));
     }
-  });
-  server.on("/deleteRoom", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/deleteRoom", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -1973,8 +2133,8 @@ void Web::begin() {
       somfy.deleteRoom(roomId);
       server.send(200, _encoding_json, F("{\"status\":\"SUCCESS\",\"desc\":\"Room deleted.\"}"));
     }
-    });
-  server.on("/deleteShade", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/deleteShade", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -2008,8 +2168,8 @@ void Web::begin() {
       somfy.deleteShade(shadeId);
       server.send(200, _encoding_json, F("{\"status\":\"SUCCESS\",\"desc\":\"Shade deleted.\"}"));
     }
-    });
-  server.on("/deleteGroup", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/deleteGroup", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -2040,8 +2200,8 @@ void Web::begin() {
       somfy.deleteGroup(groupId);
       server.send(200, _encoding_json, F("{\"status\":\"SUCCESS\",\"desc\":\"Group deleted.\"}"));
     }
-    });
-  server.on("/updateFirmware", HTTP_POST, []() {
+     }, nullptr, Web::collectBody);
+  server.on("/updateFirmware", HTTP_POST, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     if (Update.hasError())
@@ -2050,12 +2210,11 @@ void Web::begin() {
       server.send(200, _encoding_json, "{\"status\":\"SUCCESS\",\"desc\":\"Successfully updated firmware\"}");
     rebootDelay.reboot = true;
     rebootDelay.rebootTime = millis() + 500;
-    }, []() {
-      HTTPUpload& upload = server.upload();
-      if (upload.status == UPLOAD_FILE_START) {
+    }, [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+      (void)request;
+      if (index == 0) {
         webServer.uploadSuccess = false;
-        Serial.printf("Update: %s - %d\n", upload.filename.c_str(), upload.totalSize);
-        //if(!Update.begin(upload.totalSize, U_SPIFFS)) {
+        Serial.printf("Update: %s\n", filename.c_str());
         if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
           Update.printError(Serial);
         }
@@ -2064,21 +2223,17 @@ void Web::begin() {
           mqtt.end();
         }
       }
-      else if(upload.status == UPLOAD_FILE_ABORTED) {
-        Serial.printf("Upload of %s aborted\n", upload.filename.c_str());
-        Update.abort();
-      }
-      else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (len > 0) {
         /* flashing firmware to ESP*/
-        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        if (Update.write(data, len) != len) {
           Update.printError(Serial);
-          Serial.printf("Upload of %s aborted invalid size %d\n", upload.filename.c_str(), upload.currentSize);
+          Serial.printf("Upload of %s aborted invalid size %u\n", filename.c_str(), static_cast<unsigned>(len));
           Update.abort();
         }
       }
-      else if (upload.status == UPLOAD_FILE_END) {
+      if (final) {
         if (Update.end(true)) { //true to set the size to the current progress
-          Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+          Serial.println("Update Success: Rebooting...");
           webServer.uploadSuccess = true;
         }
         else {
@@ -2086,8 +2241,8 @@ void Web::begin() {
         }
       }
       esp_task_wdt_reset();
-    });
-  server.on("/updateShadeConfig", HTTP_POST, []() {
+     });
+  server.on("/updateShadeConfig", HTTP_POST, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(git.lockFS) {
       server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"Filesystem update in progress\"}"));
       return;
@@ -2096,26 +2251,27 @@ void Web::begin() {
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
     server.send(200, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Updating Shade Config: \"}");
-    }, []() {
-      HTTPUpload& upload = server.upload();
-      if (upload.status == UPLOAD_FILE_START) {
+    }, [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+      (void)request;
+      (void)filename;
+      if (index == 0) {
         Serial.printf("Update: shades.cfg\n");
         File fup = LittleFS.open("/shades.tmp", "w");
         fup.close();
       }
-      else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (len > 0) {
         /* flashing littlefs to ESP*/
-        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        if (Update.write(data, len) != len) {
           File fup = LittleFS.open("/shades.tmp", "a");
-          fup.write(upload.buf, upload.currentSize);
+          fup.write(data, len);
           fup.close();
         }
       }
-      else if (upload.status == UPLOAD_FILE_END) {
+      if (final) {
         somfy.loadShadesFile("/shades.tmp");
       }
-    });
-  server.on("/updateApplication", HTTP_POST, []() {
+     });
+  server.on("/updateApplication", HTTP_POST, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     server.sendHeader("Connection", "close");
@@ -2125,12 +2281,11 @@ void Web::begin() {
       server.send(200, _encoding_json, "{\"status\":\"SUCCESS\",\"desc\":\"Successfully updated application\"}");
     rebootDelay.reboot = true;
     rebootDelay.rebootTime = millis() + 500;
-    }, []() {
-      HTTPUpload& upload = server.upload();
-      if (upload.status == UPLOAD_FILE_START) {
+    }, [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+      (void)request;
+      if (index == 0) {
         webServer.uploadSuccess = false;
-        Serial.printf("Update: %s %d\n", upload.filename.c_str(), upload.totalSize);
-        //if(!Update.begin(upload.totalSize, U_SPIFFS)) {
+        Serial.printf("Update: %s\n", filename.c_str());
         if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) { //start with max available size and tell it we are updating the file system.
           Update.printError(Serial);
         }
@@ -2139,23 +2294,18 @@ void Web::begin() {
           mqtt.end();
         }
       }
-      else if(upload.status == UPLOAD_FILE_ABORTED) {
-        Serial.printf("Upload of %s aborted\n", upload.filename.c_str());
-        Update.abort();
-        somfy.commit();
-      }
-      else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (len > 0) {
         /* flashing littlefs to ESP*/
-        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        if (Update.write(data, len) != len) {
           Update.printError(Serial);
-          Serial.printf("Upload of %s aborted invalid size %d\n", upload.filename.c_str(), upload.currentSize);
+          Serial.printf("Upload of %s aborted invalid size %u\n", filename.c_str(), static_cast<unsigned>(len));
           Update.abort();
         }
       }
-      else if (upload.status == UPLOAD_FILE_END) {
+      if (final) {
         if (Update.end(true)) { //true to set the size to the current progress
           webServer.uploadSuccess = true;
-          Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+          Serial.println("Update Success: Rebooting...");
           somfy.commit();
         }
         else {
@@ -2164,8 +2314,8 @@ void Web::begin() {
         }
       }
       esp_task_wdt_reset();
-    });
-  server.on("/scanaps", []() {
+     });
+  server.on("/scanaps", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     esp_task_wdt_reset();
     
@@ -2201,9 +2351,9 @@ void Web::begin() {
     resp.endArray();
     resp.endObject();
     resp.endResponse();
-    });
-  server.on("/reboot", []() { webServer.handleReboot(server);});
-  server.on("/saveSecurity", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/reboot", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request); webServer.handleReboot(server); }, nullptr, Web::collectBody);
+  server.on("/saveSecurity", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
@@ -2233,16 +2383,16 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-    });
-  server.on("/getSecurity", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/getSecurity", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     DynamicJsonDocument doc(512);
     JsonObject obj = doc.to<JsonObject>();
     settings.Security.toJSON(obj);
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
-    });
-  server.on("/saveRadio", []() {
+     });
+  server.on("/saveRadio", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
@@ -2270,8 +2420,8 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-    });
-  server.on("/getRadio", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/getRadio", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     JsonResponse resp;
     resp.beginResponse(&server, g_content, sizeof(g_content));
@@ -2279,8 +2429,8 @@ void Web::begin() {
     somfy.transceiver.toJSON(resp);
     resp.endObject();
     resp.endResponse();
-    });
-  server.on("/sendRemoteCommand", []() {
+     });
+  server.on("/sendRemoteCommand", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     HTTPMethod method = server.method();
@@ -2319,8 +2469,8 @@ void Web::begin() {
       else
         server.send(500, _encoding_json, F("{\"status\":\"ERROR\",\"desc\":\"No address or rolling code provided\"}"));
     }
-    });
-  server.on("/setgeneral", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/setgeneral", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
@@ -2355,8 +2505,8 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-    });
-  server.on("/setNetwork", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/setNetwork", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(1024);
@@ -2411,8 +2561,8 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-  });
-  server.on("/setIP", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/setIP", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     Serial.println("Setting IP...");
@@ -2434,8 +2584,8 @@ void Web::begin() {
         server.send(201, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-  });
-  server.on("/connectwifi", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/connectwifi", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     Serial.println("Settings WIFI connection...");
@@ -2478,8 +2628,8 @@ void Web::begin() {
         server.send(201, _encoding_json, "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-    });
-  server.on("/modulesettings", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/modulesettings", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     JsonResponse resp;
     resp.beginResponse(&server, g_content, sizeof(g_content));
@@ -2500,8 +2650,8 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     */
-    });
-  server.on("/networksettings", []() {
+     });
+  server.on("/networksettings", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     JsonResponse resp;
     resp.beginResponse(&server, g_content, sizeof(g_content));
@@ -2534,8 +2684,8 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     */
-    });
-  server.on("/connectmqtt", []() {
+     });
+  server.on("/connectmqtt", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
@@ -2571,8 +2721,8 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-    });
-  server.on("/mqttsettings", []() {
+     }, nullptr, Web::collectBody);
+  server.on("/mqttsettings", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     JsonResponse resp;
     resp.beginResponse(&server, g_content, sizeof(g_content));
@@ -2588,8 +2738,8 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     */
-    });
-  server.on("/roomSortOrder", []() {
+     });
+  server.on("/roomSortOrder", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     Serial.print("Plain: ");
@@ -2619,8 +2769,8 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-  });
-  server.on("/shadeSortOrder", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/shadeSortOrder", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     Serial.print("Plain: ");
@@ -2650,8 +2800,8 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-  });
-  server.on("/groupSortOrder", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/groupSortOrder", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     DynamicJsonDocument doc(512);
     Serial.print("Plain: ");
@@ -2681,8 +2831,8 @@ void Web::begin() {
         server.send(201, "application/json", "{\"status\":\"ERROR\",\"desc\":\"Invalid HTTP Method: \"}");
       }
     }
-  });  
-  server.on("/beginFrequencyScan", []() {
+   }, nullptr, Web::collectBody);
+  server.on("/beginFrequencyScan", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     somfy.transceiver.beginFrequencyScan();
     JsonResponse resp;
@@ -2698,8 +2848,8 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     */
-  });
-  server.on("/endFrequencyScan", []() {
+   });
+  server.on("/endFrequencyScan", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     webServer.sendCORSHeaders(server);
     somfy.transceiver.endFrequencyScan();
     JsonResponse resp;
@@ -2715,8 +2865,8 @@ void Web::begin() {
     serializeJson(doc, g_content);
     server.send(200, _encoding_json, g_content);
     */
-  });
-  server.on("/recoverFilesystem", [] () {
+   });
+  server.on("/recoverFilesystem", HTTP_ANY, [](AsyncWebServerRequest *request) { WebRequestCompat server(request);
     if(server.method() == HTTP_OPTIONS) { server.send(200, "OK"); return; }
     webServer.sendCORSHeaders(server);
     if(git.status == GIT_UPDATING)
