@@ -4087,6 +4087,15 @@ bool SomfyShadeController::deleteGroup(uint8_t groupId) {
 
 bool SomfyShadeController::loadShadesFile(const char *filename) { return ShadeConfigFile::load(this, filename); }
 uint16_t SomfyRemote::getNextRollingCode() {
+  // Do not advance the rolling code when the radio is not initialized. Otherwise
+  // commands issued while the radio is down (see the radioInit recovery logic in
+  // transceiver_config_t::apply) keep incrementing the stored code without ever
+  // transmitting, which drifts it ahead of what the motor expects and desyncs the
+  // remote once the radio comes back.
+  if(!somfy.transceiver.config.radioInit) {
+    Serial.println("WARNING: Radio not initialized - rolling code NOT incremented");
+    return this->lastRollingCode > 0 ? this->lastRollingCode : 1;
+  }
   pref.begin("ShadeCodes");
   uint16_t code = pref.getUShort(this->m_remotePrefId, 0);
   code++;
@@ -4840,6 +4849,7 @@ void transceiver_config_t::save() {
     pref.putFloat("rxBandwidth", this->rxBandwidth); // float
     pref.putBool("enabled", this->enabled);
     pref.putBool("radioInit", true);
+    pref.putUChar("initCrashes", 0); // Saving config is an explicit user action - clear the crash counter.
     pref.putChar("txPower", this->txPower);
     pref.putChar("proto", static_cast<uint8_t>(this->proto));
     
@@ -4961,14 +4971,31 @@ void transceiver_config_t::apply() {
     somfy.transceiver.disableReceive();
     bit_length = this->type;    
     if(this->enabled) {
-      bool radioInit = true;
       pref.begin("CC1101");
-      radioInit = pref.getBool("radioInit", true);
-      // If the radio locks up then we can simply reboot and re-enable the radio.
-      pref.putBool("radioInit", false);
+      bool radioInit = pref.getBool("radioInit", true);
+      uint8_t initCrashes = pref.getUChar("initCrashes", 0);
+      // If a previous boot hung during CC1101 init the "radioInit" flag was left
+      // false. The original code returned here without ever resetting the flag, so
+      // EVERY subsequent boot skipped radio init -> the radio stayed dead until a
+      // /saveRadio POST. Instead we retry init for up to 3 consecutive crashes and
+      // only then give up (to avoid a hard boot loop with truly dead hardware).
+      // The counter is reset on a successful init or a /saveRadio POST.
+      if(!radioInit) {
+        initCrashes++;
+        if(initCrashes >= 3) {
+          pref.putUChar("initCrashes", initCrashes);
+          pref.end();
+          this->radioInit = false;
+          Serial.printf("CC1101 init skipped after %u consecutive crashes - POST /saveRadio to reset\n", initCrashes);
+          return;
+        }
+        Serial.printf("CC1101 init did not complete last boot (%u/3), retrying...\n", initCrashes);
+      }
+      else initCrashes = 0;
+      pref.putUChar("initCrashes", initCrashes);
+      pref.putBool("radioInit", false); // Mark init as in-progress; reset to true once it completes.
       this->radioInit = false;
       pref.end();
-      if(!radioInit) return;
       Serial.print("Applying radio settings ");
       Serial.printf("Setting Data Pins RX:%u TX:%u\n", this->RXPin, this->TXPin);
       //if(this->TXPin != this->RXPin)
@@ -5027,8 +5054,9 @@ void transceiver_config_t::apply() {
       }
       pref.begin("CC1101");
       pref.putBool("radioInit", true);
+      pref.putUChar("initCrashes", 0); // Init completed - clear the crash counter.
       pref.end();
-      
+
     }
     else {
       if(this->radioInit) ELECHOUSE_cc1101.setSidle();
