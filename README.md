@@ -1,3 +1,16 @@
+## This is a fork which was created  because the original repo seems to be bandoned and I was annoyed by constant restarts of my ESPSomfy. I've fixed some of the major issues caused by watchdog restarts. There are also compiled binaries in my fork if someone is experiencing same issues
+
+  * Fixed a lot of bugs causing constant restarts by migrating to AsyncWebServer and AsyncSockets
+  * Moved logging from serial to esp dedicated logging lib
+  * Gzipped the resources
+  * Changed to platformio build
+  * Backup does no longer use LITTLEFS. Only RAM is used. Storage should not wear out so quick.
+  * Added uptime info in web UI
+
+## There is a partition layout modification it's just better to perform full ESP32 wipeout. Perform backup then wipeout the firmware and restore from the bkp.
+  * fwname: firmware-only binary for OTA updates
+  * obname: onboard image (bootloader + partitions + firmware + littlefs merged) for flashing a new chip via USB/serial
+
 # ESPSomfy-RTS <image src="https://user-images.githubusercontent.com/47839015/218898940-3541b360-5c49-4e38-a918-392cd0408b76.png" align="right" style="width:177px;display:inline-block;float:right"></image>
 
 A controller for Somfy RTS blinds and shades that supports up to 32 individual shades and 16 groups over 433MHz RTx protocols.  If you have IO Home Control motors this project is not for you but you can use the IO Remote protocol to connect the ESPSomfy RTS device to a disected remote.  Look in the [Wiki](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Controlling-Motors-with-GPIO) for options and verify whether the solution is workable for you.
@@ -73,12 +86,3 @@ You can find the documentation for the interfaces in the [Integrations](https://
 I spent some time reading about a myriad of topics but in the end the primary source for this project comes from https://pushstack.wordpress.com/somfy-rts-protocol/.  The work done on pushstack regarding the protocol timing made this feasible without burning a bunch of time measuring pulses.  
   
 Configuration of the Transceiver is done with the ELECHOUSE_CC1101 library which you will need to include in your project should you want to compile the code.  The one used for compiling this module can be found here. https://github.com/LSatan/SmartRC-CC1101-Driver-Lib
-
-  
- 
-
-
-
-
-
-

@@ -1,0 +1,166 @@
+name: ESPSomfy-RTS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    permissions: write-all
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # fwname: firmware-only binary for OTA updates
+        # obname: onboard image (bootloader + partitions + firmware + littlefs merged)
+        #         for flashing a new chip via USB/serial
+        # addr_bootloader: chip-dependent (ESP32: 0x1000, C3/S3/C6: 0x0)
+        # addr_fs: must match spiffs/littlefs offset in esp32_3MB.csv
+        include:
+          - env: esp32dev
+            name: ESP32
+            chip: ESP32
+            addr_bootloader: "0x1000"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32.bin
+            fsname: SomfyController.littlefs.esp32.bin
+            obname: SomfyController.onboard.esp32.bin
+          - env: esp32c3
+            name: ESP32-C3
+            chip: ESP32-C3
+            addr_bootloader: "0x0"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32c3.bin
+            fsname: SomfyController.littlefs.esp32c3.bin
+            obname: SomfyController.onboard.esp32c3.bin
+          - env: esp32s3
+            name: ESP32-S3
+            chip: ESP32-S3
+            addr_bootloader: "0x0"
+            addr_fs: "0x670000"
+            fwname: SomfyController.ino.esp32s3.bin
+            fsname: SomfyController.littlefs.esp32s3.bin
+            obname: SomfyController.onboard.esp32s3.bin
+          - env: esp32c6
+            name: ESP32-C6
+            chip: ESP32-C6
+            addr_bootloader: "0x0"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32c6.bin
+            fsname: SomfyController.littlefs.esp32c6.bin
+            obname: SomfyController.onboard.esp32c6.bin
+
+    steps:
+      - name: Get Release
+        if: github.event_name == 'release'
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Update version from release tag
+        if: github.event_name == 'release'
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/#define FW_VERSION \"v[0-9.]*\"/#define FW_VERSION \"v${VERSION}\"/" src/ConfigSettings.h
+          sed -i "s/^[0-9.].*/${VERSION}/" data-src/appversion
+          sed -i "s/\?v=[0-9.]*c/?v=${VERSION}c/g" data-src/index.html
+          sed -i "s/appVersion = 'v[0-9.]*'/appVersion = 'v${VERSION}'/" data-src/index.js
+
+      - name: Commit version update
+        if: github.event_name == 'release' && matrix.env == 'esp32dev'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/ConfigSettings.h data-src/appversion data-src/index.html data-src/index.js
+          git commit -m "chore: bump version to ${{ github.event.release.tag_name }}"
+          git push origin HEAD:${{ github.event.release.target_commitish }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO and esptool
+        run: pip install platformio esptool
+
+      - name: Build LittleFS image
+        run: pio run -e ${{ matrix.env }} -t buildfs
+
+      - name: Save LittleFS image
+        run: cp .pio/build/${{ matrix.env }}/littlefs.bin littlefs.bin
+
+      - name: Build firmware
+        run: pio run -e ${{ matrix.env }}
+
+      - name: Restore LittleFS image
+        run: cp littlefs.bin .pio/build/${{ matrix.env }}/littlefs.bin
+
+      - name: List build artifacts
+        run: find .pio/build/${{ matrix.env }} -maxdepth 1 -name "*.bin" | sort
+
+      - name: Create onboard image
+        run: |
+          python -m esptool --chip ${{ matrix.chip }} \
+            merge-bin -o ${{ matrix.obname }} \
+            ${{ matrix.addr_bootloader }} .pio/build/${{ matrix.env }}/bootloader.bin \
+            0x8000 .pio/build/${{ matrix.env }}/partitions.bin \
+            0x10000 .pio/build/${{ matrix.env }}/firmware.bin \
+            ${{ matrix.addr_fs }} .pio/build/${{ matrix.env }}/littlefs.bin
+
+      - name: Compress onboard image
+        run: zip ${{ matrix.obname }}.zip ${{ matrix.obname }}
+
+      - name: Upload artifacts
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            .pio/build/${{ matrix.env }}/firmware.bin
+            .pio/build/${{ matrix.env }}/firmware.elf
+            .pio/build/${{ matrix.env }}/partitions.bin
+            .pio/build/${{ matrix.env }}/bootloader.bin
+            .pio/build/${{ matrix.env }}/littlefs.bin
+            ${{ matrix.obname }}.zip
+          retention-days: 5
+
+      - name: Upload LittleFS
+        if: github.event_name == 'release'
+        uses: shogo82148/actions-upload-release-asset@v1.7.5
+        with:
+          github_token: ${{ github.token }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_name: ${{ matrix.fsname }}
+          asset_path: .pio/build/${{ matrix.env }}/littlefs.bin
+          overwrite: true
+
+      - name: Upload firmware
+        if: github.event_name == 'release'
+        uses: shogo82148/actions-upload-release-asset@v1.7.5
+        with:
+          github_token: ${{ github.token }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_name: ${{ matrix.fwname }}
+          asset_path: .pio/build/${{ matrix.env }}/firmware.bin
+          overwrite: true
+
+      - name: Upload onboard image
+        if: github.event_name == 'release'
+        uses: shogo82148/actions-upload-release-asset@v1.7.5
+        with:
+          github_token: ${{ github.token }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_name: ${{ matrix.obname }}.zip
+          asset_path: ${{ matrix.obname }}.zip
+          overwrite: true
+          asset_content_type: application/zip
