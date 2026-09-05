@@ -314,6 +314,13 @@ class SomfyShade : public SomfyRemote {
     uint32_t upTime = 10000;
     uint32_t downTime = 10000;
     uint32_t tiltTime = 7000;
+    uint32_t upMidTime = 0;    // Timestamp (ms from fully closed) at 50% when opening; 0 = linear
+    uint32_t downMidTime = 0;  // Timestamp (ms from fully open) at 50% when closing;  0 = linear
+    uint32_t descendTime = 0;  // Timestamp (ms from fully open) when slats touch floor, blades expanded; 0 = disabled
+    uint32_t upSlatTime = 0;   // Timestamp (ms from fully closed) when blades are expanded during opening; 0 = disabled
+    float alphaUp = 0.0f;      // Derived from (upMidTime-upSlatTime)/(upTime-upSlatTime); 0 = use linear
+    float alphaDown = 0.0f;    // Derived from downMidTime/descendTime; 0 = use linear
+    void computeAlphas();
     uint16_t stepSize = 100;
     bool save();
     bool isIdle();

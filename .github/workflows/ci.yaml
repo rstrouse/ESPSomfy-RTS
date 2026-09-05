@@ -22,17 +22,17 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Checkout mklittlefs
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: earlephilhower/mklittlefs
           path: mklittlefs
           ref: ${{ env.MKLITTLEFS_VERSION }}
 
       - name: Checkout LittleFS
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: littlefs-project/littlefs
           path: mklittlefs/littlefs
@@ -44,10 +44,10 @@ jobs:
 
       - name: Create LittleFS
         run: |
-          ./mklittlefs/mklittlefs --create data --size 1441792 SomfyController.littlefs.bin
+          ./mklittlefs/mklittlefs --create data --size 786432 SomfyController.littlefs.bin
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LittleFS
           path: SomfyController.littlefs.bin
@@ -85,17 +85,17 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: SomfyController
 
       - name: Get LittleFS
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: LittleFS
 
       - name: Install Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -137,10 +137,10 @@ jobs:
             ${{ matrix.addr_bootloader }} build/SomfyController.ino.bootloader.bin \
             0x8000 build/SomfyController.ino.partitions.bin \
             0x10000 build/SomfyController.ino.bin \
-            0x290000 SomfyController.littlefs.bin
+            0x330000 SomfyController.littlefs.bin
 
       - name: Upload ${{ matrix.name }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: |

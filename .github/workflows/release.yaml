@@ -52,7 +52,7 @@ jobs:
 
       - name: Create LittleFS
         run: |
-          ./mklittlefs/mklittlefs --create data --size 1441792 SomfyController.littlefs.bin
+          ./mklittlefs/mklittlefs --create data --size 786432 SomfyController.littlefs.bin
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
@@ -172,7 +172,7 @@ jobs:
             ${{ matrix.addr_bootloader }} build${{ matrix.name }}/SomfyController.ino.bootloader.bin \
             0x8000 build${{ matrix.name }}/SomfyController.ino.partitions.bin \
             0x10000 build${{ matrix.name }}/SomfyController.ino.bin \
-            0x290000 SomfyController.littlefs.bin
+            0x330000 SomfyController.littlefs.bin
 
       - name: Upload Firmware ${{ matrix.name }}
         uses: shogo82148/actions-upload-release-asset@v1.7.5

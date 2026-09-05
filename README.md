@@ -69,6 +69,49 @@ While the interface that comes with the ESPSomfy RTS is a huge improvement, the 
 
 You can find the documentation for the interfaces in the [Integrations](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Integrations) wiki.  Plenty of stuff there for you folks that make red nodes and stuff.
   
+## Accurate Position Estimation for Roller Shades
+
+### The problem
+
+ESPSomfy RTS estimates shade position by interpolating elapsed travel time against the configured Up/Down time. This works well for simple motors, but roller shades wind their material around a drum. As the shade travels, the drum radius grows (when opening) or shrinks (when closing), so the linear speed of the fabric changes even when the motor turns at a constant angular speed. The result is that the reported percentage drifts noticeably from the real position — the shade is at 50% in Home Assistant but clearly not in the middle of the window.
+
+### Non-linear calibration fields
+
+Two optional fields can be set per shade to correct for this:
+
+| Field | Description |
+|---|---|
+| **Up mid-time** | Elapsed time (ms) from fully closed until the shade reaches the 50% open position |
+| **Down mid-time** | Elapsed time (ms) from fully open until the shade reaches the 50% closed position |
+
+When either field is non-zero, ESPSomfy RTS fits a logarithmic model (α ratio solved via Newton's method) to the measured mid-point. All position estimates then use this model instead of linear interpolation. Set both fields to 0 to revert to the original linear behaviour.
+
+**How to measure:** start a full travel, watch the shade, and record the time at which it crosses the halfway point of the window opening. A stopwatch is sufficient.
+
+### Two-phase model for roller shutters with blade tilt
+
+Roller shutters that tilt their blades go through two distinct motion phases:
+
+- **Closing:** the shade descends (blades unrolling) then the blades tilt to fully close — a short linear phase at the end
+- **Opening:** the blades open first (linear phase), then the shade ascends
+
+Two additional fields model these phases:
+
+| Field | Description |
+|---|---|
+| **Descend time** | Elapsed time (ms) from fully open until the shade touches the floor (blades horizontal, before tilt) |
+| **Up slat time** | Elapsed time (ms) from fully closed until the blades are fully expanded (before the shade starts to rise) |
+
+The non-linear model is applied only to the pure travel portion (descent or ascent), excluding the linear blade-tilt phases at each end. As with the mid-time fields, set to 0 to disable.
+
+**How to measure:** start a full travel from the opposite end-stop and watch for the physical transition — bottom of shade touching the sill (for descend time) or blades visibly fully open (for up slat time). Both can be measured with a stopwatch from movement start.
+
+### The special 1% position
+
+The boundary between the two phases — blades fully expanded so that light passes between them, shade resting on the floor — is represented internally as **1%**. Positions from 100% down to 1% correspond to the blade-tilt range; positions from 1% down to 0% correspond to the shade travel range. A consequence of this is that there is no intermediate state between blades fully expanded (letting some light through) and blades fully closed (in contact with each other, no light): the shade is either in the tilt zone (≥ 1%) or in the travel zone (< 1%). In practice this is not a real-world limitation, since stopping the blades at a partially-expanded position is rarely useful, but it is worth being aware of.
+
+All four fields are persisted to NVS, included in the backup file, and are restored on firmware update.
+
 ## Sources for this Project
 I spent some time reading about a myriad of topics but in the end the primary source for this project comes from https://pushstack.wordpress.com/somfy-rts-protocol/.  The work done on pushstack regarding the protocol timing made this feasible without burning a bunch of time measuring pulses.  
   

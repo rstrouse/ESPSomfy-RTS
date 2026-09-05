@@ -7,9 +7,9 @@
 
 extern Preferences pref;
 
-#define SHADE_HDR_VER 24
+#define SHADE_HDR_VER 25
 #define SHADE_HDR_SIZE 76
-#define SHADE_REC_SIZE 276
+#define SHADE_REC_SIZE 320
 #define GROUP_REC_SIZE 200
 #define TRANS_REC_SIZE 74
 #define ROOM_REC_SIZE 29
@@ -861,6 +861,12 @@ bool ShadeConfigFile::readShadeRecord(SomfyShade *shade) {
   if(shade->proto == radio_proto::GP_Remote)
     pinMode(shade->gpioMy, OUTPUT);
   if(this->header.version >= 19) shade->roomId = this->readUInt8(0);
+  if(this->header.version >= 25) {
+    shade->upMidTime = this->readUInt32(0);
+    shade->downMidTime = this->readUInt32(0);
+    shade->descendTime = this->readUInt32(0);
+    shade->upSlatTime = this->readUInt32(0);
+  }
   if(this->file.position() != startPos + this->header.shadeRecordSize) {
     Serial.println("Reading to end of shade record");
     this->seekChar(CFG_REC_END);
@@ -997,8 +1003,12 @@ bool ShadeConfigFile::writeShadeRecord(SomfyShade *shade) {
   this->writeUInt8(shade->gpioDown);
   this->writeUInt8(shade->gpioMy);
   this->writeUInt8(shade->gpioFlags);
-  this->writeUInt8(shade->roomId, CFG_REC_END);
-  return true;  
+  this->writeUInt8(shade->roomId);
+  this->writeUInt32(shade->upMidTime);
+  this->writeUInt32(shade->downMidTime);
+  this->writeUInt32(shade->descendTime);
+  this->writeUInt32(shade->upSlatTime, CFG_REC_END);
+  return true;
 }
 bool ShadeConfigFile::writeSettingsRecord() {
   this->writeVarString(settings.fwVersion.name);
