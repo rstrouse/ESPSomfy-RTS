@@ -4330,6 +4330,10 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
     //delayMicroseconds(9565);
     //delay(80);
   }
+  // On single-core parts the WiFi and lwIP tasks can preempt us mid-frame and delay an edge
+  // enough to corrupt the frame, so we bump the priority until the last data bit.
+  const UBaseType_t priority = uxTaskPriorityGet(NULL);
+  vTaskPrioritySet(NULL, configMAX_PRIORITIES - 1);
   // Depending on the bitness of the protocol we will be sending a different hwsync.
   // 56-bit 2 pulses for the first frame and 7 for the repeats
   // 80-bit 24 pulses for the first frame and 14 pulses for the repeats
@@ -4364,6 +4368,7 @@ void Transceiver::sendFrame(byte *frame, uint8_t sync, uint8_t bitLength) {
       last_bit = 0;
     }
   }
+  vTaskPrioritySet(NULL, priority);
   // End with a 0 no matter what.  This accommodates the 56-bit protocol by telling the
   // motor that there are no more follow on bits.
   if(last_bit == 0) {
