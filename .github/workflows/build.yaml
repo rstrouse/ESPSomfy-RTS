@@ -1,0 +1,404 @@
+name: ESPSomfy-RTS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+
+# Read-only unless a job asks for more.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      # pioarduino's fork of PlatformIO Core, which the pioarduino platform needs.
+      # Pinned: 6.2.0.post1 reports itself as 6.2.0-post.1, which the
+      # platform's ">=6.2.0" reads as a pre-release and refuses.
+      - name: Install PlatformIO and gcovr
+        run: pip install pioarduino==6.2.0 gcovr==8.8
+
+      # The coverage env is the native env with gcov counters: the same
+      # tests, measured.
+      - name: Run native unit tests
+        run: pio test -e coverage
+
+      - name: Test the release scripts
+        run: bash test/scripts/test_set_version.sh
+
+      # gcovr.cfg picks the files; the table goes to the run's summary page.
+      - name: Coverage report
+        run: |
+          mkdir -p coverage
+          gcovr --html-details coverage/index.html \
+            --markdown "$GITHUB_STEP_SUMMARY" --markdown-title "Native tests coverage"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-cpp
+          path: coverage/
+          retention-days: 14
+
+  webui:
+    name: Web UI tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          # Never cache: this workflow also builds releases.
+          package-manager-cache: false
+
+      # The protocol 2 client (data-src/js) against the recorded fixtures.
+      # Coverage: a table in the log, and lcov for the HTML report.
+      - name: Run web UI tests
+        run: |
+          mkdir -p coverage
+          node --test --experimental-test-coverage \
+            --test-coverage-include="data-src/js/**" \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=lcov --test-reporter-destination=coverage/lcov.info \
+            "test/js/*.test.js"
+
+      - name: Coverage report
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lcov
+          genhtml coverage/lcov.info --output-directory coverage/html \
+            --title "ESPSomfy-RTS web UI tests"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-js
+          path: coverage/html/
+          retention-days: 14
+
+  # The coverage of main on the repo's GitHub Pages site
+  # (Settings > Pages > Source: GitHub Actions).
+  coverage-pages:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, webui]
+    name: Publish coverage
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    steps:
+      - name: Download native tests coverage
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage-cpp
+          path: site/cpp
+
+      - name: Download web UI tests coverage
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage-js
+          path: site/js
+
+      - name: Index page
+        run: |
+          cat > site/index.html <<EOF
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>ESPSomfy-RTS coverage</title>
+          <h1>ESPSomfy-RTS test coverage</h1>
+          <p>main at <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">${GITHUB_SHA::7}</a>, $(date -u '+%Y-%m-%d %H:%M UTC')</p>
+          <ul>
+            <li><a href="cpp/">Native tests</a> (pio test -e native): only the sources the native env builds</li>
+            <li><a href="js/">Web UI tests</a> (data-src/js)</li>
+          </ul>
+          EOF
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  build:
+    # Don't build or publish firmware that fails its tests.
+    needs: [test, webui]
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # fwname: firmware-only binary for OTA updates
+        # elfname: the symbols of that binary, to decode a crash's backtrace
+        # obname: onboard image (bootloader + partitions + firmware + littlefs merged)
+        #         for flashing a new chip via USB/serial
+        # addr_bootloader: chip-dependent (ESP32: 0x1000, S3/C3/C6: 0x0, C5/P4: 0x2000)
+        # addr_fs: must match the spiffs offset in the env's partition table
+        #          (0x310000 in both esp32_3MB.csv and esp32_huge_app.csv)
+        include:
+          - env: esp32dev
+            name: ESP32
+            chip: ESP32
+            addr_bootloader: "0x1000"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32.bin
+            elfname: SomfyController.ino.esp32.elf
+            fsname: SomfyController.littlefs.esp32.bin
+            obname: SomfyController.onboard.esp32.bin
+          - env: esp32s3
+            name: ESP32-S3
+            chip: ESP32-S3
+            addr_bootloader: "0x0"
+            addr_fs: "0x670000"
+            fwname: SomfyController.ino.esp32s3.bin
+            elfname: SomfyController.ino.esp32s3.elf
+            fsname: SomfyController.littlefs.esp32s3.bin
+            obname: SomfyController.onboard.esp32s3.bin
+          - env: esp32c3
+            name: ESP32-C3
+            chip: ESP32-C3
+            addr_bootloader: "0x0"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32c3.bin
+            elfname: SomfyController.ino.esp32c3.elf
+            fsname: SomfyController.littlefs.esp32c3.bin
+            obname: SomfyController.onboard.esp32c3.bin
+          - env: esp32c5
+            name: ESP32-C5
+            chip: ESP32-C5
+            addr_bootloader: "0x2000"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32c5.bin
+            elfname: SomfyController.ino.esp32c5.elf
+            fsname: SomfyController.littlefs.esp32c5.bin
+            obname: SomfyController.onboard.esp32c5.bin
+          - env: esp32c6
+            name: ESP32-C6
+            chip: ESP32-C6
+            addr_bootloader: "0x0"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32c6.bin
+            elfname: SomfyController.ino.esp32c6.elf
+            fsname: SomfyController.littlefs.esp32c6.bin
+            obname: SomfyController.onboard.esp32c6.bin
+          - env: esp32p4
+            name: ESP32-P4
+            chip: ESP32-P4
+            addr_bootloader: "0x2000"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32p4.bin
+            elfname: SomfyController.ino.esp32p4.elf
+            fsname: SomfyController.littlefs.esp32p4.bin
+            obname: SomfyController.onboard.esp32p4.bin
+          - env: esp32p4es
+            name: ESP32-P4 (before v2.0)
+            chip: ESP32-P4
+            addr_bootloader: "0x2000"
+            addr_fs: "0x310000"
+            fwname: SomfyController.ino.esp32p4es.bin
+            elfname: SomfyController.ino.esp32p4es.elf
+            fsname: SomfyController.littlefs.esp32p4es.bin
+            obname: SomfyController.onboard.esp32p4es.bin
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The release job commits the same change once all the builds pass.
+      - name: Update version from release tag
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: bash .github/set_version.sh "$TAG"
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO and esptool
+        run: pip install pioarduino==6.2.0 esptool==5.4.0
+
+      - name: Build LittleFS image
+        run: pio run -e ${{ matrix.env }} -t buildfs
+
+      - name: Save LittleFS image
+        run: cp .pio/build/${{ matrix.env }}/littlefs.bin littlefs.bin
+
+      - name: Build firmware
+        run: pio run -e ${{ matrix.env }}
+
+      - name: Check firmware size
+        run: python .github/size_check.py .pio/build/${{ matrix.env }} ${{ matrix.env }} 8
+
+      - name: Restore LittleFS image
+        run: cp littlefs.bin .pio/build/${{ matrix.env }}/littlefs.bin
+
+      - name: List build artifacts
+        run: find .pio/build/${{ matrix.env }} -maxdepth 1 -name "*.bin" | sort
+
+      - name: Create onboard image
+        run: |
+          python -m esptool --chip ${{ matrix.chip }} \
+            merge-bin -o ${{ matrix.obname }} \
+            ${{ matrix.addr_bootloader }} .pio/build/${{ matrix.env }}/bootloader.bin \
+            0x8000 .pio/build/${{ matrix.env }}/partitions.bin \
+            0x10000 .pio/build/${{ matrix.env }}/firmware.bin \
+            ${{ matrix.addr_fs }} .pio/build/${{ matrix.env }}/littlefs.bin
+
+      - name: Compress onboard image
+        run: zip ${{ matrix.obname }}.zip ${{ matrix.obname }}
+
+      # A panic prints "ELF file SHA256: <first hex digits>".  The .sha256 file
+      # beside the ELF holds the whole hash, so a crash log shows which build
+      # it came from.
+      - name: Compress ELF
+        run: |
+          cp .pio/build/${{ matrix.env }}/firmware.elf ${{ matrix.elfname }}
+          sha256sum ${{ matrix.elfname }} > ${{ matrix.elfname }}.sha256
+          cat ${{ matrix.elfname }}.sha256
+          zip -9 ${{ matrix.elfname }}.zip ${{ matrix.elfname }} ${{ matrix.elfname }}.sha256
+
+      - name: Upload artifacts
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            .pio/build/${{ matrix.env }}/firmware.bin
+            .pio/build/${{ matrix.env }}/firmware.elf
+            .pio/build/${{ matrix.env }}/partitions.bin
+            .pio/build/${{ matrix.env }}/bootloader.bin
+            .pio/build/${{ matrix.env }}/littlefs.bin
+            ${{ matrix.obname }}.zip
+          retention-days: 5
+
+      # Under their release names, for the release job.
+      - name: Collect release files
+        if: github.event_name == 'release'
+        run: |
+          mkdir release
+          cp .pio/build/${{ matrix.env }}/littlefs.bin release/${{ matrix.fsname }}
+          cp .pio/build/${{ matrix.env }}/firmware.bin release/${{ matrix.fwname }}
+          cp ${{ matrix.obname }}.zip ${{ matrix.elfname }}.zip release/
+
+      - name: Upload release files
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.env }}
+          path: release/
+          retention-days: 1
+
+  # The only job that can write to the repo, and it runs no build tools: the
+  # builds above can't touch the release, this job only adds their files to it.
+  release:
+    if: github.event_name == 'release'
+    needs: build
+    name: Publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # the release's files, the version bump commit
+      id-token: write       # Sigstore signs the attestations
+      attestations: write
+
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: artifacts
+
+      # One folder per build. Each must hold its 4 files, and no build may
+      # replace another's file, so nothing unexpected gets signed.
+      - name: Collect release files
+        run: |
+          mkdir dist
+          for d in artifacts/release-*/; do
+            count=$(find "$d" -type f | wc -l)
+            if [ "$count" -ne 4 ]; then
+              echo "::error::$d has $count files, not 4"
+              exit 1
+            fi
+            for f in "$d"*; do
+              name=$(basename "$f")
+              if [ -e "dist/$name" ]; then
+                echo "::error::$name comes from two builds"
+                exit 1
+              fi
+              cp "$f" dist/
+            done
+          done
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      # Signed statements that this workflow built each file from this commit:
+      #   gh attestation verify <file> --repo cjkas/ESPSomfy-RTS
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.bin
+            dist/*.zip
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+
+      # The release's branch as it is now, not the tag: main may have moved
+      # on while the boards built.
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.release.target_commitish }}
+          persist-credentials: true # pushes the version bump
+
+      - name: Commit version update
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          TARGET: ${{ github.event.release.target_commitish }}
+        run: |
+          bash .github/set_version.sh "$TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: bump version to $TAG"
+          git push origin "HEAD:$TARGET"

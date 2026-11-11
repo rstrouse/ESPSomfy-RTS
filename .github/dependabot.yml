@@ -1,0 +1,14 @@
+# The workflows' actions are pinned to commit SHAs; Dependabot moves the pins.
+# PlatformIO libraries aren't covered: bump lib_deps in platformio.ini by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # A week for a hijacked release to be caught before it lands here.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

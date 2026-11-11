@@ -1,0 +1,1536 @@
+[
+ {
+  "v": 2,
+  "t": 4,
+  "d": {
+   "T": [
+    [
+     1,
+     "hello"
+    ],
+    [
+     2,
+     "reply"
+    ],
+    [
+     3,
+     "next"
+    ],
+    [
+     4,
+     "sync"
+    ],
+    [
+     5,
+     "syncEnd"
+    ],
+    [
+     6,
+     "subscribe"
+    ],
+    [
+     7,
+     "unsubscribe"
+    ],
+    [
+     16,
+     "shadeCommand"
+    ],
+    [
+     17,
+     "groupCommand"
+    ],
+    [
+     18,
+     "tiltCommand"
+    ],
+    [
+     19,
+     "repeatCommand"
+    ],
+    [
+     20,
+     "setPositions"
+    ],
+    [
+     21,
+     "setSensor"
+    ],
+    [
+     22,
+     "setMyPosition"
+    ],
+    [
+     23,
+     "unpairShade"
+    ],
+    [
+     24,
+     "setRollingCode"
+    ],
+    [
+     25,
+     "sendRemoteCommand"
+    ],
+    [
+     26,
+     "addRoom"
+    ],
+    [
+     27,
+     "addShade"
+    ],
+    [
+     28,
+     "addGroup"
+    ],
+    [
+     29,
+     "saveRoom"
+    ],
+    [
+     30,
+     "saveShade"
+    ],
+    [
+     31,
+     "saveGroup"
+    ],
+    [
+     32,
+     "deleteRoom"
+    ],
+    [
+     33,
+     "deleteShade"
+    ],
+    [
+     34,
+     "deleteGroup"
+    ],
+    [
+     35,
+     "linkRemote"
+    ],
+    [
+     36,
+     "unlinkRemote"
+    ],
+    [
+     37,
+     "linkToGroup"
+    ],
+    [
+     38,
+     "unlinkFromGroup"
+    ],
+    [
+     39,
+     "linkRepeater"
+    ],
+    [
+     40,
+     "unlinkRepeater"
+    ],
+    [
+     41,
+     "setPaired"
+    ],
+    [
+     42,
+     "roomSortOrder"
+    ],
+    [
+     43,
+     "shadeSortOrder"
+    ],
+    [
+     44,
+     "groupSortOrder"
+    ],
+    [
+     45,
+     "getNextRoom"
+    ],
+    [
+     46,
+     "getNextShade"
+    ],
+    [
+     47,
+     "getNextGroup"
+    ],
+    [
+     48,
+     "groupOptions"
+    ],
+    [
+     49,
+     "getSettings"
+    ],
+    [
+     50,
+     "saveSettings"
+    ],
+    [
+     51,
+     "scanWifi"
+    ],
+    [
+     52,
+     "beginFrequencyScan"
+    ],
+    [
+     53,
+     "endFrequencyScan"
+    ],
+    [
+     54,
+     "reboot"
+    ],
+    [
+     128,
+     "shadeState"
+    ],
+    [
+     129,
+     "shade"
+    ],
+    [
+     130,
+     "shadeRemoved"
+    ],
+    [
+     131,
+     "group"
+    ],
+    [
+     132,
+     "groupState"
+    ],
+    [
+     133,
+     "groupRemoved"
+    ],
+    [
+     134,
+     "room"
+    ],
+    [
+     135,
+     "roomRemoved"
+    ],
+    [
+     136,
+     "roomOrder"
+    ],
+    [
+     137,
+     "shadeOrder"
+    ],
+    [
+     138,
+     "groupOrder"
+    ],
+    [
+     139,
+     "shadeCommanded"
+    ],
+    [
+     140,
+     "memory"
+    ],
+    [
+     141,
+     "wifi"
+    ],
+    [
+     142,
+     "ethernet"
+    ],
+    [
+     143,
+     "frame"
+    ],
+    [
+     144,
+     "frequencyScan"
+    ],
+    [
+     145,
+     "repeaters"
+    ],
+    [
+     146,
+     "settingsChanged"
+    ],
+    [
+     147,
+     "wifiNetworks"
+    ]
+   ],
+   "F": [
+    [
+     "T",
+     "types",
+     "l",
+     0
+    ],
+    [
+     "F",
+     "fields",
+     "l",
+     0
+    ],
+    [
+     "E",
+     "errors",
+     "l",
+     0
+    ],
+    [
+     "Q",
+     "feeds",
+     "l",
+     0
+    ],
+    [
+     "h",
+     "header",
+     "o",
+     0
+    ],
+    [
+     "R",
+     "rooms",
+     "l",
+     0
+    ],
+    [
+     "S",
+     "shades",
+     "l",
+     0
+    ],
+    [
+     "G",
+     "groups",
+     "l",
+     0
+    ],
+    [
+     "X",
+     "repeaters",
+     "l",
+     0
+    ],
+    [
+     "Z",
+     "status",
+     "o",
+     0
+    ],
+    [
+     "fw",
+     "fw",
+     "s",
+     0
+    ],
+    [
+     "sh",
+     "schemaHash",
+     "s",
+     0
+    ],
+    [
+     "k",
+     "ok",
+     "b",
+     0
+    ],
+    [
+     "e",
+     "code",
+     "i",
+     0
+    ],
+    [
+     "x",
+     "desc",
+     "s",
+     0
+    ],
+    [
+     "fe",
+     "feed",
+     "i",
+     0
+    ],
+    [
+     "is",
+     "ids",
+     "l",
+     0
+    ],
+    [
+     "s",
+     "shadeId",
+     "i",
+     0
+    ],
+    [
+     "g",
+     "groupId",
+     "i",
+     0
+    ],
+    [
+     "r",
+     "roomId",
+     "i",
+     0
+    ],
+    [
+     "n",
+     "name",
+     "s",
+     0
+    ],
+    [
+     "a",
+     "remoteAddress",
+     "i",
+     0
+    ],
+    [
+     "c",
+     "lastRollingCode",
+     "i",
+     0
+    ],
+    [
+     "o",
+     "sortOrder",
+     "i",
+     0
+    ],
+    [
+     "f",
+     "flags",
+     "i",
+     0
+    ],
+    [
+     "p",
+     "position",
+     "i",
+     0
+    ],
+    [
+     "t",
+     "target",
+     "i",
+     0
+    ],
+    [
+     "d",
+     "direction",
+     "i",
+     0
+    ],
+    [
+     "m",
+     "myPos",
+     "i",
+     -1
+    ],
+    [
+     "y",
+     "tiltType",
+     "i",
+     0
+    ],
+    [
+     "q",
+     "tiltPosition",
+     "i",
+     0
+    ],
+    [
+     "u",
+     "tiltTarget",
+     "i",
+     0
+    ],
+    [
+     "w",
+     "tiltDirection",
+     "i",
+     0
+    ],
+    [
+     "M",
+     "myTiltPos",
+     "i",
+     -1
+    ],
+    [
+     "U",
+     "upTime",
+     "i",
+     0
+    ],
+    [
+     "D",
+     "downTime",
+     "i",
+     0
+    ],
+    [
+     "Y",
+     "tiltTime",
+     "i",
+     0
+    ],
+    [
+     "z",
+     "stepSize",
+     "i",
+     100
+    ],
+    [
+     "i",
+     "paired",
+     "b",
+     0
+    ],
+    [
+     "st",
+     "shadeType",
+     "i",
+     0
+    ],
+    [
+     "bl",
+     "bitLength",
+     "i",
+     56
+    ],
+    [
+     "pr",
+     "proto",
+     "i",
+     0
+    ],
+    [
+     "fc",
+     "flipCommands",
+     "b",
+     0
+    ],
+    [
+     "fp",
+     "flipPosition",
+     "b",
+     0
+    ],
+    [
+     "ig",
+     "inGroup",
+     "b",
+     0
+    ],
+    [
+     "ss",
+     "sunSensor",
+     "b",
+     0
+    ],
+    [
+     "li",
+     "light",
+     "b",
+     0
+    ],
+    [
+     "sm",
+     "simMy",
+     "b",
+     0
+    ],
+    [
+     "rp",
+     "repeats",
+     "i",
+     1
+    ],
+    [
+     "gu",
+     "gpioUp",
+     "i",
+     0
+    ],
+    [
+     "gd",
+     "gpioDown",
+     "i",
+     0
+    ],
+    [
+     "gm",
+     "gpioMy",
+     "i",
+     0
+    ],
+    [
+     "gl",
+     "gpioLLTrigger",
+     "b",
+     0
+    ],
+    [
+     "lk",
+     "linkedRemotes",
+     "l",
+     0
+    ],
+    [
+     "ls",
+     "linkedShades",
+     "l",
+     0
+    ],
+    [
+     "cm",
+     "command",
+     "s",
+     0
+    ],
+    [
+     "so",
+     "source",
+     "s",
+     0
+    ],
+    [
+     "sr",
+     "sourceAddress",
+     "i",
+     0
+    ],
+    [
+     "re",
+     "repeat",
+     "i",
+     0
+    ],
+    [
+     "sn",
+     "sunny",
+     "b",
+     0
+    ],
+    [
+     "wn",
+     "windy",
+     "b",
+     0
+    ],
+    [
+     "vc",
+     "validation",
+     "i",
+     0
+    ],
+    [
+     "xr",
+     "maxRooms",
+     "i",
+     0
+    ],
+    [
+     "xs",
+     "maxShades",
+     "i",
+     0
+    ],
+    [
+     "xg",
+     "maxGroups",
+     "i",
+     0
+    ],
+    [
+     "xm",
+     "maxGroupedShades",
+     "i",
+     0
+    ],
+    [
+     "xl",
+     "maxLinkedRemotes",
+     "i",
+     0
+    ],
+    [
+     "sa",
+     "startingAddress",
+     "i",
+     0
+    ],
+    [
+     "sv",
+     "serverId",
+     "s",
+     0
+    ],
+    [
+     "hn",
+     "hostname",
+     "s",
+     0
+    ],
+    [
+     "md",
+     "model",
+     "s",
+     0
+    ],
+    [
+     "cp",
+     "chipModel",
+     "s",
+     0
+    ],
+    [
+     "ct",
+     "connType",
+     "s",
+     0
+    ],
+    [
+     "fr",
+     "freeHeap",
+     "i",
+     0
+    ],
+    [
+     "mx",
+     "maxHeap",
+     "i",
+     0
+    ],
+    [
+     "mn",
+     "minHeap",
+     "i",
+     0
+    ],
+    [
+     "to",
+     "totalHeap",
+     "i",
+     0
+    ],
+    [
+     "up",
+     "uptime",
+     "i",
+     0
+    ],
+    [
+     "lp",
+     "loopRate",
+     "i",
+     0
+    ],
+    [
+     "lx",
+     "loopMaxUs",
+     "i",
+     0
+    ],
+    [
+     "sd",
+     "ssid",
+     "s",
+     0
+    ],
+    [
+     "sg",
+     "strength",
+     "i",
+     0
+    ],
+    [
+     "ch",
+     "channel",
+     "i",
+     0
+    ],
+    [
+     "co",
+     "connected",
+     "b",
+     0
+    ],
+    [
+     "sp",
+     "speed",
+     "i",
+     0
+    ],
+    [
+     "fd",
+     "fullDuplex",
+     "b",
+     0
+    ],
+    [
+     "ek",
+     "encKey",
+     "i",
+     0
+    ],
+    [
+     "rw",
+     "rawCmd",
+     "i",
+     0
+    ],
+    [
+     "rs",
+     "rssi",
+     "i",
+     0
+    ],
+    [
+     "bt",
+     "bits",
+     "i",
+     0
+    ],
+    [
+     "va",
+     "valid",
+     "b",
+     0
+    ],
+    [
+     "hs",
+     "hwsync",
+     "i",
+     0
+    ],
+    [
+     "pu",
+     "pulses",
+     "l",
+     0
+    ],
+    [
+     "sc",
+     "scanning",
+     "b",
+     0
+    ],
+    [
+     "tf",
+     "testFreq",
+     "n",
+     0
+    ],
+    [
+     "tr",
+     "testRssi",
+     "i",
+     0
+    ],
+    [
+     "fq",
+     "frequency",
+     "n",
+     0
+    ],
+    [
+     "se",
+     "section",
+     "s",
+     0
+    ],
+    [
+     "ak",
+     "apiKey",
+     "s",
+     0
+    ],
+    [
+     "rb",
+     "rebooting",
+     "b",
+     0
+    ],
+    [
+     "sb",
+     "ssdpBroadcast",
+     "b",
+     0
+    ],
+    [
+     "ns",
+     "ntpServer",
+     "s",
+     0
+    ],
+    [
+     "pz",
+     "posixZone",
+     "s",
+     0
+    ],
+    [
+     "cn",
+     "connMode",
+     "i",
+     0
+    ],
+    [
+     "he",
+     "hasEthernet",
+     "b",
+     0
+    ],
+    [
+     "pp",
+     "passphrase",
+     "s",
+     0
+    ],
+    [
+     "hq",
+     "hasPassphrase",
+     "b",
+     0
+    ],
+    [
+     "ro",
+     "roaming",
+     "b",
+     0
+    ],
+    [
+     "hd",
+     "hidden",
+     "b",
+     0
+    ],
+    [
+     "bo",
+     "boardType",
+     "i",
+     0
+    ],
+    [
+     "ph",
+     "phyType",
+     "i",
+     0
+    ],
+    [
+     "ck",
+     "CLKMode",
+     "i",
+     0
+    ],
+    [
+     "pa",
+     "phyAddress",
+     "i",
+     0
+    ],
+    [
+     "pw",
+     "PWRPin",
+     "i",
+     0
+    ],
+    [
+     "mc",
+     "MDCPin",
+     "i",
+     0
+    ],
+    [
+     "mi",
+     "MDIOPin",
+     "i",
+     0
+    ],
+    [
+     "dh",
+     "dhcp",
+     "b",
+     0
+    ],
+    [
+     "ip",
+     "ip",
+     "s",
+     0
+    ],
+    [
+     "gw",
+     "gateway",
+     "s",
+     0
+    ],
+    [
+     "su",
+     "subnet",
+     "s",
+     0
+    ],
+    [
+     "d1",
+     "dns1",
+     "s",
+     0
+    ]
+   ]
+  }
+ },
+ {
+  "v": 2,
+  "t": 4,
+  "d": {
+   "F": [
+    [
+     "d2",
+     "dns2",
+     "s",
+     0
+    ],
+    [
+     "en",
+     "enabled",
+     "b",
+     0
+    ],
+    [
+     "pd",
+     "pubDisco",
+     "b",
+     0
+    ],
+    [
+     "pt",
+     "protocol",
+     "s",
+     0
+    ],
+    [
+     "po",
+     "port",
+     "i",
+     0
+    ],
+    [
+     "un",
+     "username",
+     "s",
+     0
+    ],
+    [
+     "ps",
+     "password",
+     "s",
+     0
+    ],
+    [
+     "hw",
+     "hasPassword",
+     "b",
+     0
+    ],
+    [
+     "rt",
+     "rootTopic",
+     "s",
+     0
+    ],
+    [
+     "dt",
+     "discoTopic",
+     "s",
+     0
+    ],
+    [
+     "sy",
+     "securityType",
+     "i",
+     0
+    ],
+    [
+     "pn",
+     "pin",
+     "s",
+     0
+    ],
+    [
+     "hi",
+     "hasPin",
+     "b",
+     0
+    ],
+    [
+     "tx",
+     "TXPin",
+     "i",
+     0
+    ],
+    [
+     "rx",
+     "RXPin",
+     "i",
+     0
+    ],
+    [
+     "sk",
+     "SCKPin",
+     "i",
+     0
+    ],
+    [
+     "mo",
+     "MOSIPin",
+     "i",
+     0
+    ],
+    [
+     "ms",
+     "MISOPin",
+     "i",
+     0
+    ],
+    [
+     "cs",
+     "CSNPin",
+     "i",
+     0
+    ],
+    [
+     "bw",
+     "rxBandwidth",
+     "n",
+     0
+    ],
+    [
+     "dv",
+     "deviation",
+     "n",
+     0
+    ],
+    [
+     "tp",
+     "txPower",
+     "i",
+     0
+    ],
+    [
+     "nd",
+     "noiseDetection",
+     "b",
+     0
+    ],
+    [
+     "ri",
+     "radioInit",
+     "b",
+     0
+    ],
+    [
+     "nw",
+     "networks",
+     "l",
+     0
+    ],
+    [
+     "ma",
+     "macAddress",
+     "s",
+     0
+    ]
+   ],
+   "E": [
+    [
+     1,
+     "badRequest"
+    ],
+    [
+     2,
+     "unknownOp"
+    ],
+    [
+     3,
+     "unauthorized"
+    ],
+    [
+     4,
+     "notFound"
+    ],
+    [
+     5,
+     "busy"
+    ],
+    [
+     6,
+     "radioUnavailable"
+    ],
+    [
+     7,
+     "internal"
+    ]
+   ],
+   "Q": [
+    [
+     1,
+     "frames"
+    ],
+    [
+     2,
+     "frequencyScan"
+    ]
+   ],
+   "h": {
+    "xr": 16,
+    "xs": 32,
+    "xg": 16,
+    "xm": 32,
+    "xl": 7,
+    "sa": 1048577,
+    "bl": 80,
+    "pr": 1,
+    "sv": "serverId 2",
+    "hn": "hostname 3",
+    "md": "ESPSomfyRTS",
+    "cp": "s3",
+    "fw": "v3.0.14",
+    "ct": "Wifi"
+   },
+   "R": [
+    {
+     "r": 1,
+     "n": "name 4",
+     "o": 1
+    },
+    {
+     "r": 2,
+     "n": "name 5",
+     "o": 2
+    }
+   ],
+   "S": [
+    {
+     "s": 1,
+     "p": 7,
+     "t": 7,
+     "c": 1048582,
+     "n": "name 7",
+     "a": 1048584,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 1,
+     "lk": [
+      {
+       "a": 1048585
+      },
+      {
+       "a": 1048586,
+       "c": 1048587
+      }
+     ]
+    },
+    {
+     "s": 2,
+     "c": 1048588,
+     "n": "name 13",
+     "a": 1048590,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 2,
+     "lk": [
+      {
+       "a": 1048591,
+       "c": 1048592
+      },
+      {
+       "a": 1048593
+      }
+     ]
+    },
+    {
+     "s": 3,
+     "p": 100,
+     "t": 100,
+     "c": 1048594,
+     "n": "name 19",
+     "a": 1048596,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 3,
+     "lk": [
+      {
+       "a": 1048597
+      },
+      {
+       "a": 1048598,
+       "c": 1048599
+      }
+     ]
+    },
+    {
+     "s": 4,
+     "c": 1048600,
+     "n": "name 25",
+     "a": 1048602,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 4,
+     "lk": [
+      {
+       "a": 1048603
+      },
+      {
+       "a": 1048604,
+       "c": 1048605
+      }
+     ]
+    },
+    {
+     "s": 5,
+     "c": 1048606,
+     "n": "name 31",
+     "a": 1048608,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 5,
+     "lk": [
+      {
+       "a": 1048609,
+       "c": 1048610
+      },
+      {
+       "a": 1048611
+      }
+     ]
+    },
+    {
+     "s": 6,
+     "c": 1048612,
+     "n": "name 37",
+     "a": 1048614,
+     "U": 25000,
+     "D": 25000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 6,
+     "lk": [
+      {
+       "a": 1048615,
+       "c": 1048616
+      },
+      {
+       "a": 1048617
+      }
+     ]
+    },
+    {
+     "s": 7,
+     "c": 1048618,
+     "n": "name 43",
+     "a": 1048620,
+     "U": 25000,
+     "D": 25000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 7,
+     "lk": [
+      {
+       "a": 1048621,
+       "c": 1048622
+      },
+      {
+       "a": 1048623
+      }
+     ]
+    },
+    {
+     "s": 8,
+     "c": 1048624,
+     "n": "name 49",
+     "a": 1048626,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 8,
+     "lk": [
+      {
+       "a": 1048627,
+       "c": 1048628
+      },
+      {
+       "a": 1048629
+      }
+     ]
+    },
+    {
+     "s": 9,
+     "c": 1048630,
+     "n": "name 55",
+     "a": 1048632,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 9,
+     "lk": [
+      {
+       "a": 1048633,
+       "c": 1048634
+      },
+      {
+       "a": 1048635
+      }
+     ]
+    },
+    {
+     "s": 10,
+     "c": 1048636,
+     "n": "name 61",
+     "a": 1048638,
+     "U": 18000,
+     "D": 19000,
+     "Y": 7000,
+     "i": 1,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "ig": 1,
+     "o": 10,
+     "lk": [
+      {
+       "a": 1048639,
+       "c": 1048640
+      },
+      {
+       "a": 1048641
+      }
+     ]
+    }
+   ],
+   "G": [
+    {
+     "g": 1,
+     "n": "name 66",
+     "a": 1048643,
+     "c": 1048644,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "o": 1,
+     "ls": [
+      5,
+      7,
+      6,
+      8,
+      9,
+      10,
+      4,
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "g": 2,
+     "n": "name 69",
+     "a": 1048646,
+     "c": 1048647,
+     "bl": 80,
+     "pr": 1,
+     "fc": 1,
+     "o": 2,
+     "ls": [
+      7,
+      6,
+      5
+     ]
+    }
+   ],
+   "Z": {
+    "fr": 148760,
+    "mx": 77812,
+    "mn": 102424,
+    "to": 294616,
+    "up": 30144,
+    "lp": 2862,
+    "lx": 106737,
+    "sd": "ssid 72",
+    "sg": -52,
+    "ch": 6
+   }
+  }
+ },
+ {
+  "v": 2,
+  "t": 5,
+  "d": {}
+ }
+]

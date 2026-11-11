@@ -1,25 +1,42 @@
+[![Release](https://img.shields.io/github/v/release/cjkas/ESPSomfy-RTS)](https://github.com/cjkas/ESPSomfy-RTS/releases/latest) [![Build](https://github.com/cjkas/ESPSomfy-RTS/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/cjkas/ESPSomfy-RTS/actions/workflows/build.yaml) [![CodeQL](https://github.com/cjkas/ESPSomfy-RTS/actions/workflows/codeql.yaml/badge.svg?branch=main)](https://github.com/cjkas/ESPSomfy-RTS/actions/workflows/codeql.yaml) [![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://cjkas.github.io/ESPSomfy-RTS/)
+
 # ESPSomfy-RTS <image src="https://user-images.githubusercontent.com/47839015/218898940-3541b360-5c49-4e38-a918-392cd0408b76.png" align="right" style="width:177px;display:inline-block;float:right"></image>
 
-A controller for Somfy RTS blinds and shades that supports up to 32 individual shades and 16 groups over 433MHz RTx protocols.  If you have IO Home Control motors this project is not for you but you can use the IO Remote protocol to connect the ESPSomfy RTS device to a disected remote.  Look in the [Wiki](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Controlling-Motors-with-GPIO) for options and verify whether the solution is workable for you.
+Control Somfy RTS shades, blinds, awnings and shutters from an ESP32 and a CC1101 radio, about $12 in parts. It runs up to 32 shades and 16 groups, keeps track of their positions even when you use your old Somfy remote, and talks to Home Assistant, MQTT, Node-RED and your own scripts.
 
-Most of the 433MHz protocols are supported to include RTS, RTW, RTV/L and 433.92MHz radio transceivers.  You can even mix and match these on the same device as long as the base frequency is tuned within the same range.  For instance, you cannot have 433.92MHz and 433.42MHz motors on the same device.
+This is the maintained continuation of [rstrouse/ESPSomfy-RTS](https://github.com/rstrouse/ESPSomfy-RTS), which has had no commits since August 2024.
 
-If you have bare motors you can control these with a connected relay module using a simple configuration.  So if you have a bunch of motors that don't have any radio module then I have you covered there as well.  When you are done you can use any of the supported remotes for RTS, RTW, or RTV protocols on the 433MHz range.
+## What's new compared to rstrouse's version
 
-## Why does this exist?
-Most of my home is automated and one of the more annoying aspects was that there were three very expensive patio roller shades that still didn't have any type of automation attached to them.  Since they were on the patio I had to run around on the patio looking for the Telis torpedo remote any time I wanted to move the outside shades.  I have a rather large patio and the shades do a really good job at keeping the hot late afternoon sun from baking the house.  These little remotes are sneaky and they tend to hide in plain sight and often move just out of reach when you are relaxing so that you have to extract your butt from your chair.  Imagine just barking out commands at them and having them just work.
+* **No more random restarts.** The web server and sockets are asynchronous, which fixed the watchdog resets.
+* **More boards.** ESP32, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6 and ESP32-P4, on Arduino 3 and ESP-IDF 5.5.
+* **One port, one socket.** Since 4.0.0 the web UI, the API and the events all run on port 80, see [API and ports](#api-and-ports).
+* **Secured means secured.** With a PIN or password set, every route and the socket need a login, see [SECURITY.md](SECURITY.md).
+* **Backups don't wear out the flash.** They are built in RAM, not written to LittleFS.
+* **Verifiable releases.** Every release file comes with a checksum and a signed build attestation.
+* **A maintained Home Assistant integration**: [cjkas/ESPSomfy-RTS-HA](https://github.com/cjkas/ESPSomfy-RTS-HA), installed through HACS.
 
-So I went searching for libraries that could automate my shades and relieve me from damning the torpedo.  I didn't just want to move them I wanted to interact with them and manage their position.  And because that Telis torpedo has been with me for so long I still wanted to be able to use that sneaky bugger as well.
+## Install
 
-The research led me to several projects that looked like they would do what I want.  Most of them however, could send commands using a CC1101 radio attached to an ESP32 but I really wanted to be able to capture information from any external remotes as well.  In the end I did not find what I wanted so this repository was born. ESPSomfy RTS is capable of not only controlling the shades but it can also manage the current position even when an old school remote is used to move the shades.
+1. Build the radio device: an ESP32 and a CC1101 connected with Dupont wires, no soldering needed. See the [Simple Hardware Guide](https://github.com/cjkas/ESPSomfy-RTS/wiki/Simple-ESPSomfy-RTS-device).
+2. Download `SomfyController.onboard.<chip>.bin.zip` for your chip from the [latest release](https://github.com/cjkas/ESPSomfy-RTS/releases/latest). It holds the whole image: bootloader, partitions, firmware and web UI.
+3. Flash it over USB with the [Firmware Guide](https://github.com/cjkas/ESPSomfy-RTS/wiki/Installing-the-Firmware), connect the device to your network and pair your shades with [Configuring ESPSomfy-RTS](https://github.com/cjkas/ESPSomfy-RTS/wiki/Configuring-the-Software).
 
-This software uses a couple of readily available hardware components.  These include an ESP32 module and a CC1101 Transceiver module.  The CC1101 is connected via SPI to the ESP32 and controlled using SmartRC-CC1101-Driver library.  All in at the start of 2023 the total cost for me was about $12us for the final components.
+Later updates go through the device's web UI with the `SomfyController.ino.<chip>.bin` and `SomfyController.littlefs.<chip>.bin` files, see [Updating ESPSomfy RTS](https://github.com/cjkas/ESPSomfy-RTS/wiki/Updating-ESPSomfy-RTS). ESP32-C5 and ESP32-C6 have no room for a second firmware, so they are always updated over USB.
 
-# ESPSomfy RTS Device Updates
-If you are here looking for how to install the latest software on your device. The wiki for instructions on how to do this is located here. [Updating ESPSomfy RTS](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Updating-ESPSomfy-RTS)
+**Coming from rstrouse's firmware or 3.x?** An update from the old web UI to 4.x fails. Take a backup, flash the onboard image over USB and restore the backup: see [From 3.x to 4.0.0](https://github.com/cjkas/ESPSomfy-RTS/wiki/Installing-the-Firmware#from-3x-to-400-flash-over-usb). Update the Home Assistant integration to 3.0.1 or newer first.
 
-# Functionality
-After you get this up and running you will have the ability to interact with your shades using the built-in web interface, socket interface, and MQTT.  There is also a full [Home Assistant integration](https://github.com/rstrouse/ESPSomfy-RTS-HA) that can be installed through HACS that can control your shades remotely and provide automations.
+If you have IO Home Control motors this project can't talk to them over the air, but you can wire the device to a dissected IO remote. See [Controlling Motors with GPIO](https://github.com/cjkas/ESPSomfy-RTS/wiki/Controlling-Motors-with-GPIO) to check whether that works for you.
+
+## Supported motors
+
+Most 433 MHz Somfy protocols work: RTS, RTW, RTV/L and 433.92 MHz transceivers. You can mix them on one device as long as they share a base frequency; 433.92 MHz and 433.42 MHz motors can't be on the same device.
+
+Bare motors without a radio module work through a relay module, and you can then pair any RTS, RTW or RTV remote with them.
+
+## Functionality
+
+The device has a built-in web interface, a socket interface and MQTT.
 
 ![image](https://user-images.githubusercontent.com/47839015/224559426-c81422c0-cdfe-45f9-a9c2-0c727619cdf9.png)
 
@@ -33,52 +50,54 @@ After you get this up and running you will have the ability to interact with you
 * Set blind tilt by percentage
 * Control Awning Sun/Wind Sensors
 
-## Moving a Shade
-You can move the shade to the full up position by clicking the up button.  To stop the shade during travel, press the my button and the shade will stop.  To move the shade to the full down position press the down button.  At any point during the movement you can press the my button to stop the shade.
+### Moving a shade
+Click the up button to move the shade to the full up position and the down button for full down. Press the my button during travel to stop the shade.
 
-If you would like to move the shade to a favorite position.  Press the my button while the shade is at rest and the shade will move to the position set for the my button.  These are displayed under the shade name so you do not have to guess what the current favorite is set to.
+Press the my button while the shade is at rest and it moves to its favorite position. The favorite is shown under the shade name.
 
-To move a shade to a target percentage of closed, click or tap on the shade icon.  An interface will open that will allow you to select the position using a slider control.  Move the slider to the desired position.  When you release the slider the shade will begin to open or close to reach the desired position.  You can change this position even when the shade is moving.
+To move a shade to a percentage, click or tap its icon and drag the slider. The shade starts moving when you release the slider, and you can change the target while it moves.
 
 ![image](https://user-images.githubusercontent.com/47839015/224559596-aa98d015-ee74-41f1-a852-3018f861e354.png)
 
+### Setting a favorite
+You can set the my position from ESPSomfy RTS or from your Somfy remote: ESPSomfy RTS listens for the long press of the my button. If a favorite was set before you installed ESPSomfy RTS, reset it from ESPSomfy RTS, because Somfy uses the same command to set and unset it.
 
-## Setting a Favorite
-To set your favorite my position you can either use the ESPSomfy RTS interface or your Somfy remote.  ESPSomfy RTS listens for the long press of the my button so if you use the remote it will pick up this favorite.  However, if you previously had a favorite set before installing ESPSomfy RTS you should reset it using ESPSomfy RTS.  Somfy uses the same command to set and unset its favorites.
-
-To set or unset a favorite long press the my button.  After a few seconds a screen like below will appear.  ESPSomfy RTS allows you to set a favorite by position, so you can drag the slider to 37% and press the `SET MY POSITION` button.  After pressing the button the shade will move to that position and jog briefly indicating that the favorite has been saved.
+Long press the my button. After a few seconds the screen below opens. Drag the slider to, say, 37% and press `SET MY POSITION`. The shade moves there and jogs briefly to show the favorite is saved.
 
 ![image](https://user-images.githubusercontent.com/47839015/224559730-859d3f9c-177c-46c3-9fb4-1a7df2cac505.png)
 
-To unset a favorite perform the long press on the my button to open the favorites interface.  Then move the slider to the current my position and the button will turn red and the text will change to `CLEAR MY POSITION`.  Once you press the button the shade will jog indicating that the favorite has been cleared.
+To clear it, long press the my button again and move the slider to the current my position. The button turns red and reads `CLEAR MY POSITION`. Press it and the shade jogs to show the favorite is cleared.
 
 ![image](https://user-images.githubusercontent.com/47839015/224559837-ad28b843-49ab-468c-8b8c-1ad470775750.png)
 
-# Getting Started
-To get started you must create a radio device.  The wiki contains full instructions on how to get this up and running.  You don't need a soldering iron to make this project work. Dupont connections between the radio and the ESP32 will suffice.  However, I have also included some instructions on how to make an inconspicuous radio enclosure for a few bucks.  Here is the [Simple Hardware Guide](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Simple-ESPSomfy-RTS-device)
-
-Next you need to get the initial firmware installed onto the ESP32.  Once the firmware built and installed for your ESP32.  The firmware installation process is a matter of uploading the onboard file to your ESP32.  You will find the firmware guide in the wiki [Firmware Guide](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Installing-the-Firmware)
-
-Once you have your hardware built, the only thing left to do is connect the ESP32 to your network and begin pariing your shades.  The software guide in the wiki will walk you through pairing your shades, linking remotes, and configuring your shades.  The wiki also includes a comprehensive software guide that you can use to configure your shades.  The good news is that this process is pretty easy to follow and you can be up and running very quickly.
-
-[Configuring ESPSomfy-RTS](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Configuring-the-Software)
-
-
 ## Integrations
-While the interface that comes with the ESPSomfy RTS is a huge improvement, the whole idea of this project is to make the shades controllable from everywhere that I want to control them.  So for that I created a couple of interfaces that you can use to bolt on your own automation.  These options are for those people that have a propeller on their hat.  They do things make red nodes (using Node-Red) or have their own web interface.
+* **Home Assistant**: [cjkas/ESPSomfy-RTS-HA](https://github.com/cjkas/ESPSomfy-RTS-HA), 3.0.1 or newer for firmware 4.x. Or use MQTT discovery.
+* **MQTT, Node-RED and scripts**: see the [Integrations](https://github.com/cjkas/ESPSomfy-RTS/wiki/Integrations) wiki page.
 
-You can find the documentation for the interfaces in the [Integrations](https://github.com/rstrouse/ESPSomfy-RTS/wiki/Integrations) wiki.  Plenty of stuff there for you folks that make red nodes and stuff.
-  
-## Sources for this Project
-I spent some time reading about a myriad of topics but in the end the primary source for this project comes from https://pushstack.wordpress.com/somfy-rts-protocol/.  The work done on pushstack regarding the protocol timing made this feasible without burning a bunch of time measuring pulses.  
-  
-Configuration of the Transceiver is done with the ELECHOUSE_CC1101 library which you will need to include in your project should you want to compile the code.  The one used for compiling this module can be found here. https://github.com/LSatan/SmartRC-CC1101-Driver-Lib
+### API and ports
+Since 4.0.0 everything is on port 80. Ports 8081 (HTTP API) and 8080 (events socket) are gone, and so are the HTTP routes the old web UI called.
 
-  
- 
+| What | Where |
+|---|---|
+| Web UI | `http://<device>/` |
+| Commands for scripts and Node-RED | `/shadeCommand`, `/groupCommand` and `/tiltCommand`, with the same fields as before, as query parameters or a JSON body |
+| Login | `/loginContext` (the security mode), then `/login`, which returns the token in `apiKey` |
+| Backup and restore | `/backup`, `/restore` |
+| Firmware and web UI updates | `/updateFirmware`, `/updateApplication` |
+| Everything else: state, events, edits, settings | the socket at `ws://<device>/ws`, see [docs/PROTOCOL.md](docs/PROTOCOL.md) |
 
+A script that called port 8081 only changes the port, if it used one of the three commands. Reads such as `/controller`, `/shades` and `/discovery` are gone: use the socket, or MQTT. The Home Assistant integration needs version 3.0.1 or newer.
 
+When the device is Secured (a PIN or password), every route above except the web UI and the login routes needs the token, in an `apikey` header; the socket takes it as `?apikey=<token>`. Without it the reply is 401. "Secure Config Only" is gone: a device set to it is Secured from 4.0.0, so scripts that sent commands without logging in now need the token.
 
+In either mode the socket refuses an upgrade whose `Origin` header doesn't name the host it was sent to, so another site's page can't open it. Behind a reverse proxy, pass the `Host` header through unchanged.
 
+## Building
+The firmware builds on [pioarduino](https://github.com/pioarduino/platform-espressif32) (Arduino 3.x on ESP-IDF 5.5), not the stock PlatformIO platform. In VS Code use the **pioarduino IDE** extension instead of PlatformIO IDE. On the command line, `pip install pioarduino` gives you `pio`. Run the unit tests with `pio test -e native`. [ADR 0003](docs/adr/0003-pioarduino-idf55.md) explains why.
 
+Bugs and ideas go to the [issues](https://github.com/cjkas/ESPSomfy-RTS/issues); security problems go through [SECURITY.md](SECURITY.md).
 
+## Credits
+* [rstrouse](https://github.com/rstrouse) wrote ESPSomfy RTS, its web UI, the Home Assistant integration and most of the wiki. This repo builds on that work.
+* The Somfy RTS protocol timing comes from [pushstack](https://pushstack.wordpress.com/somfy-rts-protocol/).
+* The CC1101 is driven by the [SmartRC-CC1101-Driver-Lib](https://github.com/LSatan/SmartRC-CC1101-Driver-Lib).

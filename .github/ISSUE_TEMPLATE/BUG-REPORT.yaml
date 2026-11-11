@@ -67,7 +67,12 @@ body:
     id: logs
     attributes:
       label: "Logs"
-      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      description: |
+        Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+        > After a crash, include the whole panic: the `Guru Meditation Error` line, the `Backtrace:` line and the `ELF file SHA256:` line.
+        > Each release has a `SomfyController.ino.<chip>.elf.zip` that decodes the backtrace:
+        > `xtensa-esp32s3-elf-addr2line -pfiaC -e SomfyController.ino.esp32s3.elf <backtrace addresses>`
+        > (`riscv32-esp-elf-addr2line` on the C3, C5, C6 and P4).
       render: bash
     validations:
       required: false
